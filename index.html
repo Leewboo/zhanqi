@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三国战棋</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <h1>三国战棋</h1>
+      <div id="turn-info" class="turn-info">回合 1 · 红方</div>
+    </header>
+
+    <main class="main">
+      <aside class="side left">
+        <h2>红方</h2>
+        <div id="supply-red" class="supply">粮草：0 / 8</div>
+        <ul id="list-red" class="general-list"></ul>
+      </aside>
+
+      <section class="board-wrap">
+        <div id="board" class="board"></div>
+        <div id="log" class="log"></div>
+      </section>
+
+      <aside class="side right">
+        <h2>蓝方</h2>
+        <div id="supply-blue" class="supply">粮草：0 / 8</div>
+        <ul id="list-blue" class="general-list"></ul>
+      </aside>
+    </main>
+
+    <section id="detail" class="detail hidden">
+      <div class="detail-inner">
+        <h2 id="d-name">—</h2>
+        <div id="d-stats" class="stats"></div>
+        <div id="d-skill" class="skill-box"></div>
+        <div class="actions">
+          <button id="btn-move">移动</button>
+          <button id="btn-attack">攻击</button>
+          <button id="btn-skill">技能</button>
+          <button id="btn-wait">待机</button>
+          <button id="btn-cancel">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="banner" class="banner hidden">
+      <div class="banner-inner">
+        <h2 id="banner-title">胜利</h2>
+        <button id="btn-restart">重新开始</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/range.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/skills.js"></script>
+  <script src="js/generals.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
