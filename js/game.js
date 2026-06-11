@@ -2,6 +2,35 @@
   const SIZE = Range.BOARD_SIZE;
   const SUPPLY_MAX = 8;
 
+  const TERRAIN_NAMES = {
+    plain: '',
+    m: '林',
+    f: '田',
+    r: '江',
+    w: '城'
+  };
+
+  const LANDMARK_NAMES = {};
+
+  function _registerLandmarks() {
+    // 历史地名：魏（北/东）、蜀（南/西）
+    const mark = (x, y, name) => { LANDMARK_NAMES[y + ',' + x] = name; };
+    // 魏国（蓝方）
+    mark(0, 0, '长安'); mark(1, 0, '长安'); mark(0, 1, '长安');
+    mark(7, 0, '洛阳'); mark(8, 0, '洛阳');
+    mark(10, 0, '许都'); mark(11, 0, '许都'); mark(10, 1, '许都'); mark(11, 1, '许都');
+    mark(9, 5, '荆州');
+    // 蜀国（红方）
+    mark(0, 4, '汉中'); mark(1, 4, '汉中');
+    mark(4, 10, '江州');
+    mark(0, 11, '成都'); mark(1, 11, '成都'); mark(2, 11, '成都'); mark(0, 10, '成都');
+    mark(5, 11, '永安'); mark(6, 11, '永安');
+    // 地形提示
+    mark(5, 2, '秦岭'); mark(6, 2, '秦岭'); mark(4, 3, '秦岭'); mark(5, 3, '秦岭');
+    mark(5, 6, '长江'); mark(6, 6, '长江'); mark(7, 6, '长江'); mark(4, 7, '长江');
+  }
+  _registerLandmarks();
+
   function buildTerrain() {
     const map = [];
     for (let y = 0; y < SIZE; y++) {
@@ -11,12 +40,30 @@
       }
     }
     const set = (x, y, t) => { if (Range.inBounds(x, y)) map[y][x] = t; };
-    [[4,4],[5,4],[4,5],[7,7],[8,7],[7,8]].forEach(p => set(p[0], p[1], 'm'));
-    [[2,6],[3,6],[2,7]].forEach(p => set(p[0], p[1], 'f'));
-    [[9,4],[9,5],[10,5]].forEach(p => set(p[0], p[1], 'f'));
-    [[5,9],[6,9],[5,10],[6,10],[5,2],[6,2]].forEach(p => set(p[0], p[1], 'r'));
-    [[0,0],[1,0],[0,1],[11,11],[10,11],[11,10]].forEach(p => set(p[0], p[1], 'w'));
+    // 城池 w（魏：长安 / 洛阳 / 许都 / 荆州）（蜀：汉中 / 成都 / 永安 / 江州）
+    [[0,0],[1,0],[0,1]].forEach(p => set(p[0], p[1], 'w'));
+    [[7,0],[8,0]].forEach(p => set(p[0], p[1], 'w'));
+    [[10,0],[11,0],[10,1],[11,1]].forEach(p => set(p[0], p[1], 'w'));
+    [[9,5]].forEach(p => set(p[0], p[1], 'w'));
+    [[0,4],[1,4]].forEach(p => set(p[0], p[1], 'w'));
+    [[4,10]].forEach(p => set(p[0], p[1], 'w'));
+    [[0,11],[1,11],[2,11],[0,10]].forEach(p => set(p[0], p[1], 'w'));
+    [[5,11],[6,11]].forEach(p => set(p[0], p[1], 'w'));
+    // 山地森林 m（秦岭山脉 + 若干零散山林）
+    [[4,0],[5,0],[4,1],[5,2],[6,2],[3,3],[4,3],[5,3],[7,3],[8,3],[9,3]].forEach(p => set(p[0], p[1], 'm'));
+    [[2,4],[3,4],[7,4],[8,4],[9,4],[2,5],[8,5]].forEach(p => set(p[0], p[1], 'm'));
+    [[3,9],[4,9],[7,9],[8,9],[7,10]].forEach(p => set(p[0], p[1], 'm'));
+    // 河流 r（长江横贯中部偏南）
+    [[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7]].forEach(p => set(p[0], p[1], 'r'));
+    // 农田 f（南方富饶地区）
+    [[2,8],[3,8],[2,9],[7,8],[8,8],[9,8],[3,10],[5,10],[6,10]].forEach(p => set(p[0], p[1], 'f'));
     return map;
+  }
+
+  function terrainLabel(x, y) {
+    const key = y + ',' + x;
+    if (LANDMARK_NAMES[key]) return LANDMARK_NAMES[key];
+    return '';
   }
 
   function terrainMoveCost(t) {
@@ -77,14 +124,30 @@
     _deploy() {
       const reds = Generals.list.filter(g => g.color === 'red');
       const blues = Generals.list.filter(g => g.color === 'blue');
-      const positionsRed = [[1,1],[2,1],[1,2],[3,1],[2,2],[1,3]];
-      const positionsBlue = [[10,10],[9,10],[10,9],[8,10],[9,9],[10,8]];
+      // 蜀（红）方：围绕成都/汉中/永安部署（棋盘下方/左下方）
+      const positionsRed = [
+        [1, 10], // 刘备 成都
+        [2, 10], // 关羽 江州前线
+        [1, 11], // 张飞 成都
+        [0, 9],  // 赵云 汉中前线
+        [3, 11], // 诸葛亮 成都附近
+        [4, 11]  // 黄忠 江州
+      ];
+      // 魏（蓝）方：围绕许都/洛阳/长安部署（棋盘上方/右上方）
+      const positionsBlue = [
+        [11, 1], // 曹操 许都
+        [10, 1], // 夏侯惇 许都
+        [9, 1],  // 典韦 洛阳前线
+        [8, 1],  // 许褚 洛阳
+        [11, 2], // 司马懿 许都前
+        [10, 2]  // 张辽 荆州方向
+      ];
       reds.forEach((g, i) => {
-        const [x, y] = positionsRed[i] || [i % 4, Math.floor(i / 4)];
+        const [x, y] = positionsRed[i] || [i % 4, 11 - Math.floor(i / 4)];
         this.pieces.push(Generals.buildPiece(g, 'red', x, y));
       });
       blues.forEach((g, i) => {
-        const [x, y] = positionsBlue[i] || [SIZE - 1 - (i % 4), SIZE - 1 - Math.floor(i / 4)];
+        const [x, y] = positionsBlue[i] || [SIZE - 1 - (i % 4), Math.floor(i / 4)];
         this.pieces.push(Generals.buildPiece(g, 'blue', x, y));
       });
     },
@@ -100,6 +163,22 @@
           if (t && t !== 'plain') c.classList.add('terrain-' + t);
           c.dataset.x = x;
           c.dataset.y = y;
+          const landmark = terrainLabel(x, y);
+          if (landmark) {
+            const lb = document.createElement('span');
+            lb.className = 'terrain-label';
+            lb.textContent = landmark;
+            c.appendChild(lb);
+          } else if (t && TERRAIN_NAMES[t]) {
+            const lb = document.createElement('span');
+            lb.className = 'terrain-label';
+            lb.textContent = TERRAIN_NAMES[t];
+            c.appendChild(lb);
+          }
+          const coord = document.createElement('span');
+          coord.className = 'coord-label';
+          coord.textContent = x + ',' + y;
+          c.appendChild(coord);
           this.boardEl.appendChild(c);
         }
       }
@@ -130,6 +209,9 @@
       };
       document.getElementById('detail-close').onclick = () => {
         document.getElementById('detail-modal').classList.add('hidden');
+      };
+      document.getElementById('btn-detail').onclick = () => {
+        if (this.selected) this.openDetail(this.selected);
       };
     },
 
@@ -163,6 +245,14 @@
       addRow('攻击范围', rangeText);
       addRow('粮草占用', '共用（本方粮草 ' + this.supply[piece.side] + ' / 8）');
       addRow('本回合状态', piece.acted ? '已行动' : '可行动');
+      const tHere = this.terrain[piece.y][piece.x];
+      const tName = tHere === 'plain' ? '平原' : TERRAIN_NAMES[tHere] || '—';
+      const landmark = terrainLabel(piece.x, piece.y);
+      let tInfo = tName;
+      if (landmark && landmark !== tName) tInfo += '（' + landmark + '）';
+      if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
+      if (terrainMoveCost(tHere) > 1) tInfo += ' · 移动消耗' + terrainMoveCost(tHere);
+      addRow('当前位置', tInfo);
       if (piece.skill) {
         const sk = piece.skill;
         const block = document.createElement('div');
@@ -461,25 +551,20 @@
         if (piece) {
           const p = document.createElement('div');
           p.className = 'piece ' + piece.side + (piece.acted ? ' acted' : '');
-          p.textContent = piece.name[0];
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'p-name';
+          nameSpan.textContent = piece.name[0];
+          p.appendChild(nameSpan);
+          const hpNum = document.createElement('span');
+          hpNum.className = 'hp-num';
+          hpNum.textContent = piece.hp;
+          p.appendChild(hpNum);
           const bar = document.createElement('div');
           bar.className = 'hp-bar';
           const inner = document.createElement('span');
           inner.style.width = Math.max(0, Math.min(100, (piece.hp / piece.maxHp) * 100)) + '%';
           bar.appendChild(inner);
           p.appendChild(bar);
-
-          const dot = document.createElement('div');
-          dot.className = 'info-dot';
-          dot.textContent = 'i';
-          dot.title = '查看详情';
-          const self = this;
-          dot.addEventListener('click', function (ev) {
-            ev.stopPropagation();
-            self.openDetail(piece);
-          });
-          p.appendChild(dot);
-
           el.appendChild(p);
         }
       }
@@ -492,11 +577,13 @@
       const atkBtn = document.getElementById('btn-attack');
       const skBtn = document.getElementById('btn-skill');
       const waitBtn = document.getElementById('btn-wait');
+      const detailBtn = document.getElementById('btn-detail');
       const a = this.selected;
       if (!a) {
         nameEl.textContent = '未选择棋子';
         statsEl.textContent = '';
         moveBtn.disabled = atkBtn.disabled = skBtn.disabled = waitBtn.disabled = true;
+        if (detailBtn) detailBtn.disabled = true;
         return;
       }
       nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
@@ -515,6 +602,7 @@
       atkBtn.disabled = !!(acted || lowSupply);
       skBtn.disabled = !!(acted || !a.skill || !a.skill.filter(a));
       waitBtn.disabled = !!acted;
+      if (detailBtn) detailBtn.disabled = false;
     },
 
     _renderSideList() {

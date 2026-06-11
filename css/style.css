@@ -199,6 +199,27 @@ html, body {
   height: var(--cell-size);
 }
 
+.cell .terrain-label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: rgba(0,0,0,0.55);
+  pointer-events: none;
+  font-weight: 600;
+}
+
+.cell .coord-label {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 9px;
+  color: rgba(0,0,0,0.25);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
 .cell.alt { background: var(--cell-alt); }
 .cell.terrain-m { background: var(--terrain-m); }
 .cell.terrain-f { background: var(--terrain-f); }
@@ -220,30 +241,40 @@ html, body {
 .cell.sel { background: var(--cell-sel); }
 
 .piece {
-  width: calc(var(--cell-size) - 14px);
-  height: calc(var(--cell-size) - 14px);
-  border-radius: 50%;
+  width: calc(var(--cell-size) - 8px);
+  height: calc(var(--cell-size) - 8px);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   color: #fff;
-  font-size: 16px;
-  border: 1px solid rgba(0,0,0,0.25);
+  font-size: 15px;
+  border: 2px solid rgba(0,0,0,0.25);
   position: relative;
+  flex-direction: column;
+  padding-bottom: 4px;
 }
 
 .piece.red { background: var(--red); }
 .piece.blue { background: var(--blue); }
-.piece.acted { opacity: 0.45; }
+.piece.acted { opacity: 0.5; }
+
+.piece .p-name {
+  font-size: 14px;
+  line-height: 1;
+  margin-top: 2px;
+}
 
 .piece .hp-bar {
   position: absolute;
-  bottom: -6px;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: rgba(255,255,255,0.4);
+  bottom: 3px;
+  left: 4px;
+  right: 4px;
+  height: 5px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 1px;
+  overflow: hidden;
 }
 
 .piece .hp-bar > span {
@@ -252,29 +283,12 @@ html, body {
   background: #fff;
 }
 
-.piece .info-dot {
+.piece .hp-num {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  color: var(--fg);
-  border: 1px solid var(--line);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 14px;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  font-family: "Georgia", serif;
-}
-
-.piece .info-dot:active {
-  background: var(--cell-alt);
+  bottom: 10px;
+  font-size: 10px;
+  opacity: 0.9;
+  letter-spacing: 0;
 }
 
 /* 详情弹窗 */
@@ -376,16 +390,30 @@ html, body {
   margin-bottom: 8px;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  min-height: 18px;
+  min-height: 24px;
 }
 
 .selected-info .s-name {
   color: var(--fg);
   font-weight: 600;
+  flex: 0 0 auto;
 }
 
 .selected-info .s-sep { opacity: 0.4; }
+
+.selected-info .s-stats {
+  flex: 1 1 auto;
+  color: var(--muted);
+}
+
+.selected-info .act-btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-left: auto;
+}
 
 .actions {
   display: grid;
