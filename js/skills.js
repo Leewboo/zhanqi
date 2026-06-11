@@ -7,7 +7,7 @@
       cooldown: 2,
       desc: '本回合攻击力提升 30，持续至本回合结束。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         actor.atkBuff = (actor.atkBuff || 0) + 30;
@@ -25,7 +25,7 @@
       rangeShape: '+',
       rangeN: 4,
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {
@@ -55,7 +55,7 @@
       cooldown: 2,
       desc: '圆形 3 格范围内为己方单位回复 80 生命。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         const area = Range.circle(3, actor.x, actor.y, { includeSelf: true });
@@ -78,7 +78,7 @@
       cooldown: 3,
       desc: '圆形 5 格范围对所有敌人造成 0.8 倍攻击伤害。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         const area = Range.circle(5, actor.x, actor.y, { includeSelf: false });
@@ -101,7 +101,7 @@
       cooldown: 2,
       desc: '防御提升 25，持续 2 回合。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         actor.defBuff = (actor.defBuff || 0) + 25;
@@ -117,7 +117,7 @@
       cooldown: 3,
       desc: '十字 3 格范围内选中敌人造成 2 倍攻击伤害。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {
@@ -138,7 +138,7 @@
       cooldown: 3,
       desc: '方形 2 格范围选中敌人，造成 1.8 倍攻击伤害并击退。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && actor.supply >= this.cost;
+        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {

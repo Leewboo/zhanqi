@@ -178,8 +178,8 @@
       this.highlighted = [];
 
       if (mode === 'move') {
-        if (actor.supply < 1) {
-          this.log(actor.name + ' 粮草不足，无法移动。');
+        if (this.supply[actor.side] < 1) {
+          this.log('我方粮草不足，无法移动。');
           this.mode = null;
           this._renderDetail();
           return;
@@ -187,8 +187,8 @@
         const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange, this);
         this.highlighted = cells.map(c => ({ x: c.x, y: c.y, kind: 'move' }));
       } else if (mode === 'attack') {
-        if (actor.supply < 1) {
-          this.log(actor.name + ' 粮草不足，无法攻击。');
+        if (this.supply[actor.side] < 1) {
+          this.log('我方粮草不足，无法攻击。');
           this.mode = null;
           this._renderDetail();
           return;
@@ -217,7 +217,7 @@
           this._renderDetail();
           return;
         }
-        actor.supply -= actor.skill.cost || 0;
+        this.supply[actor.side] -= actor.skill.cost || 0;
         if (actor.skill.cooldown) actor.cd = actor.skill.cooldown;
         this.log(actor.name + ' 发动技能：' + actor.skill.name);
         const promise = actor.skill.content(actor);
@@ -240,7 +240,7 @@
         return;
       }
       const actor = this.selected;
-      actor.supply -= 1;
+      this.supply[actor.side] -= 1;
       actor.x = x;
       actor.y = y;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
@@ -260,7 +260,7 @@
       }
       const actor = this.selected;
       const target = this.pieceAt(x, y);
-      actor.supply -= 1;
+      this.supply[actor.side] -= 1;
       const atkVal = actor.atk + (actor.atkBuff || 0);
       const defBonus = terrainDefBonus(this.terrain[target.y][target.x]);
       const origDef = target.def;
@@ -323,17 +323,15 @@
         this.currentSide = 'blue';
         this.pieces.forEach(p => { if (p.side === 'blue') p.acted = false; });
         this.supply.blue = Math.min(SUPPLY_MAX, this.supply.blue + this.turn);
-        this.pieces.forEach(p => { if (p.side === 'blue' && p.alive) p.supply = Math.min(SUPPLY_MAX, p.supply + 1); });
         this.pieces.forEach(p => { if (p.side === 'blue' && p.cd > 0) p.cd -= 1; });
-        this.log('回合 ' + this.turn + ' · 蓝方行动。', 'turn');
+        this.log('回合 ' + this.turn + ' · 蓝方行动（粮草 +' + this.turn + '）。', 'turn');
       } else {
         this.currentSide = 'red';
         this.turn += 1;
         this.pieces.forEach(p => { if (p.side === 'red') p.acted = false; });
         this.supply.red = Math.min(SUPPLY_MAX, this.supply.red + this.turn);
-        this.pieces.forEach(p => { if (p.side === 'red' && p.alive) p.supply = Math.min(SUPPLY_MAX, p.supply + 1); });
         this.pieces.forEach(p => { if (p.side === 'red' && p.cd > 0) p.cd -= 1; });
-        this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
+        this.log('回合 ' + this.turn + ' · 红方行动（粮草 +' + this.turn + '）。', 'turn');
       }
       this._clearSelection();
       this._refreshUi();
@@ -422,7 +420,7 @@
       add('防御', a.def + (a.defBuff ? ' +' + a.defBuff : ''));
       add('移动', a.moveRange);
       add('攻击范围', (a.attackRange.shape === '+' ? '+' : a.attackRange.shape === 'r' ? '圆' : a.attackRange.shape) + a.attackRange.n);
-      add('粮草', a.supply + ' / ' + SUPPLY_MAX);
+      add('本方粮草', this.supply[a.side] + ' / ' + SUPPLY_MAX);
       add('技能冷却', a.cd);
       const sk = document.getElementById('d-skill');
       if (a.skill) {
@@ -438,8 +436,8 @@
       const atkBtn = document.getElementById('btn-attack');
       const skBtn = document.getElementById('btn-skill');
       const waitBtn = document.getElementById('btn-wait');
-      moveBtn.disabled = !!(a.acted || a.supply < 1);
-      atkBtn.disabled = !!(a.acted || a.supply < 1);
+      moveBtn.disabled = !!(a.acted || this.supply[a.side] < 1);
+      atkBtn.disabled = !!(a.acted || this.supply[a.side] < 1);
       skBtn.disabled = !!(a.acted || !a.skill || !a.skill.filter(a));
       waitBtn.disabled = !!a.acted;
     },

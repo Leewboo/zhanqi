@@ -3,8 +3,7 @@
     hp: 200, atk: 50, def: 20,
     moveRange: 4,
     attackRange: { shape: '+', n: 1 },
-    skill: null,
-    supplyPerTurn: 1
+    skill: null
   };
 
   const generals = [
@@ -30,7 +29,6 @@
       maxHp: def.hp,
       alive: true,
       acted: false,
-      supply: 0,
       cd: 0,
       atkBuff: 0,
       defBuff: 0,
