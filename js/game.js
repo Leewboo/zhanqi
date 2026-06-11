@@ -66,14 +66,6 @@
     return '';
   }
 
-  function terrainMoveCost(t) {
-    switch (t) {
-      case 'm': return 2;
-      case 'r': return 99;
-      default: return 1;
-    }
-  }
-
   function terrainDefBonus(t) {
     if (t === 'm') return 10;
     if (t === 'w') return 15;
@@ -196,7 +188,6 @@
       document.getElementById('btn-move').onclick = () => this._enterMode('move');
       document.getElementById('btn-attack').onclick = () => this._enterMode('attack');
       document.getElementById('btn-skill').onclick = () => this._enterMode('skill');
-      document.getElementById('btn-wait').onclick = () => this._waitSelected();
       document.getElementById('btn-cancel').onclick = () => {
         this._clearSelection();
         this._refreshUi();
@@ -263,7 +254,6 @@
       let tInfo = tName;
       if (landmark && landmark !== tName) tInfo += '（' + landmark + '）';
       if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
-      if (terrainMoveCost(tHere) > 1) tInfo += ' · 移动消耗' + terrainMoveCost(tHere);
       addRow('当前位置', tInfo);
       if (piece.skill) {
         const sk = piece.skill;
@@ -365,8 +355,16 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange, this);
-        this.highlighted = cells.map(c => ({ x: c.x, y: c.y, kind: 'move' }));
+        const cells = Range.cellsInRange('square', actor.moveRange, actor.x, actor.y, { includeSelf: false });
+        this.highlighted = [];
+        for (const c of cells) {
+          if (this.pieceAt(c.x, c.y)) continue;
+          this.highlighted.push({ x: c.x, y: c.y, kind: 'move' });
+        }
+        if (!this.highlighted.length) {
+          this.log('移动范围内没有空位。');
+          this.mode = null;
+        }
       } else if (mode === 'attack') {
         if (this.supply[actor.side] < 1) {
           this.log('粮草不足，无法攻击。');
@@ -449,16 +447,6 @@
       target.def = origDef + (target.defBuff || 0) + terrainDefBonus(this.terrain[target.y][target.x]);
       Effect.damage(actor, target, atkVal);
       target.def = origDef;
-      this._finishActorAction();
-    },
-
-    _waitSelected() {
-      if (!this.selected || this.selected.acted) return;
-      const actor = this.selected;
-      // 奖励粮草 +1（上限 8）
-      const before = this.supply[actor.side];
-      this.supply[actor.side] = Math.min(SUPPLY_MAX, before + 1);
-      this.log(actor.name + ' 待机，本方粮草 +1。');
       this._finishActorAction();
     },
 
@@ -588,13 +576,12 @@
       const moveBtn = document.getElementById('btn-move');
       const atkBtn = document.getElementById('btn-attack');
       const skBtn = document.getElementById('btn-skill');
-      const waitBtn = document.getElementById('btn-wait');
       const detailBtn = document.getElementById('btn-detail');
       const a = this.selected;
       if (!a) {
         nameEl.textContent = '未选择棋子';
         statsEl.textContent = '';
-        moveBtn.disabled = atkBtn.disabled = skBtn.disabled = waitBtn.disabled = true;
+        moveBtn.disabled = atkBtn.disabled = skBtn.disabled = true;
         if (detailBtn) detailBtn.disabled = true;
         return;
       }
@@ -613,7 +600,6 @@
       moveBtn.disabled = !!(acted || lowSupply);
       atkBtn.disabled = !!(acted || lowSupply);
       skBtn.disabled = !!(acted || !a.skill || !a.skill.filter(a));
-      waitBtn.disabled = !!acted;
       if (detailBtn) detailBtn.disabled = false;
     },
 
