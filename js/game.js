@@ -213,6 +213,18 @@
       document.getElementById('btn-detail').onclick = () => {
         if (this.selected) this.openDetail(this.selected);
       };
+      document.getElementById('btn-report').onclick = () => {
+        this._renderSideList();
+        document.getElementById('report-modal').classList.remove('hidden');
+        const logEl = document.getElementById('log');
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+      document.getElementById('report-close').onclick = () => {
+        document.getElementById('report-modal').classList.add('hidden');
+      };
+      document.getElementById('btn-supply').onclick = () => {
+        document.getElementById('btn-report').click();
+      };
     },
 
     openDetail(piece) {
@@ -634,6 +646,7 @@
             this.selected = p;
             this.mode = null;
             this.highlighted = [];
+            document.getElementById('report-modal').classList.add('hidden');
             this._render();
             this._renderBottom();
           });
@@ -648,8 +661,9 @@
     _refreshUi() {
       document.getElementById('turn-info').textContent =
         '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+      const sb = document.getElementById('btn-supply');
+      if (sb) sb.textContent = '红 ' + this.supply.red + '/8 · 蓝 ' + this.supply.blue + '/8';
       this._render();
-      this._renderSideList();
       this._renderBottom();
 
       if (this.awaitingCell) return;

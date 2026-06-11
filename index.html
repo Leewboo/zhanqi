@@ -9,24 +9,12 @@
 <body>
   <div id="app">
     <header class="top-bar">
-      <div class="row">
+      <div class="top-row">
         <div class="turn" id="turn-info">回合 1 · 红方</div>
-        <button id="btn-end" class="btn-end">结束回合</button>
-      </div>
-      <div class="row sides">
-        <div class="side-card red">
-          <div class="side-title">红方</div>
-          <div class="side-stat">
-            <span id="supply-red">粮草 0/8</span>
-          </div>
-          <ul id="list-red" class="chip-list"></ul>
-        </div>
-        <div class="side-card blue">
-          <div class="side-title">蓝方</div>
-          <div class="side-stat">
-            <span id="supply-blue">粮草 0/8</span>
-          </div>
-          <ul id="list-blue" class="chip-list"></ul>
+        <div class="top-buttons">
+          <button id="btn-supply" class="act-btn small">红 0/8 · 蓝 0/8</button>
+          <button id="btn-report" class="act-btn small">战报</button>
+          <button id="btn-end" class="act-btn small">结束回合</button>
         </div>
       </div>
     </header>
@@ -35,7 +23,6 @@
       <div class="board-scroll">
         <div id="board" class="board"></div>
       </div>
-      <div id="log" class="log"></div>
     </main>
 
     <footer class="bottom-bar">
@@ -68,6 +55,31 @@
           <button id="detail-close" class="act-btn ghost">关闭</button>
         </div>
         <div id="detail-body" class="detail-modal-body"></div>
+      </div>
+    </section>
+
+    <section id="report-modal" class="report-modal hidden">
+      <div class="report-modal-inner">
+        <div class="report-modal-head">
+          <h3 id="report-title">战报</h3>
+          <button id="report-close" class="act-btn ghost">关闭</button>
+        </div>
+        <div class="report-modal-body">
+          <div class="sides">
+            <div class="side-card red">
+              <div class="side-title">红方</div>
+              <div class="side-stat"><span id="supply-red">粮草 0/8</span></div>
+              <ul id="list-red" class="chip-list"></ul>
+            </div>
+            <div class="side-card blue">
+              <div class="side-title">蓝方</div>
+              <div class="side-stat"><span id="supply-blue">粮草 0/8</span></div>
+              <ul id="list-blue" class="chip-list"></ul>
+            </div>
+          </div>
+          <div class="log-block-title">战斗日志</div>
+          <div id="log" class="log"></div>
+        </div>
       </div>
     </section>
   </div>
