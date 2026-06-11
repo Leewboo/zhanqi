@@ -2,14 +2,6 @@
   const SIZE = Range.BOARD_SIZE;
   const SUPPLY_MAX = 8;
 
-  const TERRAIN_LABEL = {
-    plain: '平',
-    m: '林',
-    f: '田',
-    r: '河',
-    w: '营'
-  };
-
   function buildTerrain() {
     const map = [];
     for (let y = 0; y < SIZE; y++) {
@@ -30,9 +22,7 @@
   function terrainMoveCost(t) {
     switch (t) {
       case 'm': return 2;
-      case 'f': return 1;
       case 'r': return 99;
-      case 'w': return 1;
       default: return 1;
     }
   }
@@ -80,8 +70,8 @@
       this._deploy();
       this._buildDom();
       this._bind();
-      this.log('战斗开始。红方先动。', 'turn');
       this._refreshUi();
+      this.log('战斗开始。红方先动。', 'turn');
     },
 
     _deploy() {
@@ -110,7 +100,6 @@
           if (t && t !== 'plain') c.classList.add('terrain-' + t);
           c.dataset.x = x;
           c.dataset.y = y;
-          c.title = '(' + x + ',' + y + ') ' + (TERRAIN_LABEL[t] || '');
           this.boardEl.appendChild(c);
         }
       }
@@ -129,7 +118,11 @@
       document.getElementById('btn-attack').onclick = () => this._enterMode('attack');
       document.getElementById('btn-skill').onclick = () => this._enterMode('skill');
       document.getElementById('btn-wait').onclick = () => this._waitSelected();
-      document.getElementById('btn-cancel').onclick = () => this._clearSelection();
+      document.getElementById('btn-cancel').onclick = () => {
+        this._clearSelection();
+        this._refreshUi();
+      };
+      document.getElementById('btn-end').onclick = () => { if (!this.over) this.endTurn(); };
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
         document.getElementById('log').innerHTML = '';
@@ -164,11 +157,12 @@
         this.mode = null;
         this.highlighted = [];
         this._render();
-        this._renderDetail();
+        this._renderBottom();
         return;
       }
 
       this._clearSelection();
+      this._renderBottom();
     },
 
     _enterMode(mode) {
@@ -179,18 +173,18 @@
 
       if (mode === 'move') {
         if (this.supply[actor.side] < 1) {
-          this.log('我方粮草不足，无法移动。');
+          this.log('粮草不足，无法移动。');
           this.mode = null;
-          this._renderDetail();
+          this._renderBottom();
           return;
         }
         const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange, this);
         this.highlighted = cells.map(c => ({ x: c.x, y: c.y, kind: 'move' }));
       } else if (mode === 'attack') {
         if (this.supply[actor.side] < 1) {
-          this.log('我方粮草不足，无法攻击。');
+          this.log('粮草不足，无法攻击。');
           this.mode = null;
-          this._renderDetail();
+          this._renderBottom();
           return;
         }
         const cells = Range.cellsInRange(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, { includeSelf: false });
@@ -208,13 +202,13 @@
         if (!actor.skill) {
           this.log('该武将没有主动技能。');
           this.mode = null;
-          this._renderDetail();
+          this._renderBottom();
           return;
         }
         if (!actor.skill.filter(actor)) {
           this.log('技能条件未满足（冷却或粮草不足）。');
           this.mode = null;
-          this._renderDetail();
+          this._renderBottom();
           return;
         }
         this.supply[actor.side] -= actor.skill.cost || 0;
@@ -228,7 +222,7 @@
         return;
       }
       this._render();
-      this._renderDetail();
+      this._renderBottom();
     },
 
     _tryMove(x, y) {
@@ -237,6 +231,7 @@
         this.mode = null;
         this.highlighted = [];
         this._render();
+        this._renderBottom();
         return;
       }
       const actor = this.selected;
@@ -247,7 +242,7 @@
       this.mode = null;
       this.highlighted = [];
       this._render();
-      this._renderDetail();
+      this._renderBottom();
     },
 
     _tryAttack(x, y) {
@@ -256,25 +251,27 @@
         this.mode = null;
         this.highlighted = [];
         this._render();
+        this._renderBottom();
         return;
       }
       const actor = this.selected;
       const target = this.pieceAt(x, y);
       this.supply[actor.side] -= 1;
       const atkVal = actor.atk + (actor.atkBuff || 0);
-      const defBonus = terrainDefBonus(this.terrain[target.y][target.x]);
       const origDef = target.def;
-      target.def = origDef + (target.defBuff || 0) + defBonus;
+      target.def = origDef + (target.defBuff || 0) + terrainDefBonus(this.terrain[target.y][target.x]);
       Effect.damage(actor, target, atkVal);
       target.def = origDef;
-      this.mode = null;
-      this.highlighted = [];
       this._finishActorAction();
     },
 
     _waitSelected() {
       if (!this.selected || this.selected.acted) return;
-      this.log(this.selected.name + ' 待机。');
+      const actor = this.selected;
+      // 奖励粮草 +1（上限 8）
+      const before = this.supply[actor.side];
+      this.supply[actor.side] = Math.min(SUPPLY_MAX, before + 1);
+      this.log(actor.name + ' 待机，本方粮草 +1。');
       this._finishActorAction();
     },
 
@@ -290,8 +287,6 @@
       this.selected = null;
       this.mode = null;
       this.highlighted = [];
-      this._render();
-      document.getElementById('detail').classList.add('hidden');
     },
 
     _checkWin() {
@@ -307,18 +302,7 @@
     },
 
     endTurn() {
-      const actor = this.selected;
-      if (actor) {
-        if (actor.atkBuffTurns) {
-          actor.atkBuffTurns -= 1;
-          if (actor.atkBuffTurns <= 0) { actor.atkBuff = 0; actor.atkBuffTurns = 0; }
-        }
-        if (actor.defBuffTurns) {
-          actor.defBuffTurns -= 1;
-          if (actor.defBuffTurns <= 0) { actor.defBuff = 0; actor.defBuffTurns = 0; }
-        }
-      }
-
+      const cur = this.currentSide;
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => { if (p.side === 'blue') p.acted = false; });
@@ -345,7 +329,6 @@
         const t = this.pieceAt(c.x, c.y);
         if (options.mustEmpty && t) continue;
         if (options.mustEnemy && (!t || !t.alive || t.side === actor.side)) continue;
-        if (options.mustAlly && (!t || t.side !== actor.side)) continue;
         valid.push({ x: c.x, y: c.y, kind: 'skill' });
       }
       if (!valid.length) {
@@ -356,6 +339,7 @@
       this.highlighted = valid;
       this.awaitingCell = (cell) => cb(cell);
       this._render();
+      this._renderBottom();
     },
 
     pieceAt(x, y) {
@@ -370,7 +354,7 @@
       const children = this.boardEl.children;
       for (let i = 0; i < children.length; i++) {
         const el = children[i];
-        el.classList.remove('move', 'attack', 'skill', 'sel', 'hover');
+        el.classList.remove('move', 'attack', 'skill', 'sel');
       }
       for (const h of this.highlighted) {
         const idx = h.y * SIZE + h.x;
@@ -404,70 +388,59 @@
       }
     },
 
-    _renderDetail() {
-      const a = this.selected;
-      const box = document.getElementById('detail');
-      if (!a) { box.classList.add('hidden'); return; }
-      box.classList.remove('hidden');
-      document.getElementById('d-name').textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
-      const stats = document.getElementById('d-stats');
-      stats.innerHTML = '';
-      const add = (k, v) => {
-        const d = document.createElement('div'); d.textContent = k + '：' + v; stats.appendChild(d);
-      };
-      add('生命', a.hp + ' / ' + a.maxHp);
-      add('攻击', a.atk + (a.atkBuff ? ' +' + a.atkBuff : ''));
-      add('防御', a.def + (a.defBuff ? ' +' + a.defBuff : ''));
-      add('移动', a.moveRange);
-      add('攻击范围', (a.attackRange.shape === '+' ? '+' : a.attackRange.shape === 'r' ? '圆' : a.attackRange.shape) + a.attackRange.n);
-      add('本方粮草', this.supply[a.side] + ' / ' + SUPPLY_MAX);
-      add('技能冷却', a.cd);
-      const sk = document.getElementById('d-skill');
-      if (a.skill) {
-        sk.innerHTML = '<b>' + a.skill.name + '</b> ' + (a.skill.type || '') + '（' + (a.skill.cost || 0) + '粮草 / CD ' + (a.skill.cooldown || 0) + '）';
-        const desc = document.createElement('div');
-        desc.textContent = a.skill.desc || '';
-        sk.appendChild(desc);
-      } else {
-        sk.textContent = '无主动技能';
-      }
-
+    _renderBottom() {
+      const nameEl = document.querySelector('#selected-info .s-name');
+      const statsEl = document.querySelector('#selected-info .s-stats');
       const moveBtn = document.getElementById('btn-move');
       const atkBtn = document.getElementById('btn-attack');
       const skBtn = document.getElementById('btn-skill');
       const waitBtn = document.getElementById('btn-wait');
-      moveBtn.disabled = !!(a.acted || this.supply[a.side] < 1);
-      atkBtn.disabled = !!(a.acted || this.supply[a.side] < 1);
-      skBtn.disabled = !!(a.acted || !a.skill || !a.skill.filter(a));
-      waitBtn.disabled = !!a.acted;
+      const a = this.selected;
+      if (!a) {
+        nameEl.textContent = '未选择棋子';
+        statsEl.textContent = '';
+        moveBtn.disabled = atkBtn.disabled = skBtn.disabled = waitBtn.disabled = true;
+        return;
+      }
+      nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
+      const parts = [];
+      parts.push('生命' + a.hp + '/' + a.maxHp);
+      parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
+      parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
+      parts.push('移动' + a.moveRange);
+      if (a.skill) parts.push('技能' + (a.cd > 0 ? '(' + a.cd + ')' : ''));
+      parts.push('本方粮草' + this.supply[a.side]);
+      statsEl.textContent = parts.join(' · ');
+
+      const acted = !!a.acted;
+      const lowSupply = this.supply[a.side] < 1;
+      moveBtn.disabled = !!(acted || lowSupply);
+      atkBtn.disabled = !!(acted || lowSupply);
+      skBtn.disabled = !!(acted || !a.skill || !a.skill.filter(a));
+      waitBtn.disabled = !!acted;
     },
 
     _renderSideList() {
-      const render = (side, elId, supplyId) => {
-        const ul = document.getElementById(elId);
+      const render = (side, ulId, supplyId) => {
+        const ul = document.getElementById(ulId);
         ul.innerHTML = '';
         const items = this.pieces.filter(p => p.side === side);
         for (const p of items) {
           const li = document.createElement('li');
           if (!p.alive) li.classList.add('dead');
           else if (p.acted) li.classList.add('acted');
-          const left = document.createElement('span');
-          left.textContent = p.name;
-          const right = document.createElement('span');
-          right.textContent = p.alive ? p.hp : '亡';
-          li.appendChild(left);
-          li.appendChild(right);
+          li.textContent = p.name + ' ' + (p.alive ? p.hp : '亡');
           li.addEventListener('click', () => {
             if (!p.alive || p.acted) return;
             this.selected = p;
             this.mode = null;
             this.highlighted = [];
             this._render();
-            this._renderDetail();
+            this._renderBottom();
           });
           ul.appendChild(li);
         }
-        document.getElementById(supplyId).textContent = '粮草：' + this.supply[side] + ' / ' + SUPPLY_MAX;
+        document.getElementById(supplyId).textContent = '粮草 ' + this.supply[side] + '/' + SUPPLY_MAX;
       };
       render('red', 'list-red', 'supply-red');
       render('blue', 'list-blue', 'supply-blue');
@@ -478,7 +451,7 @@
         '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
       this._render();
       this._renderSideList();
-      if (this.selected) this._renderDetail();
+      this._renderBottom();
 
       if (this.awaitingCell) return;
       const side = this.currentSide;
@@ -492,11 +465,6 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     Game.init();
-    const btn = document.createElement('button');
-    btn.textContent = '结束回合';
-    btn.style.cssText = 'position:fixed;left:16px;bottom:16px;border:1px solid #cfc8ba;background:#fff;padding:8px 14px;cursor:pointer;letter-spacing:4px;';
-    btn.onclick = () => { if (!Game.over) Game.endTurn(); };
-    document.body.appendChild(btn);
   });
 
   global.Game = Game;
