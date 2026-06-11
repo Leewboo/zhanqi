@@ -521,10 +521,6 @@
       return this.pieces.find(p => p.alive && p.x === x && p.y === y) || null;
     },
 
-    cellMoveCost(x, y) {
-      return terrainMoveCost(this.terrain[y][x]);
-    },
-
     _render() {
       const children = this.boardEl.children;
       for (let i = 0; i < children.length; i++) {
