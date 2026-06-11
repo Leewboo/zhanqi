@@ -137,6 +137,26 @@ html, body {
 .chip-list li.acted { color: var(--muted); opacity: 0.55; }
 .chip-list li:active:not(.dead):not(.acted) { background: var(--cell-alt); }
 
+.chip-list .chip-info {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-align: center;
+  font-family: "Georgia", serif;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 2px;
+  cursor: pointer;
+}
+
+.chip-list li.dead .chip-info,
+.chip-list li.acted .chip-info { opacity: 0.55; cursor: pointer; }
+
 /* 棋盘区 */
 .board-wrap {
   flex: 1;
@@ -230,6 +250,99 @@ html, body {
   display: block;
   height: 100%;
   background: #fff;
+}
+
+.piece .info-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  font-family: "Georgia", serif;
+}
+
+.piece .info-dot:active {
+  background: var(--cell-alt);
+}
+
+/* 详情弹窗 */
+.detail-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 16px;
+}
+
+.detail-modal.hidden { display: none; }
+
+.detail-modal-inner {
+  background: #fff;
+  border: 1px solid var(--line);
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-modal-head h3 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+
+.detail-modal-head .act-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.detail-modal-body {
+  padding: 12px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.detail-modal-body .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.detail-modal-body .row:last-child { border-bottom: none; }
+.detail-modal-body .label { color: var(--muted); }
+.detail-modal-body .value { font-weight: 600; }
+.detail-modal-body .block { margin-top: 10px; }
+.detail-modal-body .block-title {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: 4px;
 }
 
 /* 日志 */

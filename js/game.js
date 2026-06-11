@@ -128,6 +128,91 @@
         document.getElementById('log').innerHTML = '';
         this.init();
       };
+      document.getElementById('detail-close').onclick = () => {
+        document.getElementById('detail-modal').classList.add('hidden');
+      };
+    },
+
+    openDetail(piece) {
+      const modal = document.getElementById('detail-modal');
+      const title = document.getElementById('detail-title');
+      const body = document.getElementById('detail-body');
+      title.textContent = piece.name + '（' + (piece.side === 'red' ? '红方' : '蓝方') + '）';
+      body.innerHTML = '';
+
+      const addRow = (label, value) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const l = document.createElement('span');
+        l.className = 'label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'value';
+        v.textContent = value;
+        row.appendChild(l);
+        row.appendChild(v);
+        body.appendChild(row);
+      };
+
+      addRow('生命', piece.hp + ' / ' + piece.maxHp);
+      addRow('攻击', piece.atk + (piece.atkBuff ? ' (+' + piece.atkBuff + ')' : ''));
+      addRow('防御', piece.def + (piece.defBuff ? ' (+' + piece.defBuff + ')' : ''));
+      addRow('移动范围', piece.moveRange + ' 格');
+      const rangeShape = piece.attackRange.shape;
+      const rangeText = (rangeShape === '+' ? '十字 ' : rangeShape === 'r' ? '圆形 ' : rangeShape === 'square' ? '方形 ' : rangeShape + ' ') + piece.attackRange.n + ' 格';
+      addRow('攻击范围', rangeText);
+      addRow('粮草占用', '共用（本方粮草 ' + this.supply[piece.side] + ' / 8）');
+      addRow('本回合状态', piece.acted ? '已行动' : '可行动');
+      if (piece.skill) {
+        const sk = piece.skill;
+        const block = document.createElement('div');
+        block.className = 'block';
+        const t = document.createElement('div');
+        t.className = 'block-title';
+        t.textContent = '技能';
+        block.appendChild(t);
+        const row1 = document.createElement('div');
+        row1.className = 'row';
+        const l1 = document.createElement('span');
+        l1.className = 'label';
+        l1.textContent = '名称';
+        const v1 = document.createElement('span');
+        v1.className = 'value';
+        v1.textContent = sk.name || '—';
+        row1.appendChild(l1); row1.appendChild(v1);
+        block.appendChild(row1);
+        const row2 = document.createElement('div');
+        row2.className = 'row';
+        const l2 = document.createElement('span');
+        l2.className = 'label';
+        l2.textContent = '类型';
+        const v2 = document.createElement('span');
+        v2.className = 'value';
+        v2.textContent = sk.type || '主动';
+        row2.appendChild(l2); row2.appendChild(v2);
+        block.appendChild(row2);
+        const row3 = document.createElement('div');
+        row3.className = 'row';
+        const l3 = document.createElement('span');
+        l3.className = 'label';
+        l3.textContent = '消耗 / 冷却';
+        const v3 = document.createElement('span');
+        v3.className = 'value';
+        v3.textContent = (sk.cost || 0) + ' 粮草 / ' + (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
+        row3.appendChild(l3); row3.appendChild(v3);
+        block.appendChild(row3);
+        if (sk.desc) {
+          const desc = document.createElement('div');
+          desc.style.marginTop = '6px';
+          desc.textContent = sk.desc;
+          block.appendChild(desc);
+        }
+        body.appendChild(block);
+      } else {
+        addRow('技能', '无');
+      }
+
+      modal.classList.remove('hidden');
     },
 
     _onCellClick(x, y) {
@@ -383,6 +468,18 @@
           inner.style.width = Math.max(0, Math.min(100, (piece.hp / piece.maxHp) * 100)) + '%';
           bar.appendChild(inner);
           p.appendChild(bar);
+
+          const dot = document.createElement('div');
+          dot.className = 'info-dot';
+          dot.textContent = 'i';
+          dot.title = '查看详情';
+          const self = this;
+          dot.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            self.openDetail(piece);
+          });
+          p.appendChild(dot);
+
           el.appendChild(p);
         }
       }
@@ -425,11 +522,25 @@
         const ul = document.getElementById(ulId);
         ul.innerHTML = '';
         const items = this.pieces.filter(p => p.side === side);
+        const self = this;
         for (const p of items) {
           const li = document.createElement('li');
           if (!p.alive) li.classList.add('dead');
           else if (p.acted) li.classList.add('acted');
-          li.textContent = p.name + ' ' + (p.alive ? p.hp : '亡');
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = p.name + ' ' + (p.alive ? p.hp : '亡');
+          nameSpan.style.marginRight = '4px';
+          li.appendChild(nameSpan);
+          const dot = document.createElement('span');
+          dot.className = 'chip-info';
+          dot.textContent = 'i';
+          dot.title = '查看详情';
+          dot.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            self.openDetail(p);
+          });
+          li.appendChild(dot);
+
           li.addEventListener('click', () => {
             if (!p.alive || p.acted) return;
             this.selected = p;
