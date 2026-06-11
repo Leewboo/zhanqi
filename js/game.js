@@ -242,10 +242,12 @@
       addRow('生命', piece.hp + ' / ' + piece.maxHp);
       addRow('攻击', piece.atk + (piece.atkBuff ? ' (+' + piece.atkBuff + ')' : ''));
       addRow('防御', piece.def + (piece.defBuff ? ' (+' + piece.defBuff + ')' : ''));
-      addRow('移动范围', (piece.moveRange.shape === '+' ? '十字 ' : piece.moveRange.shape === 'r' ? '圆形 ' : piece.moveRange.shape === 'square' ? '方形 ' : piece.moveRange.shape + ' ') + piece.moveRange.n + ' 格');
-      const rangeShape = piece.attackRange.shape;
-      const rangeText = (rangeShape === '+' ? '十字 ' : rangeShape === 'r' ? '圆形 ' : rangeShape === 'square' ? '方形 ' : rangeShape + ' ') + piece.attackRange.n + ' 格';
-      addRow('攻击范围', rangeText);
+      function rangeText(r) {
+        const map = { '+': '十字 ', 'r': '圆形 ', 'square': '方形 ', 'x': '斜角 ' };
+        return (map[r.shape] || r.shape + ' ') + r.n + ' 格';
+      }
+      addRow('移动范围', rangeText(piece.moveRange));
+      addRow('攻击范围', rangeText(piece.attackRange));
       addRow('粮草占用', '共用（本方粮草 ' + this.supply[piece.side] + ' / 8）');
       addRow('本回合状态', piece.acted ? '已行动' : '可行动');
       const tHere = this.terrain[piece.y][piece.x];
@@ -586,7 +588,8 @@
       parts.push('生命' + a.hp + '/' + a.maxHp);
       parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
-      parts.push('移动' + (a.moveRange.shape === 'square' ? '' : a.moveRange.shape) + a.moveRange.n);
+      const moveShapeMap = { '+': '十字', 'r': '圆', 'square': '方', 'x': '斜' };
+      parts.push('移动' + moveShapeMap[a.moveRange.shape] + a.moveRange.n);
       if (a.skill) parts.push('技能' + (a.cd > 0 ? '(' + a.cd + ')' : ''));
       parts.push('本方粮草' + this.supply[a.side]);
       statsEl.textContent = parts.join(' · ');
