@@ -357,7 +357,9 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.cellsInRange(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, { includeSelf: false });
+        const cells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
+          pieceAt: (x, y) => this.pieceAt(x, y)
+        });
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -374,7 +376,12 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.cellsInRange(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, { includeSelf: false });
+        const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+          pieceAt: (x, y) => {
+            const p = this.pieceAt(x, y);
+            return p && p.alive ? p : null;
+          }
+        });
         for (const c of cells) {
           const t = this.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side) {
@@ -500,7 +507,15 @@
 
     requestCell(actor, options, cb) {
       const range = options.range || { shape: 'square', n: 3 };
-      const cells = Range.cellsInRange(range.shape, range.n, actor.x, actor.y, { includeSelf: !options.mustEmpty });
+      const cells = Range.cellsInRangeWithBlock(range.shape, range.n, actor.x, actor.y, {
+        pieceAt: (x, y) => {
+          const p = this.pieceAt(x, y);
+          if (!p || !p.alive) return null;
+          if (options.passThrough) return null;
+          return p;
+        },
+        includeSelf: !options.mustEmpty
+      });
       const valid = [];
       for (const c of cells) {
         const t = this.pieceAt(c.x, c.y);

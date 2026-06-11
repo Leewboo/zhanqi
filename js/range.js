@@ -95,6 +95,34 @@
     king,
     cellsInRange,
     reachableCells,
+    lineBlocked(ax, ay, bx, by, pieceAt) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      if (dx === 0 && dy === 0) return false;
+      const steps = Math.max(Math.abs(dx), Math.abs(dy));
+      const sx = dx === 0 ? 0 : dx / Math.abs(dx);
+      const sy = dy === 0 ? 0 : dy / Math.abs(dy);
+      for (let i = 1; i < steps; i++) {
+        const cx = ax + Math.round(sx * i);
+        const cy = ay + Math.round(sy * i);
+        if (!inBounds(cx, cy)) return true;
+        if (pieceAt && pieceAt(cx, cy)) return true;
+      }
+      return false;
+    },
+    cellsInRangeWithBlock(shape, n, originX, originY, options) {
+      options = options || {};
+      const raw = cellsInRange(shape, n, originX, originY, { includeSelf: false });
+      const pieceAt = options.pieceAt;
+      const list = [];
+      for (const c of raw) {
+        if (c.x === originX && c.y === originY) continue;
+        if (pieceAt && this.lineBlocked(originX, originY, c.x, c.y, pieceAt)) continue;
+        list.push(c);
+      }
+      if (options.includeSelf) list.push({ x: originX, y: originY });
+      return list;
+    },
     x: (n, x, y, opts) => cellsInRange('x', n, x, y, opts),
     plus: (n, x, y, opts) => cellsInRange('+', n, x, y, opts),
     cross: (n, x, y, opts) => cellsInRange('+', n, x, y, opts),
