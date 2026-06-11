@@ -242,7 +242,7 @@
       addRow('生命', piece.hp + ' / ' + piece.maxHp);
       addRow('攻击', piece.atk + (piece.atkBuff ? ' (+' + piece.atkBuff + ')' : ''));
       addRow('防御', piece.def + (piece.defBuff ? ' (+' + piece.defBuff + ')' : ''));
-      addRow('移动范围', piece.moveRange + ' 格');
+      addRow('移动范围', (piece.moveRange.shape === '+' ? '十字 ' : piece.moveRange.shape === 'r' ? '圆形 ' : piece.moveRange.shape === 'square' ? '方形 ' : piece.moveRange.shape + ' ') + piece.moveRange.n + ' 格');
       const rangeShape = piece.attackRange.shape;
       const rangeText = (rangeShape === '+' ? '十字 ' : rangeShape === 'r' ? '圆形 ' : rangeShape === 'square' ? '方形 ' : rangeShape + ' ') + piece.attackRange.n + ' 格';
       addRow('攻击范围', rangeText);
@@ -355,7 +355,7 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.cellsInRange('square', actor.moveRange, actor.x, actor.y, { includeSelf: false });
+        const cells = Range.cellsInRange(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, { includeSelf: false });
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -586,7 +586,7 @@
       parts.push('生命' + a.hp + '/' + a.maxHp);
       parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
-      parts.push('移动' + a.moveRange);
+      parts.push('移动' + (a.moveRange.shape === 'square' ? '' : a.moveRange.shape) + a.moveRange.n);
       if (a.skill) parts.push('技能' + (a.cd > 0 ? '(' + a.cd + ')' : ''));
       parts.push('本方粮草' + this.supply[a.side]);
       statsEl.textContent = parts.join(' · ');
