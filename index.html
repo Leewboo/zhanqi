@@ -7,7 +7,21 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div id="app">
+  <section id="home-screen" class="home-screen">
+    <div class="home-inner">
+      <h1 class="home-title">三国战棋</h1>
+      <p class="home-subtitle">三 国 · 策 略 · 对 战</p>
+      <div class="home-buttons">
+        <button id="btn-local" class="home-btn primary">本机对战</button>
+        <button id="btn-ai" class="home-btn">人机对战</button>
+      </div>
+      <div class="home-foot">
+        双人轮流操作棋盘 &nbsp;·&nbsp; 选择武将 · 布阵 · 战斗
+      </div>
+    </div>
+  </section>
+
+  <div id="app" class="hidden">
     <header class="top-bar">
       <div class="top-row">
         <div class="turn" id="turn-info">回合 1 · 红方</div>
@@ -50,7 +64,10 @@
     <section id="banner" class="banner hidden">
       <div class="banner-inner">
         <h2 id="banner-title">胜利</h2>
+        <div class="banner-btns">
         <button id="btn-restart" class="act-btn">重新开始</button>
+        <button id="btn-home" class="act-btn ghost">返回主页</button>
+        </div>
       </div>
     </section>
 
