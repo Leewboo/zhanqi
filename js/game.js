@@ -762,7 +762,7 @@
       // 选将阶段：展示可选择的武将列表（战报浮窗中）
       const draftBlock = document.getElementById('draft-pool');
       if (this.phase === 'draft' && draftBlock) {
-        draftBlock.style.display = '';
+        draftBlock.style.display = 'block';
         draftBlock.innerHTML = '';
         const title = document.createElement('div');
         const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
@@ -802,12 +802,15 @@
       const panel = document.getElementById('draft-panel');
       const cards = document.getElementById('draft-cards');
       const status = document.getElementById('draft-status');
-      if (!panel || !cards) return;
+      if (!panel || !cards) {
+        console.warn('draft-panel or draft-cards not found in DOM');
+        return;
+      }
       if (this.phase !== 'draft') {
         panel.style.display = 'none';
         return;
       }
-      panel.style.display = '';
+      panel.style.display = 'block';
       const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
       status.textContent = '第 ' + (this.draftIndex + 1) + ' 选 · ' + side + '方';
       cards.innerHTML = '';
