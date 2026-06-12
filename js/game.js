@@ -100,6 +100,8 @@
     highlighted: [],
     awaitingCell: null,
     over: false,
+    aiMode: false,         // 是否人机对战
+    aiSide: 'blue',        // AI 控制的一方
 
     log(text, cls) {
       const box = document.getElementById('log');
@@ -111,7 +113,7 @@
       while (box.children.length > 200) box.removeChild(box.firstChild);
     },
 
-    init() {
+    init(mode) {
       this.boardEl = document.getElementById('board');
       this.terrain = buildTerrain();
       this.pieces = [];
@@ -124,13 +126,34 @@
       this.mode = null;
       this.highlighted = [];
       this.over = false;
+      this.aiMode = (mode === 'ai');
+      this.aiSide = 'blue';
       this.phase = 'draft';
       this._buildDom();
       this._bind();
       this._highlightDeployZones();
       this._refreshUi();
       this.log('选将开始：双方轮流挑选武将，每方 ' + PICKS_PER_SIDE + ' 人。', 'turn');
+      if (this.aiMode) {
+        this.log('人机对战：你执红，AI 执蓝。', 'turn');
+      }
       this.log('红方先选。', 'turn');
+      this._maybeAiAct();
+    },
+
+    goHome() {
+      document.getElementById('banner').classList.add('hidden');
+      document.getElementById('report-modal').classList.add('hidden');
+      document.getElementById('detail-modal').classList.add('hidden');
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('home-screen').classList.remove('hidden');
+      document.getElementById('log').innerHTML = '';
+    },
+
+    startGame(mode) {
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      this.init(mode);
     },
 
     _highlightDeployZones(side) {
@@ -181,11 +204,12 @@
         // 跳过给另一方
         this.draftIndex += 1;
         if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
-          this._startBattle();
+          this._startDeploy();
           return;
         }
       }
       this._refreshUi();
+      this._maybeAiAct();
     },
 
     _startDeploy() {
@@ -197,6 +221,7 @@
       this.log('布阵开始：红方先将武将放到己方（底部）半场。', 'turn');
       this._renderDraftCards();
       this._refreshUi();
+      this._maybeAiAct();
     },
 
     _switchDeploySide() {
@@ -212,6 +237,7 @@
       this._highlightDeployZones(this.deploySide);
       this._renderDraftCards();
       this._refreshUi();
+      this._maybeAiAct();
     },
 
     _startBattle() {
@@ -225,6 +251,7 @@
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
       this._renderDraftCards();
       this._refreshUi();
+      this._maybeAiAct();
     },
 
     _buildDom() {
@@ -273,8 +300,11 @@
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
         document.getElementById('log').innerHTML = '';
-        this.init();
+        this.init(this.aiMode ? 'ai' : 'local');
       };
+      document.getElementById('btn-home').onclick = () => this.goHome();
+      document.getElementById('btn-local').onclick = () => this.startGame('local');
+      document.getElementById('btn-ai').onclick = () => this.startGame('ai');
       document.getElementById('detail-close').onclick = () => {
         document.getElementById('detail-modal').classList.add('hidden');
       };
@@ -673,6 +703,7 @@
       }
       this._clearSelection();
       this._refreshUi();
+      this._maybeAiAct();
     },
 
     requestCell(actor, options, cb) {
