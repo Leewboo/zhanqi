@@ -610,6 +610,14 @@ html, body {
   opacity: 0.85;
 }
 
+.draft-panel .draft-summary {
+  font-size: 13px;
+  padding: 6px 2px 8px 2px;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+
 .draft-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

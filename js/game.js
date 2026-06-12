@@ -907,6 +907,18 @@
         return shape;
       };
 
+      // 顶部：双方已选清单
+      const summary = document.getElementById('draft-summary');
+      if (summary) {
+        let redNames = this.pickedRed.map(g => g.name).join(' · ');
+        let blueNames = this.pickedBlue.map(g => g.name).join(' · ');
+        const redLine = '红方（' + this.pickedRed.length + '）：' + (redNames || '—');
+        const blueLine = '蓝方（' + this.pickedBlue.length + '）：' + (blueNames || '—');
+        summary.innerHTML = '<span style="color:#b23a3a;font-weight:700;">' + redLine + '</span>' +
+          '<span style="margin:0 8px;">|</span>' +
+          '<span style="color:#3a6bb2;font-weight:700;">' + blueLine + '</span>';
+      }
+
       if (this.phase === 'draft') {
         panel.style.display = 'block';
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
@@ -978,6 +990,7 @@
       }
 
       panel.style.display = 'none';
+      if (summary) summary.innerHTML = '';
     },
 
     _refreshUi() {
