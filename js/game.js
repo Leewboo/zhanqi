@@ -1037,15 +1037,6 @@
       this._renderDraftCards();
       this._render();
       this._renderBottom();
-
-      if (this.phase !== 'battle') return;
-      if (this.awaitingCell) return;
-      const side = this.currentSide;
-      const aliveActable = this.pieces.filter(p => p.side === side && p.alive);
-      const allActed = aliveActable.length && aliveActable.every(p => p.moved && p.attacked);
-      if (allActed) {
-        setTimeout(() => this.endTurn(), 400);
-      }
     },
 
     _maybeAiAct() {
