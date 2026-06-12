@@ -364,39 +364,33 @@
         if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
         addRow('当前位置', tInfo);
       }
-      if (piece.skill) {
-        const sk = piece.skill;
+      const skillList = piece.skills || (piece.skill ? [piece.skill] : []);
+      if (skillList.length) {
         const block = document.createElement('div');
         block.className = 'block';
         const t = document.createElement('div');
         t.className = 'block-title';
-        t.textContent = '技能';
+        t.textContent = '技能（' + skillList.length + '）';
         block.appendChild(t);
-        const row1 = document.createElement('div');
-        row1.className = 'row';
-        const l1 = document.createElement('span');
-        l1.className = 'label';
-        l1.textContent = '名称';
-        const v1 = document.createElement('span');
-        v1.className = 'value';
-        v1.textContent = sk.name || '—';
-        row1.appendChild(l1); row1.appendChild(v1);
-        block.appendChild(row1);
-        const row2 = document.createElement('div');
-        row2.className = 'row';
-        const l2 = document.createElement('span');
-        l2.className = 'label';
-        l2.textContent = '冷却';
-        const v2 = document.createElement('span');
-        v2.className = 'value';
-        v2.textContent = (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
-        row2.appendChild(l2); row2.appendChild(v2);
-        block.appendChild(row2);
-        if (sk.desc) {
-          const desc = document.createElement('div');
-          desc.style.marginTop = '6px';
-          desc.textContent = sk.desc;
-          block.appendChild(desc);
+        piece.cdMap = piece.cdMap || {};
+        for (const sk of skillList) {
+          const row = document.createElement('div');
+          row.className = 'row';
+          row.style.flexDirection = 'column';
+          row.style.alignItems = 'flex-start';
+          row.style.gap = '4px';
+          const l = document.createElement('span');
+          l.className = 'label';
+          l.textContent = '【' + sk.name + '】' + (sk.type === '被动' ? '被动' : '主动') + (sk.cooldown ? ' · 冷却 ' + sk.cooldown + ' 回合' : '') + ((piece.cdMap[sk.id] || 0) > 0 ? '（剩余 ' + piece.cdMap[sk.id] + '）' : '');
+          row.appendChild(l);
+          if (sk.desc) {
+            const d = document.createElement('span');
+            d.style.fontSize = '11px';
+            d.style.color = '#8b8b8b';
+            d.textContent = sk.desc;
+            row.appendChild(d);
+          }
+          block.appendChild(row);
         }
         body.appendChild(block);
       } else {
@@ -535,6 +529,40 @@
       this._renderBottom();
     },
 
+    _onKill(actor, target) {
+      if (!actor || !actor.skills) return;
+      for (const sk of actor.skills) {
+        if (sk.type === '被动' && sk.trigger === 'onKill' && sk.filter && sk.filter(actor)) {
+          this.log(actor.name + ' 触发被动【' + sk.name + '】！', 'turn');
+          try { sk.content(actor, { target }); } catch (e) {}
+        }
+      }
+    },
+
+    _castSkill(skill) {
+      if (this.phase !== 'battle') return;
+      const actor = this.selected;
+      if (!actor || actor.attacked) return;
+      if (!skill || skill.type === '被动') return;
+      actor.cdMap = actor.cdMap || {};
+      if ((actor.cdMap[skill.id] || 0) > 0) {
+        this.log('【' + skill.name + '】冷却中（剩余 ' + actor.cdMap[skill.id] + ' 回合）。');
+        return;
+      }
+      if (skill.filter && !skill.filter(actor)) {
+        this.log('【' + skill.name + '】条件未满足。');
+        return;
+      }
+      if (skill.cooldown) actor.cdMap[skill.id] = skill.cooldown;
+      this.log(actor.name + ' 发动技能：' + skill.name);
+      const promise = skill.content(actor);
+      this.mode = null;
+      const self = this;
+      Promise.resolve(promise).then(() => {
+        self._finishActorAction('skill');
+      });
+    },
+
     _enterMode(mode) {
       if (this.phase !== 'battle') return;
       if (!this.selected || (this.selected.moved && this.selected.attacked)) return;
@@ -585,31 +613,16 @@
           this.mode = null;
         }
       } else if (mode === 'skill') {
-        if (actor.attacked) {
-          this.log('本回合已行动，无法再使用技能。');
+        // 旧入口保留，直接触发第一个可用主动技能
+        actor.cdMap = actor.cdMap || {};
+        const list = (actor.skills || []).filter(s => s.type !== '被动' && !(actor.cdMap[s.id] > 0) && (!s.filter || s.filter(actor)));
+        if (!list.length) {
+          this.log('没有可用的主动技能。');
           this.mode = null;
           this._renderBottom();
           return;
         }
-        if (!actor.skill) {
-          this.log('该武将没有主动技能。');
-          this.mode = null;
-          this._renderBottom();
-          return;
-        }
-        if (!actor.skill.filter(actor)) {
-          this.log('技能条件未满足（冷却中）。');
-          this.mode = null;
-          this._renderBottom();
-          return;
-        }
-        if (actor.skill.cooldown) actor.cd = actor.skill.cooldown;
-        this.log(actor.name + ' 发动技能：' + actor.skill.name);
-        const promise = actor.skill.content(actor);
-        this.mode = null;
-        Promise.resolve(promise).then(() => {
-          this._finishActorAction('skill');
-        });
+        this._castSkill(list[0]);
         return;
       }
       this._render();
@@ -688,14 +701,22 @@
     endTurn() {
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
-        this.pieces.forEach(p => { if (p.side === 'blue') { p.moved = false; p.attacked = false; } });
-        this.pieces.forEach(p => { if (p.side === 'blue' && p.cd > 0) p.cd -= 1; });
+        this.pieces.forEach(p => {
+          if (p.side === 'blue') { p.moved = false; p.attacked = false; }
+          if (p.side === 'blue' && p.cdMap) {
+            for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
+          }
+        });
         this.log('回合 ' + this.turn + ' · 蓝方行动。', 'turn');
       } else {
         this.currentSide = 'red';
         this.turn += 1;
-        this.pieces.forEach(p => { if (p.side === 'red') { p.moved = false; p.attacked = false; } });
-        this.pieces.forEach(p => { if (p.side === 'red' && p.cd > 0) p.cd -= 1; });
+        this.pieces.forEach(p => {
+          if (p.side === 'red') { p.moved = false; p.attacked = false; }
+          if (p.side === 'red' && p.cdMap) {
+            for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
+          }
+        });
         this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
       }
       this._clearSelection();
@@ -790,6 +811,7 @@
       const skBtn = document.getElementById('btn-skill');
       const detailBtn = document.getElementById('btn-detail');
       const endBtn = document.getElementById('btn-end');
+      const skillBar = document.getElementById('skill-bar');
 
       if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
@@ -798,8 +820,9 @@
         statsEl.textContent = '已选：红 ' + this.pickedRed.length + ' / 蓝 ' + this.pickedBlue.length + '（每方 ' + effective + ' 人）· 点击下方武将卡选择';
         moveBtn.disabled = true;
         atkBtn.disabled = true;
-        skBtn.disabled = true;
+        if (skBtn) skBtn.disabled = true;
         if (detailBtn) detailBtn.disabled = true;
+        if (skillBar) skillBar.innerHTML = '';
         endBtn.style.display = 'none';
         return;
       }
@@ -809,8 +832,10 @@
       if (!a) {
         nameEl.textContent = '未选择棋子';
         statsEl.textContent = '';
-        moveBtn.disabled = atkBtn.disabled = skBtn.disabled = true;
+        moveBtn.disabled = atkBtn.disabled = true;
+        if (skBtn) skBtn.disabled = true;
         if (detailBtn) detailBtn.disabled = true;
+        if (skillBar) skillBar.innerHTML = '';
         return;
       }
       nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
@@ -820,7 +845,12 @@
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
       const moveShapeMap = { '+': '十字', 'r': '圆', 'square': '方', 'x': '斜' };
       parts.push('移动' + moveShapeMap[a.moveRange.shape] + a.moveRange.n);
-      if (a.skill) parts.push('技能' + (a.cd > 0 ? '(' + a.cd + ')' : ''));
+      const skillList = a.skills || (a.skill ? [a.skill] : []);
+      if (skillList.length) {
+        a.cdMap = a.cdMap || {};
+        const skInfo = skillList.map(s => s.name + ((a.cdMap[s.id] || 0) > 0 ? '(' + a.cdMap[s.id] + ')' : '')).join('/');
+        parts.push('技能' + skInfo);
+      }
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
       if (a.attacked) stateParts.push('已攻击');
@@ -829,8 +859,36 @@
 
       moveBtn.disabled = !!a.moved;
       atkBtn.disabled = !!a.attacked;
-      skBtn.disabled = !!(a.attacked || !a.skill || !a.skill.filter(a));
+      if (skBtn) skBtn.disabled = !!a.attacked;
       if (detailBtn) detailBtn.disabled = false;
+
+      // 渲染多技能按钮
+      if (skillBar) {
+        skillBar.innerHTML = '';
+        if (skillList.length) {
+          a.cdMap = a.cdMap || {};
+          const self = this;
+          for (const sk of skillList) {
+            const btn = document.createElement('button');
+            btn.className = 'skill-btn';
+            const cdLeft = a.cdMap[sk.id] || 0;
+            const usable = !a.attacked && sk.type !== '被动' && cdLeft <= 0 && (!sk.filter || sk.filter(a));
+            let label = '【' + sk.name + '】';
+            if (sk.type === '被动') label += '被动';
+            else if (cdLeft > 0) label += '冷却' + cdLeft;
+            btn.textContent = label;
+            btn.disabled = !usable;
+            btn.title = (sk.desc || '') + (sk.cooldown ? '（冷却 ' + sk.cooldown + ' 回合）' : '');
+            if (usable) {
+              btn.addEventListener('click', function () {
+                self.selected = a;
+                self._castSkill(sk);
+              });
+            }
+            skillBar.appendChild(btn);
+          }
+        }
+      }
     },
 
     _renderSideList() {
@@ -908,7 +966,8 @@
           left.textContent = g.name;
           const right = document.createElement('span');
           right.className = 'value';
-          right.textContent = '血' + g.hp + ' / 攻' + g.atk + ' / 防' + g.def + (g.skill ? ' · 技能：' + g.skill.name : '');
+          const gSkills = g.skills || (g.skill ? [g.skill] : []);
+          right.textContent = '血' + g.hp + ' / 攻' + g.atk + ' / 防' + g.def + (gSkills.length ? ' · 技能：' + gSkills.map(s => s.name).join('、') : '');
           row.appendChild(left);
           row.appendChild(right);
           row.addEventListener('click', () => {
@@ -966,9 +1025,10 @@
           head.textContent = g.name;
           const body = document.createElement('div');
           body.className = 'draft-card-body';
+          const gSkills = g.skills || (g.skill ? [g.skill] : []);
           body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
             '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
-            (g.skill ? '<br/>技能：' + g.skill.name : '');
+            (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
           card.appendChild(head);
           card.appendChild(body);
           card.addEventListener('click', () => self._pickGeneral(g));
@@ -997,9 +1057,10 @@
           head.textContent = g.name + (this.deploySelected && this.deploySelected.id === g.id ? ' ★' : '');
           const body = document.createElement('div');
           body.className = 'draft-card-body';
+          const gSkills = g.skills || (g.skill ? [g.skill] : []);
           body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
             '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
-            (g.skill ? '<br/>技能：' + g.skill.name : '');
+            (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
           card.appendChild(head);
           card.appendChild(body);
           card.addEventListener('click', () => self._selectForDeploy(g));
@@ -1253,8 +1314,8 @@
       });
       if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
       const tBonus = terrainDefBonus(this.terrain[target.y][target.x]) || 0;
-      const defVal = target.def + target.defBuff + tBonus;
-      let dmg = Math.max(5, actor.atk + actor.atkBuff - defVal);
+      const defVal = target.def + (target.defBuff || 0) + tBonus;
+      let dmg = Math.max(1, (actor.atk + (actor.atkBuff || 0)) - defVal);
       target.hp -= dmg;
       this.log(actor.name + ' 攻击 ' + target.name + '，造成 ' + dmg + ' 伤害。');
       actor.attacked = true;
@@ -1262,6 +1323,7 @@
         target.hp = 0;
         target.alive = false;
         this.log(target.name + ' 阵亡！', 'turn');
+        this._onKill(actor, target);
         this._checkWin();
       }
       this.highlighted = [];
