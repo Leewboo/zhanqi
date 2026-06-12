@@ -441,17 +441,14 @@
 
     _selectForDeploy(generalDef) {
       if (this.phase !== 'deploy') return;
-      // 只能放置当前方未布阵的武将
       const picked = this.deploySide === 'red' ? this.pickedRed : this.pickedBlue;
       if (!picked.find(g => g.id === generalDef.id)) return;
-      // 该武将已经被放置了
       if (this.pieces.find(p => p.generalId === generalDef.id && p.side === this.deploySide)) {
         this.log(generalDef.name + ' 已经布置好了。');
         return;
       }
       this.deploySelected = generalDef;
       this._highlightDeployZones(this.deploySide);
-      // 额外高亮可放置的格子（己方半场 + 未被其他棋子占据）
       this.highlighted = [];
       const half = Math.floor(SIZE / 2);
       const yStart = this.deploySide === 'red' ? half : 0;
@@ -459,11 +456,11 @@
       for (let y = yStart; y < yEnd; y++) {
         for (let x = 0; x < SIZE; x++) {
           if (!this.pieceAt(x, y)) {
-            this.highlighted.push({ x, y, kind: 'move' });
+            this.highlighted.push({ x, y, kind: 'skill' });
           }
         }
       }
-      this.log('已选中 ' + generalDef.name + '，点击棋盘 ' + (this.deploySide === 'red' ? '底部' : '顶部') + ' 半场放置。');
+      this.log('选中【' + generalDef.name + '】' + ' · 点击 ' + (this.deploySide === 'red' ? '底部' : '顶部') + ' 半场空格放置。');
       this._render();
       this._renderBottom();
     },
@@ -902,10 +899,18 @@
       const status = document.getElementById('draft-status');
       if (!panel || !cards) return;
 
+      const shapeText = function (shape) {
+        if (shape === '+') return '十字';
+        if (shape === 'x') return '斜角';
+        if (shape === 'r') return '圆形';
+        if (shape === 'square') return '方形';
+        return shape;
+      };
+
       if (this.phase === 'draft') {
         panel.style.display = 'block';
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
-        status.textContent = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (side === 'red' ? '红' : '蓝') + '方';
+        status.innerHTML = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · <b>' + (side === 'red' ? '红' : '蓝') + '方</b> · 点击武将卡挑选';
         cards.innerHTML = '';
         const pool = Generals.list.filter(g =>
           !this.pickedRed.find(p => p.id === g.id) &&
@@ -920,7 +925,9 @@
           head.textContent = g.name;
           const body = document.createElement('div');
           body.className = 'draft-card-body';
-          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def;
+          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
+            '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
+            (g.skill ? '<br/>技能：' + g.skill.name : '');
           card.appendChild(head);
           card.appendChild(body);
           card.addEventListener('click', () => self._pickGeneral(g));
@@ -935,7 +942,9 @@
         const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
         const placedIds = this.pieces.filter(p => p.side === side).map(p => p.generalId);
         const pending = picked.filter(g => !placedIds.includes(g.id));
-        status.textContent = '布阵 · ' + (side === 'red' ? '红' : '蓝') + '方 · 剩余 ' + pending.length + ' 将';
+        let tip = '';
+        if (this.deploySelected) tip = ' · 已选中【' + this.deploySelected.name + '】，点棋盘空格放置';
+        status.innerHTML = '布阵 · <b>' + (side === 'red' ? '红' : '蓝') + '方</b> · 剩余 ' + pending.length + ' 将' + tip;
         cards.innerHTML = '';
         const self = this;
         for (const g of pending) {
@@ -944,16 +953,17 @@
           if (this.deploySelected && this.deploySelected.id === g.id) card.classList.add('selected');
           const head = document.createElement('div');
           head.className = 'draft-card-head';
-          head.textContent = g.name;
+          head.textContent = g.name + (this.deploySelected && this.deploySelected.id === g.id ? ' ★' : '');
           const body = document.createElement('div');
           body.className = 'draft-card-body';
-          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def;
+          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
+            '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
+            (g.skill ? '<br/>技能：' + g.skill.name : '');
           card.appendChild(head);
           card.appendChild(body);
           card.addEventListener('click', () => self._selectForDeploy(g));
           cards.appendChild(card);
         }
-        // 已布阵的也显示一下，方便查看
         const placed = picked.filter(g => placedIds.includes(g.id));
         if (placed.length) {
           const label = document.createElement('div');
