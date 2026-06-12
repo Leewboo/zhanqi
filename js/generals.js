@@ -33,7 +33,8 @@
       cd: 0,
       atkBuff: 0,
       defBuff: 0,
-      buffs: []
+      buffs: [],
+      generalId: def.id
     });
     return piece;
   }

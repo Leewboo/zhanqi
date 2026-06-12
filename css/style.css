@@ -633,6 +633,12 @@ html, body {
   background: #fff3c4;
 }
 
+.draft-card.selected {
+  background: #ffd966;
+  border-color: #b28b00;
+  transform: translateY(-1px);
+}
+
 .draft-card:active {
   transform: translateY(1px);
 }

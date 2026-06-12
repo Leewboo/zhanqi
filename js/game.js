@@ -85,15 +85,17 @@
 
   const Game = {
     boardEl: null,
-    phase: 'draft', // draft | battle
+    phase: 'draft', // draft | deploy | battle
     turn: 1,
     currentSide: 'red',
-    draftIndex: 0,    // 当前在第N选（0-based），简单交替：偶数红选，奇数蓝选
+    draftIndex: 0,
+    deploySide: 'red',
     pickedRed: [],
     pickedBlue: [],
     pieces: [],
     terrain: null,
-    selected: null,
+    selected: null,        // battle 阶段选中的己方阵中棋子
+    deploySelected: null,  // deploy 阶段选中的待布阵武将
     mode: null,
     highlighted: [],
     awaitingCell: null,
@@ -131,16 +133,19 @@
       this.log('红方先选。', 'turn');
     },
 
-    _highlightDeployZones() {
-      // 选将阶段：高亮双方部署区，让玩家看到阵容位置
+    _highlightDeployZones(side) {
+      // side: 'red' 高亮红方半场；'blue' 高亮蓝方；null 清除所有
       const children = this.boardEl.children;
-      for (let i = 0; i < Math.min(PICKS_PER_SIDE, DEPLOY_ORDER.length); i++) {
-        const blue = deployPositionFor('blue', i);
-        const red = deployPositionFor('red', i);
-        const bIdx = blue.y * SIZE + blue.x;
-        const rIdx = red.y * SIZE + red.x;
-        if (children[bIdx]) children[bIdx].classList.add('zone-blue');
-        if (children[rIdx]) children[rIdx].classList.add('zone-red');
+      this._clearDeployZones();
+      if (!side) return;
+      const half = Math.floor(SIZE / 2);
+      const yStart = side === 'red' ? half : 0;
+      const yEnd = side === 'red' ? SIZE : half;
+      for (let y = yStart; y < yEnd; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          const idx = y * SIZE + x;
+          if (children[idx]) children[idx].classList.add(side === 'red' ? 'zone-red' : 'zone-blue');
+        }
       }
     },
 
@@ -165,7 +170,7 @@
       this.draftIndex += 1;
 
       if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
-        this._startBattle();
+        this._startDeploy();
         return;
       }
 
@@ -183,21 +188,42 @@
       this._refreshUi();
     },
 
+    _startDeploy() {
+      this.phase = 'deploy';
+      this.deploySide = 'red';
+      this.deploySelected = null;
+      this.highlighted = [];
+      this._highlightDeployZones('red');
+      this.log('布阵开始：红方先将武将放到己方（底部）半场。', 'turn');
+      this._renderDraftCards();
+      this._refreshUi();
+    },
+
+    _switchDeploySide() {
+      if (this.deploySide === 'red') {
+        this.deploySide = 'blue';
+        this.log('红方布阵完成，蓝方开始布阵。', 'turn');
+      } else {
+        this._startBattle();
+        return;
+      }
+      this.deploySelected = null;
+      this.highlighted = [];
+      this._highlightDeployZones(this.deploySide);
+      this._renderDraftCards();
+      this._refreshUi();
+    },
+
     _startBattle() {
       this.phase = 'battle';
-      this.pieces = [];
-      this.pickedRed.forEach((g, i) => {
-        const pos = deployPositionFor('red', i);
-        this.pieces.push(Generals.buildPiece(g, 'red', pos.x, pos.y));
-      });
-      this.pickedBlue.forEach((g, i) => {
-        const pos = deployPositionFor('blue', i);
-        this.pieces.push(Generals.buildPiece(g, 'blue', pos.x, pos.y));
-      });
       this._clearDeployZones();
       this.turn = 1;
       this.currentSide = 'red';
+      this.selected = null;
+      this.mode = null;
+      this.highlighted = [];
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
+      this._renderDraftCards();
       this._refreshUi();
     },
 
@@ -372,7 +398,11 @@
 
     _onCellClick(x, y) {
       if (this.phase === 'draft') {
-        // 选将阶段：点击棋盘不操作；武将通过详情弹窗或武将列表选择
+        // 选将阶段：点击棋盘不操作；武将通过详情弹窗或武将卡选择
+        return;
+      }
+      if (this.phase === 'deploy') {
+        this._tryPlacePiece(x, y);
         return;
       }
       if (this.over) return;
@@ -406,6 +436,74 @@
       }
 
       this._clearSelection();
+      this._renderBottom();
+    },
+
+    _selectForDeploy(generalDef) {
+      if (this.phase !== 'deploy') return;
+      // 只能放置当前方未布阵的武将
+      const picked = this.deploySide === 'red' ? this.pickedRed : this.pickedBlue;
+      if (!picked.find(g => g.id === generalDef.id)) return;
+      // 该武将已经被放置了
+      if (this.pieces.find(p => p.generalId === generalDef.id && p.side === this.deploySide)) {
+        this.log(generalDef.name + ' 已经布置好了。');
+        return;
+      }
+      this.deploySelected = generalDef;
+      this._highlightDeployZones(this.deploySide);
+      // 额外高亮可放置的格子（己方半场 + 未被其他棋子占据）
+      this.highlighted = [];
+      const half = Math.floor(SIZE / 2);
+      const yStart = this.deploySide === 'red' ? half : 0;
+      const yEnd = this.deploySide === 'red' ? SIZE : half;
+      for (let y = yStart; y < yEnd; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          if (!this.pieceAt(x, y)) {
+            this.highlighted.push({ x, y, kind: 'move' });
+          }
+        }
+      }
+      this.log('已选中 ' + generalDef.name + '，点击棋盘 ' + (this.deploySide === 'red' ? '底部' : '顶部') + ' 半场放置。');
+      this._render();
+      this._renderBottom();
+    },
+
+    _tryPlacePiece(x, y) {
+      if (!this.deploySelected) {
+        this.log('请先点击下方武将卡选择要布阵的将领。');
+        return;
+      }
+      const half = Math.floor(SIZE / 2);
+      const inRed = y >= half;
+      const inBlue = y < half;
+      if (this.deploySide === 'red' && !inRed) {
+        this.log('只能在底部（己方）半场布阵。');
+        return;
+      }
+      if (this.deploySide === 'blue' && !inBlue) {
+        this.log('只能在顶部（己方）半场布阵。');
+        return;
+      }
+      if (this.pieceAt(x, y)) {
+        this.log('该位置已有棋子。');
+        return;
+      }
+      const piece = Generals.buildPiece(this.deploySelected, this.deploySide, x, y);
+      piece.generalId = this.deploySelected.id;
+      this.pieces.push(piece);
+      this.log((this.deploySide === 'red' ? '红方' : '蓝方') + ' ' + this.deploySelected.name + ' 部署到 (' + x + ',' + y + ')。');
+      this.deploySelected = null;
+      this.highlighted = [];
+
+      // 检查当前方是否全布完
+      const picked = this.deploySide === 'red' ? this.pickedRed : this.pickedBlue;
+      const placed = this.pieces.filter(p => p.side === this.deploySide);
+      if (placed.length >= picked.length) {
+        this._switchDeploySide();
+        return;
+      }
+      this._render();
+      this._renderDraftCards();
       this._renderBottom();
     },
 
@@ -802,51 +900,88 @@
       const panel = document.getElementById('draft-panel');
       const cards = document.getElementById('draft-cards');
       const status = document.getElementById('draft-status');
-      if (!panel || !cards) {
-        console.warn('draft-panel or draft-cards not found in DOM');
+      if (!panel || !cards) return;
+
+      if (this.phase === 'draft') {
+        panel.style.display = 'block';
+        const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+        status.textContent = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (side === 'red' ? '红' : '蓝') + '方';
+        cards.innerHTML = '';
+        const pool = Generals.list.filter(g =>
+          !this.pickedRed.find(p => p.id === g.id) &&
+          !this.pickedBlue.find(p => p.id === g.id)
+        );
+        const self = this;
+        for (const g of pool) {
+          const card = document.createElement('div');
+          card.className = 'draft-card';
+          const head = document.createElement('div');
+          head.className = 'draft-card-head';
+          head.textContent = g.name;
+          const body = document.createElement('div');
+          body.className = 'draft-card-body';
+          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def;
+          card.appendChild(head);
+          card.appendChild(body);
+          card.addEventListener('click', () => self._pickGeneral(g));
+          cards.appendChild(card);
+        }
         return;
       }
-      if (this.phase !== 'draft') {
-        panel.style.display = 'none';
+
+      if (this.phase === 'deploy') {
+        panel.style.display = 'block';
+        const side = this.deploySide;
+        const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
+        const placedIds = this.pieces.filter(p => p.side === side).map(p => p.generalId);
+        const pending = picked.filter(g => !placedIds.includes(g.id));
+        status.textContent = '布阵 · ' + (side === 'red' ? '红' : '蓝') + '方 · 剩余 ' + pending.length + ' 将';
+        cards.innerHTML = '';
+        const self = this;
+        for (const g of pending) {
+          const card = document.createElement('div');
+          card.className = 'draft-card';
+          if (this.deploySelected && this.deploySelected.id === g.id) card.classList.add('selected');
+          const head = document.createElement('div');
+          head.className = 'draft-card-head';
+          head.textContent = g.name;
+          const body = document.createElement('div');
+          body.className = 'draft-card-body';
+          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def;
+          card.appendChild(head);
+          card.appendChild(body);
+          card.addEventListener('click', () => self._selectForDeploy(g));
+          cards.appendChild(card);
+        }
+        // 已布阵的也显示一下，方便查看
+        const placed = picked.filter(g => placedIds.includes(g.id));
+        if (placed.length) {
+          const label = document.createElement('div');
+          label.className = 'draft-hint';
+          label.style.marginTop = '8px';
+          label.style.fontSize = '11px';
+          label.style.color = '#6b6b6b';
+          label.textContent = '已布阵：' + placed.map(g => g.name).join(' · ');
+          cards.appendChild(label);
+        }
         return;
       }
-      panel.style.display = 'block';
-      const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
-      status.textContent = '第 ' + (this.draftIndex + 1) + ' 选 · ' + side + '方';
-      cards.innerHTML = '';
-      const pool = Generals.list.filter(g =>
-        !this.pickedRed.find(p => p.id === g.id) &&
-        !this.pickedBlue.find(p => p.id === g.id)
-      );
-      const self = this;
-      for (const g of pool) {
-        const card = document.createElement('div');
-        card.className = 'draft-card';
-        const head = document.createElement('div');
-        head.className = 'draft-card-head';
-        head.textContent = g.name;
-        const body = document.createElement('div');
-        body.className = 'draft-card-body';
-        body.innerHTML =
-          '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
-          '<br/>移动 ' + g.moveRange.n + '<br/>攻击 ' + g.attackRange.n +
-          (g.skill ? '<br/>技能：' + g.skill.name : '');
-        const footer = document.createElement('div');
-        footer.className = 'draft-card-footer';
-        footer.textContent = side + '方 选择';
-        card.appendChild(head);
-        card.appendChild(body);
-        card.appendChild(footer);
-        card.addEventListener('click', () => self._pickGeneral(g));
-        cards.appendChild(card);
-      }
+
+      panel.style.display = 'none';
     },
 
     _refreshUi() {
-      document.getElementById('turn-info').textContent =
-        this.phase === 'draft'
-          ? '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (this.draftIndex % 2 === 0 ? '红' : '蓝') + '方'
-          : '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+      const el = document.getElementById('turn-info');
+      if (this.phase === 'draft') {
+        el.textContent = '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (this.draftIndex % 2 === 0 ? '红' : '蓝') + '方';
+      } else if (this.phase === 'deploy') {
+        const side = this.deploySide;
+        const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
+        const placed = this.pieces.filter(p => p.side === side).length;
+        el.textContent = '布阵阶段 · ' + (side === 'red' ? '红' : '蓝') + '方 · ' + placed + ' / ' + picked.length;
+      } else {
+        el.textContent = '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+      }
       this._renderDraftCards();
       this._render();
       this._renderBottom();
