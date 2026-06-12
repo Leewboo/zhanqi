@@ -661,10 +661,6 @@
     },
 
     _finishActorAction() {
-      if (this.selected) {
-        this.selected.moved = true;
-        this.selected.attacked = true;
-      }
       this._clearSelection();
       this._checkWin();
       this._render();
