@@ -3,11 +3,10 @@
     rage: {
       name: '怒吼',
       type: '主动',
-      cost: 3,
       cooldown: 2,
       desc: '本回合攻击力提升 30，持续至本回合结束。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         actor.atkBuff = (actor.atkBuff || 0) + 30;
@@ -19,13 +18,12 @@
     feint: {
       name: '突袭',
       type: '主动',
-      cost: 2,
       cooldown: 2,
       desc: '十字 4 格范围内选中一格，移动到该位置并对邻格敌人造成 1.5 倍伤害。',
       rangeShape: '+',
       rangeN: 4,
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {
@@ -51,11 +49,10 @@
     heal: {
       name: '疗伤',
       type: '主动',
-      cost: 2,
       cooldown: 2,
       desc: '圆形 3 格范围内为己方单位回复 80 生命。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         const area = Range.circle(3, actor.x, actor.y, { includeSelf: true });
@@ -74,11 +71,10 @@
     volly: {
       name: '齐射',
       type: '主动',
-      cost: 3,
       cooldown: 3,
       desc: '圆形 5 格范围对所有敌人造成 0.8 倍攻击伤害。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         const area = Range.circle(5, actor.x, actor.y, { includeSelf: false });
@@ -97,11 +93,10 @@
     fortify: {
       name: '坚守',
       type: '主动',
-      cost: 2,
       cooldown: 2,
       desc: '防御提升 25，持续 2 回合。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         actor.defBuff = (actor.defBuff || 0) + 25;
@@ -113,11 +108,10 @@
     stratagem: {
       name: '妙计',
       type: '主动',
-      cost: 3,
       cooldown: 3,
       desc: '十字 3 格范围内选中敌人造成 2 倍攻击伤害。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {
@@ -134,11 +128,10 @@
     charge: {
       name: '强袭',
       type: '主动',
-      cost: 4,
       cooldown: 3,
       desc: '方形 2 格范围选中敌人，造成 1.8 倍攻击伤害并击退。',
       filter(actor) {
-        return actor.alive && actor.cd <= 0 && global.Game.supply[actor.side] >= this.cost;
+        return actor.alive && actor.cd <= 0;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {

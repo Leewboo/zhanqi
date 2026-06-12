@@ -1,6 +1,5 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
-  const SUPPLY_MAX = 8;
 
   const TERRAIN_NAMES = {
     plain: '',
@@ -76,7 +75,6 @@
     boardEl: null,
     turn: 1,
     currentSide: 'red',
-    supply: { red: 1, blue: 1 },
     pieces: [],
     terrain: null,
     selected: null,
@@ -101,7 +99,6 @@
       this.pieces = [];
       this.turn = 1;
       this.currentSide = 'red';
-      this.supply = { red: 1, blue: 1 };
       this.selected = null;
       this.mode = null;
       this.highlighted = [];
@@ -213,9 +210,6 @@
       document.getElementById('report-close').onclick = () => {
         document.getElementById('report-modal').classList.add('hidden');
       };
-      document.getElementById('btn-supply').onclick = () => {
-        document.getElementById('btn-report').click();
-      };
     },
 
     openDetail(piece) {
@@ -248,8 +242,10 @@
       }
       addRow('移动范围', rangeText(piece.moveRange));
       addRow('攻击范围', rangeText(piece.attackRange));
-      addRow('粮草占用', '共用（本方粮草 ' + this.supply[piece.side] + ' / 8）');
-      addRow('本回合状态', piece.acted ? '已行动' : '可行动');
+      const state = [];
+      if (piece.moved) state.push('已移动');
+      if (piece.attacked) state.push('已攻击');
+      addRow('本回合状态', state.length ? state.join(' / ') : '可行动');
       const tHere = this.terrain[piece.y][piece.x];
       const tName = tHere === 'plain' ? '平原' : TERRAIN_NAMES[tHere] || '—';
       const landmark = terrainLabel(piece.x, piece.y);
@@ -289,10 +285,10 @@
         row3.className = 'row';
         const l3 = document.createElement('span');
         l3.className = 'label';
-        l3.textContent = '消耗 / 冷却';
+        l3.textContent = '冷却';
         const v3 = document.createElement('span');
         v3.className = 'value';
-        v3.textContent = (sk.cost || 0) + ' 粮草 / ' + (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
+        v3.textContent = (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
         row3.appendChild(l3); row3.appendChild(v3);
         block.appendChild(row3);
         if (sk.desc) {
@@ -331,7 +327,7 @@
         return;
       }
 
-      if (target && target.alive && target.side === this.currentSide && !target.acted) {
+      if (target && target.alive && target.side === this.currentSide && !(target.moved && target.attacked)) {
         this.selected = target;
         this.mode = null;
         this.highlighted = [];
@@ -345,14 +341,14 @@
     },
 
     _enterMode(mode) {
-      if (!this.selected || this.selected.acted) return;
+      if (!this.selected || (this.selected.moved && this.selected.attacked)) return;
       const actor = this.selected;
       this.mode = mode;
       this.highlighted = [];
 
       if (mode === 'move') {
-        if (this.supply[actor.side] < 1) {
-          this.log('粮草不足，无法移动。');
+        if (actor.moved) {
+          this.log('本回合已移动。');
           this.mode = null;
           this._renderBottom();
           return;
@@ -370,8 +366,8 @@
           this.mode = null;
         }
       } else if (mode === 'attack') {
-        if (this.supply[actor.side] < 1) {
-          this.log('粮草不足，无法攻击。');
+        if (actor.attacked) {
+          this.log('本回合已攻击。');
           this.mode = null;
           this._renderBottom();
           return;
@@ -393,6 +389,12 @@
           this.mode = null;
         }
       } else if (mode === 'skill') {
+        if (actor.attacked) {
+          this.log('本回合已行动，无法再使用技能。');
+          this.mode = null;
+          this._renderBottom();
+          return;
+        }
         if (!actor.skill) {
           this.log('该武将没有主动技能。');
           this.mode = null;
@@ -400,18 +402,17 @@
           return;
         }
         if (!actor.skill.filter(actor)) {
-          this.log('技能条件未满足（冷却或粮草不足）。');
+          this.log('技能条件未满足（冷却中）。');
           this.mode = null;
           this._renderBottom();
           return;
         }
-        this.supply[actor.side] -= actor.skill.cost || 0;
         if (actor.skill.cooldown) actor.cd = actor.skill.cooldown;
         this.log(actor.name + ' 发动技能：' + actor.skill.name);
         const promise = actor.skill.content(actor);
         this.mode = null;
         Promise.resolve(promise).then(() => {
-          this._finishActorAction();
+          this._finishActorAction('skill');
         });
         return;
       }
@@ -429,14 +430,18 @@
         return;
       }
       const actor = this.selected;
-      this.supply[actor.side] -= 1;
       actor.x = x;
       actor.y = y;
+      actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       this.mode = null;
       this.highlighted = [];
-      this._render();
-      this._renderBottom();
+      if (actor.attacked) {
+        this._finishActorAction();
+      } else {
+        this._render();
+        this._renderBottom();
+      }
     },
 
     _tryAttack(x, y) {
@@ -450,7 +455,7 @@
       }
       const actor = this.selected;
       const target = this.pieceAt(x, y);
-      this.supply[actor.side] -= 1;
+      actor.attacked = true;
       const atkVal = actor.atk + (actor.atkBuff || 0);
       const origDef = target.def;
       target.def = origDef + (target.defBuff || 0) + terrainDefBonus(this.terrain[target.y][target.x]);
@@ -460,7 +465,10 @@
     },
 
     _finishActorAction() {
-      if (this.selected) this.selected.acted = true;
+      if (this.selected) {
+        this.selected.moved = true;
+        this.selected.attacked = true;
+      }
       this._clearSelection();
       this._checkWin();
       this._render();
@@ -486,20 +494,17 @@
     },
 
     endTurn() {
-      const cur = this.currentSide;
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
-        this.pieces.forEach(p => { if (p.side === 'blue') p.acted = false; });
-        this.supply.blue = Math.min(SUPPLY_MAX, this.supply.blue + this.turn);
+        this.pieces.forEach(p => { if (p.side === 'blue') { p.moved = false; p.attacked = false; } });
         this.pieces.forEach(p => { if (p.side === 'blue' && p.cd > 0) p.cd -= 1; });
-        this.log('回合 ' + this.turn + ' · 蓝方行动（粮草 +' + this.turn + '）。', 'turn');
+        this.log('回合 ' + this.turn + ' · 蓝方行动。', 'turn');
       } else {
         this.currentSide = 'red';
         this.turn += 1;
-        this.pieces.forEach(p => { if (p.side === 'red') p.acted = false; });
-        this.supply.red = Math.min(SUPPLY_MAX, this.supply.red + this.turn);
+        this.pieces.forEach(p => { if (p.side === 'red') { p.moved = false; p.attacked = false; } });
         this.pieces.forEach(p => { if (p.side === 'red' && p.cd > 0) p.cd -= 1; });
-        this.log('回合 ' + this.turn + ' · 红方行动（粮草 +' + this.turn + '）。', 'turn');
+        this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
       }
       this._clearSelection();
       this._refreshUi();
@@ -563,7 +568,8 @@
         if (existing) existing.remove();
         if (piece) {
           const p = document.createElement('div');
-          p.className = 'piece ' + piece.side + (piece.acted ? ' acted' : '');
+          const done = piece.moved && piece.attacked;
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '');
           const nameSpan = document.createElement('span');
           nameSpan.className = 'p-name';
           nameSpan.textContent = piece.name[0];
@@ -606,19 +612,20 @@
       const moveShapeMap = { '+': '十字', 'r': '圆', 'square': '方', 'x': '斜' };
       parts.push('移动' + moveShapeMap[a.moveRange.shape] + a.moveRange.n);
       if (a.skill) parts.push('技能' + (a.cd > 0 ? '(' + a.cd + ')' : ''));
-      parts.push('本方粮草' + this.supply[a.side]);
+      const stateParts = [];
+      if (a.moved) stateParts.push('已移动');
+      if (a.attacked) stateParts.push('已攻击');
+      parts.push(stateParts.length ? stateParts.join('/') : '可行动');
       statsEl.textContent = parts.join(' · ');
 
-      const acted = !!a.acted;
-      const lowSupply = this.supply[a.side] < 1;
-      moveBtn.disabled = !!(acted || lowSupply);
-      atkBtn.disabled = !!(acted || lowSupply);
-      skBtn.disabled = !!(acted || !a.skill || !a.skill.filter(a));
+      moveBtn.disabled = !!a.moved;
+      atkBtn.disabled = !!a.attacked;
+      skBtn.disabled = !!(a.attacked || !a.skill || !a.skill.filter(a));
       if (detailBtn) detailBtn.disabled = false;
     },
 
     _renderSideList() {
-      const render = (side, ulId, supplyId) => {
+      const render = (side, ulId) => {
         const ul = document.getElementById(ulId);
         ul.innerHTML = '';
         const items = this.pieces.filter(p => p.side === side);
@@ -626,9 +633,10 @@
         for (const p of items) {
           const li = document.createElement('li');
           if (!p.alive) li.classList.add('dead');
-          else if (p.acted) li.classList.add('acted');
+          else if (p.moved && p.attacked) li.classList.add('acted');
           const nameSpan = document.createElement('span');
-          nameSpan.textContent = p.name + ' ' + (p.alive ? p.hp : '亡');
+          const stateTag = (p.moved || p.attacked) ? ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + ']' : '';
+          nameSpan.textContent = p.name + ' ' + (p.alive ? p.hp : '亡') + stateTag;
           nameSpan.style.marginRight = '4px';
           li.appendChild(nameSpan);
           const dot = document.createElement('span');
@@ -642,7 +650,7 @@
           li.appendChild(dot);
 
           li.addEventListener('click', () => {
-            if (!p.alive || p.acted) return;
+            if (!p.alive || (p.moved && p.attacked)) return;
             this.selected = p;
             this.mode = null;
             this.highlighted = [];
@@ -652,24 +660,21 @@
           });
           ul.appendChild(li);
         }
-        document.getElementById(supplyId).textContent = '粮草 ' + this.supply[side] + '/' + SUPPLY_MAX;
       };
-      render('red', 'list-red', 'supply-red');
-      render('blue', 'list-blue', 'supply-blue');
+      render('red', 'list-red');
+      render('blue', 'list-blue');
     },
 
     _refreshUi() {
       document.getElementById('turn-info').textContent =
         '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
-      const sb = document.getElementById('btn-supply');
-      if (sb) sb.textContent = '红 ' + this.supply.red + '/8 · 蓝 ' + this.supply.blue + '/8';
       this._render();
       this._renderBottom();
 
       if (this.awaitingCell) return;
       const side = this.currentSide;
       const aliveActable = this.pieces.filter(p => p.side === side && p.alive);
-      const allActed = aliveActable.length && aliveActable.every(p => p.acted);
+      const allActed = aliveActable.length && aliveActable.every(p => p.moved && p.attacked);
       if (allActed) {
         setTimeout(() => this.endTurn(), 400);
       }

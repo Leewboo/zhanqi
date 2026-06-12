@@ -67,13 +67,6 @@
       });
     },
 
-    supply(actor, amount) {
-      if (!actor || !global.Game) return;
-      const g = global.Game;
-      g.supply[actor.side] = Math.min(8, g.supply[actor.side] + amount);
-      g.log(actor.name + ' 为我方额外获得 ' + amount + ' 粮草。');
-    },
-
     push(actor, target, dir, n) {
       if (!target || !global.Game) return;
       n = n || 1;
