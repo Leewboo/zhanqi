@@ -1048,11 +1048,254 @@
       if (allActed) {
         setTimeout(() => this.endTurn(), 400);
       }
+    },
+
+    _maybeAiAct() {
+      if (!this.aiMode || this.over) return;
+      let aiShouldAct = false;
+      if (this.phase === 'draft') {
+        const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+        if (side === this.aiSide) aiShouldAct = true;
+      } else if (this.phase === 'deploy') {
+        if (this.deploySide === this.aiSide) aiShouldAct = true;
+      } else if (this.phase === 'battle') {
+        if (this.currentSide === this.aiSide) aiShouldAct = true;
+      }
+      if (!aiShouldAct) return;
+      const self = this;
+      setTimeout(() => self._aiStep(), 700);
+    },
+
+    _aiStep() {
+      if (this.over) return;
+      if (this.phase === 'draft') this._aiPickGeneral();
+      else if (this.phase === 'deploy') this._aiPlaceOne();
+      else if (this.phase === 'battle') this._aiBattleStep();
+    },
+
+    _aiPickGeneral() {
+      const pool = Generals.list.filter(g =>
+        !this.pickedRed.find(p => p.id === g.id) &&
+        !this.pickedBlue.find(p => p.id === g.id)
+      );
+      if (!pool.length) return;
+      // 按综合数值（hp+atk+def+moveRange.n*5）排序，选前三中随机一个，保留变化
+      const scored = pool.map(g => ({
+        g,
+        score: g.hp * 0.5 + g.atk * 2 + g.def * 1.2 + g.moveRange.n * 8 +
+          (g.skill ? 20 : 0)
+      }));
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored.slice(0, Math.min(3, scored.length));
+      const pick = top[Math.floor(Math.random() * top.length)];
+      this._pickGeneral(pick.g);
+    },
+
+    _aiPlaceOne() {
+      const side = this.deploySide;
+      const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
+      const placedIds = this.pieces.filter(p => p.side === side).map(p => p.generalId);
+      const pending = picked.filter(g => !placedIds.includes(g.id));
+      if (!pending.length) {
+        this._switchDeploySide();
+        return;
+      }
+      // 选一个尚未布置的武将（按列表顺序）
+      const gDef = pending[0];
+      // 找己方半场的空位：高数值武将尽量靠前（靠近中线），低数值靠后
+      const half = Math.floor(SIZE / 2);
+      const yStart = side === 'red' ? half : 0;
+      const yEnd = side === 'red' ? SIZE : half;
+      const empty = [];
+      for (let y = yStart; y < yEnd; y++) {
+        for (let x = 1; x < SIZE - 1; x++) {
+          if (!this.pieceAt(x, y)) empty.push({ x, y });
+        }
+      }
+      if (!empty.length) return;
+      // 进攻型（高 atk/move）靠前，其它中间
+      const offensive = gDef.atk >= 60 || gDef.moveRange.n >= 4;
+      empty.sort((a, b) => {
+        const da = side === 'red' ? (SIZE - 1 - a.y) : a.y;
+        const db = side === 'red' ? (SIZE - 1 - b.y) : b.y;
+        return offensive ? da - db : db - da;
+      });
+      const spot = empty[0];
+      // 模拟：选中 + 放置
+      this.deploySelected = gDef;
+      this._tryPlacePiece(spot.x, spot.y);
+      // 放完后继续排队下一个
+      if (!this.over && this.phase === 'deploy' && this.deploySide === this.aiSide) {
+        const self = this;
+        setTimeout(() => self._aiStep(), 500);
+      }
+    },
+
+    _aiBattleStep() {
+      const side = this.currentSide;
+      const myAlive = this.pieces.filter(p => p.side === side && p.alive);
+      // 每个未完成行动的棋子依次行动
+      const cand = myAlive.find(p => !(p.moved && p.attacked));
+      if (!cand) {
+        // 所有人都已行动，自动结束回合
+        this.endTurn();
+        return;
+      }
+      const actor = cand;
+      // 1) 尝试攻击当前攻击范围内的敌人
+      if (!actor.attacked) {
+        const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+          pieceAt: (x, y) => {
+            const p = this.pieceAt(x, y);
+            if (!p || !p.alive) return null;
+            return p;
+          }
+        });
+        const target = atkCells
+          .map(c => this.pieceAt(c.x, c.y))
+          .find(p => p && p.alive && p.side !== side);
+        if (target) {
+          this._executeAttack(actor, target);
+          this._scheduleNext();
+          return;
+        }
+      }
+      // 2) 否则移动：朝最近敌人移动
+      if (!actor.moved) {
+        const moveCells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
+          pieceAt: (x, y) => {
+            const p = this.pieceAt(x, y);
+            if (!p || !p.alive) return null;
+            return p;
+          }
+        });
+        const enemies = this.pieces.filter(p => p.side !== side && p.alive);
+        if (!enemies.length) { this._scheduleNext(); return; }
+        // 找一个最近的敌人作为目标
+        enemies.sort((a, b) => {
+          const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
+          const db = Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y);
+          return da - db;
+        });
+        const nearest = enemies[0];
+        // 在可移动的空格中，选离 nearest 最近的一格
+        const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
+        if (emptyMoves.length) {
+          emptyMoves.sort((a, b) => {
+            const da = Math.abs(a.x - nearest.x) + Math.abs(a.y - nearest.y);
+            const db = Math.abs(b.x - nearest.x) + Math.abs(b.y - nearest.y);
+            return da - db;
+          });
+          const target = emptyMoves[0];
+          this._executeMove(actor, target.x, target.y);
+          // 移动后再尝试攻击一次
+          const self = this;
+          setTimeout(() => {
+            if (self.over) return;
+            if (!actor.alive || actor.attacked) {
+              self._scheduleNext();
+              return;
+            }
+            const atkCells2 = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+              pieceAt: (x, y) => {
+                const p = self.pieceAt(x, y);
+                if (!p || !p.alive) return null;
+                return p;
+              }
+            });
+            const tgt = atkCells2
+              .map(c => self.pieceAt(c.x, c.y))
+              .find(p => p && p.alive && p.side !== side);
+            if (tgt) {
+              self._executeAttack(actor, tgt);
+            } else {
+              // 没敌人则标记攻击已用（以免死循环）
+              actor.attacked = true;
+            }
+            self._scheduleNext();
+          }, 500);
+          return;
+        }
+      }
+      // 不能移动也不能攻击，标记完成这枚棋子
+      actor.moved = true;
+      actor.attacked = true;
+      this._render();
+      this._renderBottom();
+      this._scheduleNext();
+    },
+
+    _scheduleNext() {
+      const self = this;
+      setTimeout(() => self._aiStep(), 500);
+    },
+
+    _executeMove(actor, x, y) {
+      if (actor.side !== this.currentSide || actor.moved) return false;
+      if (this.pieceAt(x, y)) return false;
+      const cells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
+        pieceAt: (px, py) => {
+          const p = this.pieceAt(px, py);
+          if (!p || !p.alive) return null;
+          return p;
+        }
+      });
+      if (!cells.find(c => c.x === x && c.y === y)) return false;
+      actor.x = x;
+      actor.y = y;
+      actor.moved = true;
+      this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
+      this.highlighted = [];
+      this.mode = null;
+      this._render();
+      this._renderBottom();
+      return true;
+    },
+
+    _executeAttack(actor, target) {
+      if (actor.side !== this.currentSide || actor.attacked) return false;
+      if (!target || !target.alive) return false;
+      const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+        pieceAt: (px, py) => {
+          const p = this.pieceAt(px, py);
+          if (!p || !p.alive) return null;
+          return p;
+        }
+      });
+      if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
+      const tBonus = terrainDefBonus(this.terrain[target.y][target.x]) || 0;
+      const defVal = target.def + target.defBuff + tBonus;
+      let dmg = Math.max(5, actor.atk + actor.atkBuff - defVal);
+      target.hp -= dmg;
+      this.log(actor.name + ' 攻击 ' + target.name + '，造成 ' + dmg + ' 伤害。');
+      actor.attacked = true;
+      if (target.hp <= 0) {
+        target.hp = 0;
+        target.alive = false;
+        this.log(target.name + ' 阵亡！', 'turn');
+        this._checkWin();
+      }
+      this.highlighted = [];
+      this.mode = null;
+      this._render();
+      this._renderBottom();
+      return true;
     }
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    Game.init();
+    // 页面加载时显示主页；点击「本机对战 / 人机对战」后再调用 init
+    const home = document.getElementById('home-screen');
+    const app = document.getElementById('app');
+    if (home) home.classList.remove('hidden');
+    if (app) app.classList.add('hidden');
+    // 主页按钮：提前绑定，无需先 init 游戏
+    const localBtn = document.getElementById('btn-local');
+    const aiBtn = document.getElementById('btn-ai');
+    const homeBtn = document.getElementById('btn-home');
+    if (localBtn) localBtn.addEventListener('click', () => Game.startGame('local'));
+    if (aiBtn) aiBtn.addEventListener('click', () => Game.startGame('ai'));
+    if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 
   global.Game = Game;
