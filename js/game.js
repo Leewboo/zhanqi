@@ -549,13 +549,16 @@
         this.log('【' + skill.name + '】条件未满足。');
         return;
       }
+      actor.attacked = true;
       if (skill.cooldown) actor.cdMap[skill.id] = skill.cooldown;
       this.log(actor.name + ' 发动技能：' + skill.name);
       const promise = skill.content(actor);
       this.mode = null;
       const self = this;
-      Promise.resolve(promise).then(() => {
-        self._finishActorAction('skill');
+      Promise.resolve(promise).then(function () {
+        self._render();
+        self._renderBottom();
+        self._checkWin();
       });
     },
 

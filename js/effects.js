@@ -1,4 +1,5 @@
 (function (global) {
+  const SIZE = Range.BOARD_SIZE;
   const Effect = {
     heal(actor, amount) {
       if (!actor || !actor.alive) return amount;
