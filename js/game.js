@@ -1,34 +1,14 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
+  const PICKS_PER_SIDE = 5;
 
   const TERRAIN_NAMES = {
     plain: '',
     m: '林',
-    f: '田',
-    r: '江',
+    f: '营',
+    r: '河',
     w: '城'
   };
-
-  const LANDMARK_NAMES = {};
-
-  function _registerLandmarks() {
-    // 历史地名：魏（北/东）、蜀（南/西）
-    const mark = (x, y, name) => { LANDMARK_NAMES[y + ',' + x] = name; };
-    // 魏国（蓝方）
-    mark(0, 0, '长安'); mark(1, 0, '长安'); mark(0, 1, '长安');
-    mark(7, 0, '洛阳'); mark(8, 0, '洛阳');
-    mark(10, 0, '许都'); mark(11, 0, '许都'); mark(10, 1, '许都'); mark(11, 1, '许都');
-    mark(9, 5, '荆州');
-    // 蜀国（红方）
-    mark(0, 4, '汉中'); mark(1, 4, '汉中');
-    mark(4, 10, '江州');
-    mark(0, 11, '成都'); mark(1, 11, '成都'); mark(2, 11, '成都'); mark(0, 10, '成都');
-    mark(5, 11, '永安'); mark(6, 11, '永安');
-    // 地形提示
-    mark(5, 2, '秦岭'); mark(6, 2, '秦岭'); mark(4, 3, '秦岭'); mark(5, 3, '秦岭');
-    mark(5, 6, '长江'); mark(6, 6, '长江'); mark(7, 6, '长江'); mark(4, 7, '长江');
-  }
-  _registerLandmarks();
 
   function buildTerrain() {
     const map = [];
@@ -39,42 +19,78 @@
       }
     }
     const set = (x, y, t) => { if (Range.inBounds(x, y)) map[y][x] = t; };
-    // 城池 w（魏：长安 / 洛阳 / 许都 / 荆州）（蜀：汉中 / 成都 / 永安 / 江州）
-    [[0,0],[1,0],[0,1]].forEach(p => set(p[0], p[1], 'w'));
-    [[7,0],[8,0]].forEach(p => set(p[0], p[1], 'w'));
-    [[10,0],[11,0],[10,1],[11,1]].forEach(p => set(p[0], p[1], 'w'));
-    [[9,5]].forEach(p => set(p[0], p[1], 'w'));
-    [[0,4],[1,4]].forEach(p => set(p[0], p[1], 'w'));
-    [[4,10]].forEach(p => set(p[0], p[1], 'w'));
-    [[0,11],[1,11],[2,11],[0,10]].forEach(p => set(p[0], p[1], 'w'));
-    [[5,11],[6,11]].forEach(p => set(p[0], p[1], 'w'));
-    // 山地森林 m（秦岭山脉 + 若干零散山林）
-    [[4,0],[5,0],[4,1],[5,2],[6,2],[3,3],[4,3],[5,3],[7,3],[8,3],[9,3]].forEach(p => set(p[0], p[1], 'm'));
-    [[2,4],[3,4],[7,4],[8,4],[9,4],[2,5],[8,5]].forEach(p => set(p[0], p[1], 'm'));
-    [[3,9],[4,9],[7,9],[8,9],[7,10]].forEach(p => set(p[0], p[1], 'm'));
-    // 河流 r（长江横贯中部偏南）
-    [[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7]].forEach(p => set(p[0], p[1], 'r'));
-    // 农田 f（南方富饶地区）
-    [[2,8],[3,8],[2,9],[7,8],[8,8],[9,8],[3,10],[5,10],[6,10]].forEach(p => set(p[0], p[1], 'f'));
+
+    // 中央河流（横贯 y=5,6 —— 完全对称）
+    for (let x = 1; x < 11; x++) {
+      if (x !== 5 && x !== 6) set(x, 6, 'r');
+      if (x !== 5 && x !== 6) set(x, 5, 'r');
+    }
+    // 河流中央的两处渡口（保留平地，让中段有通道）
+    set(5, 5, 'plain'); set(6, 5, 'plain');
+    set(5, 6, 'plain'); set(6, 6, 'plain');
+
+    // 山丘林地：上半区（3,4）与下半区（7,8）完全对称
+    // 左中林
+    [[2,3],[2,4],[3,3],[3,4]].forEach(p => set(p[0], p[1], 'm'));
+    [[2,7],[2,8],[3,7],[3,8]].forEach(p => set(p[0], p[1], 'm'));
+    // 右中林
+    [[8,3],[8,4],[9,3],[9,4]].forEach(p => set(p[0], p[1], 'm'));
+    [[8,7],[8,8],[9,7],[9,8]].forEach(p => set(p[0], p[1], 'm'));
+    // 散丘
+    [[5,3],[6,3]].forEach(p => set(p[0], p[1], 'm'));
+    [[5,8],[6,8]].forEach(p => set(p[0], p[1], 'm'));
+
+    // 城池（战略要点，对称分布）
+    [[0,0],[11,0],[0,11],[11,11]].forEach(p => set(p[0], p[1], 'w')); // 四角
+    [[5,2],[6,2],[5,9],[6,9]].forEach(p => set(p[0], p[1], 'w'));     // 双方中场
+    [[0,5],[11,5],[0,6],[11,6]].forEach(p => set(p[0], p[1], 'w'));     // 东西桥头
+
+    // 前哨营地（对称小型增益点）
+    [[4,1],[7,1],[4,10],[7,10]].forEach(p => set(p[0], p[1], 'f'));
+
     return map;
   }
 
   function terrainLabel(x, y) {
-    const key = y + ',' + x;
-    if (LANDMARK_NAMES[key]) return LANDMARK_NAMES[key];
     return '';
   }
 
   function terrainDefBonus(t) {
     if (t === 'm') return 10;
     if (t === 'w') return 15;
+    if (t === 'f') return 5;
     return 0;
+  }
+
+  // 对称部署坐标：按挑选顺序排列（第1个选→位置1）
+  // 蓝方在上方（行0、行1），红方在下方（行11、行10），同列镜像
+  const DEPLOY_ORDER = [
+    [5, 0], // 蓝方第1选 · 中心后位
+    [6, 0], // 蓝方第2选
+    [4, 0], // 蓝方第3选
+    [7, 0], // 蓝方第4选
+    [3, 0], // 蓝方第5选
+    [8, 0], // 蓝方第6选
+    [5, 1], // 蓝方第7选 · 前排
+    [6, 1], // 蓝方第8选
+    [4, 1], // 蓝方第9选
+    [7, 1], // 蓝方第10选
+  ];
+
+  function deployPositionFor(side, index) {
+    const [x, y] = DEPLOY_ORDER[index] || [index, side === 'blue' ? 0 : SIZE - 1];
+    if (side === 'red') return { x, y: SIZE - 1 - y };
+    return { x, y };
   }
 
   const Game = {
     boardEl: null,
+    phase: 'draft', // draft | battle
     turn: 1,
     currentSide: 'red',
+    draftIndex: 0,    // 当前在第N选（0-based），简单交替：偶数红选，奇数蓝选
+    pickedRed: [],
+    pickedBlue: [],
     pieces: [],
     terrain: null,
     selected: null,
@@ -99,46 +115,90 @@
       this.pieces = [];
       this.turn = 1;
       this.currentSide = 'red';
+      this.draftIndex = 0;
+      this.pickedRed = [];
+      this.pickedBlue = [];
       this.selected = null;
       this.mode = null;
       this.highlighted = [];
       this.over = false;
-      this._deploy();
+      this.phase = 'draft';
       this._buildDom();
       this._bind();
+      this._highlightDeployZones();
       this._refreshUi();
-      this.log('战斗开始。红方先动。', 'turn');
+      this.log('选将开始：双方轮流挑选武将，每方 ' + PICKS_PER_SIDE + ' 人。', 'turn');
+      this.log('红方先选。', 'turn');
     },
 
-    _deploy() {
-      const reds = Generals.list.filter(g => g.color === 'red');
-      const blues = Generals.list.filter(g => g.color === 'blue');
-      // 蜀（红）方：围绕成都/汉中/永安部署（棋盘下方/左下方）
-      const positionsRed = [
-        [1, 10], // 刘备 成都
-        [2, 10], // 关羽 江州前线
-        [1, 11], // 张飞 成都
-        [0, 9],  // 赵云 汉中前线
-        [3, 11], // 诸葛亮 成都附近
-        [4, 11]  // 黄忠 江州
-      ];
-      // 魏（蓝）方：围绕许都/洛阳/长安部署（棋盘上方/右上方）
-      const positionsBlue = [
-        [11, 1], // 曹操 许都
-        [10, 1], // 夏侯惇 许都
-        [9, 1],  // 典韦 洛阳前线
-        [8, 1],  // 许褚 洛阳
-        [11, 2], // 司马懿 许都前
-        [10, 2]  // 张辽 荆州方向
-      ];
-      reds.forEach((g, i) => {
-        const [x, y] = positionsRed[i] || [i % 4, 11 - Math.floor(i / 4)];
-        this.pieces.push(Generals.buildPiece(g, 'red', x, y));
+    _highlightDeployZones() {
+      // 选将阶段：高亮双方部署区，让玩家看到阵容位置
+      const children = this.boardEl.children;
+      for (let i = 0; i < Math.min(PICKS_PER_SIDE, DEPLOY_ORDER.length); i++) {
+        const blue = deployPositionFor('blue', i);
+        const red = deployPositionFor('red', i);
+        const bIdx = blue.y * SIZE + blue.x;
+        const rIdx = red.y * SIZE + red.x;
+        if (children[bIdx]) children[bIdx].classList.add('zone-blue');
+        if (children[rIdx]) children[rIdx].classList.add('zone-red');
+      }
+    },
+
+    _clearDeployZones() {
+      const children = this.boardEl.children;
+      for (let i = 0; i < children.length; i++) {
+        children[i].classList.remove('zone-red', 'zone-blue');
+      }
+    },
+
+    _pickGeneral(generalDef) {
+      if (this.phase !== 'draft') return;
+      if (this.pickedRed.find(g => g.id === generalDef.id) ||
+          this.pickedBlue.find(g => g.id === generalDef.id)) {
+        this.log(generalDef.name + ' 已被选走。');
+        return;
+      }
+      const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+      if (side === 'red') this.pickedRed.push(generalDef);
+      else this.pickedBlue.push(generalDef);
+      this.log((side === 'red' ? '红' : '蓝') + '方选走 ' + generalDef.name + '。');
+      this.draftIndex += 1;
+
+      if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
+        this._startBattle();
+        return;
+      }
+
+      // 如果一方已选满但另一方还没，让未选满的一方继续（正常交替应该不会触发）
+      const need = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+      const sideFull = (need === 'red' ? this.pickedRed : this.pickedBlue).length >= PICKS_PER_SIDE;
+      if (sideFull) {
+        // 跳过给另一方
+        this.draftIndex += 1;
+        if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
+          this._startBattle();
+          return;
+        }
+      }
+      this._refreshUi();
+    },
+
+    _startBattle() {
+      this.phase = 'battle';
+      this.pieces = [];
+      this.pickedRed.forEach((g, i) => {
+        const pos = deployPositionFor('red', i);
+        this.pieces.push(Generals.buildPiece(g, 'red', pos.x, pos.y));
       });
-      blues.forEach((g, i) => {
-        const [x, y] = positionsBlue[i] || [SIZE - 1 - (i % 4), Math.floor(i / 4)];
-        this.pieces.push(Generals.buildPiece(g, 'blue', x, y));
+      this.pickedBlue.forEach((g, i) => {
+        const pos = deployPositionFor('blue', i);
+        this.pieces.push(Generals.buildPiece(g, 'blue', pos.x, pos.y));
       });
+      this._clearDeployZones();
+      this.turn = 1;
+      this.currentSide = 'red';
+      this.log('阵容已就位。战斗开始，红方先动。', 'turn');
+      this._refreshUi();
     },
 
     _buildDom() {
@@ -152,13 +212,7 @@
           if (t && t !== 'plain') c.classList.add('terrain-' + t);
           c.dataset.x = x;
           c.dataset.y = y;
-          const landmark = terrainLabel(x, y);
-          if (landmark) {
-            const lb = document.createElement('span');
-            lb.className = 'terrain-label';
-            lb.textContent = landmark;
-            c.appendChild(lb);
-          } else if (t && TERRAIN_NAMES[t]) {
+          if (t && TERRAIN_NAMES[t]) {
             const lb = document.createElement('span');
             lb.className = 'terrain-label';
             lb.textContent = TERRAIN_NAMES[t];
@@ -242,17 +296,17 @@
       }
       addRow('移动范围', rangeText(piece.moveRange));
       addRow('攻击范围', rangeText(piece.attackRange));
-      const state = [];
-      if (piece.moved) state.push('已移动');
-      if (piece.attacked) state.push('已攻击');
-      addRow('本回合状态', state.length ? state.join(' / ') : '可行动');
-      const tHere = this.terrain[piece.y][piece.x];
-      const tName = tHere === 'plain' ? '平原' : TERRAIN_NAMES[tHere] || '—';
-      const landmark = terrainLabel(piece.x, piece.y);
-      let tInfo = tName;
-      if (landmark && landmark !== tName) tInfo += '（' + landmark + '）';
-      if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
-      addRow('当前位置', tInfo);
+      if (this.phase === 'battle') {
+        const state = [];
+        if (piece.moved) state.push('已移动');
+        if (piece.attacked) state.push('已攻击');
+        addRow('本回合状态', state.length ? state.join(' / ') : '可行动');
+        const tHere = this.terrain[piece.y][piece.x];
+        const tName = tHere === 'plain' ? '平原' : TERRAIN_NAMES[tHere] || '—';
+        let tInfo = tName;
+        if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
+        addRow('当前位置', tInfo);
+      }
       if (piece.skill) {
         const sk = piece.skill;
         const block = document.createElement('div');
@@ -275,22 +329,12 @@
         row2.className = 'row';
         const l2 = document.createElement('span');
         l2.className = 'label';
-        l2.textContent = '类型';
+        l2.textContent = '冷却';
         const v2 = document.createElement('span');
         v2.className = 'value';
-        v2.textContent = sk.type || '主动';
+        v2.textContent = (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
         row2.appendChild(l2); row2.appendChild(v2);
         block.appendChild(row2);
-        const row3 = document.createElement('div');
-        row3.className = 'row';
-        const l3 = document.createElement('span');
-        l3.className = 'label';
-        l3.textContent = '冷却';
-        const v3 = document.createElement('span');
-        v3.className = 'value';
-        v3.textContent = (sk.cooldown || 0) + ' 回合' + (piece.cd > 0 ? '（剩余 ' + piece.cd + '）' : '');
-        row3.appendChild(l3); row3.appendChild(v3);
-        block.appendChild(row3);
         if (sk.desc) {
           const desc = document.createElement('div');
           desc.style.marginTop = '6px';
@@ -302,10 +346,35 @@
         addRow('技能', '无');
       }
 
+      // 选将阶段提供“选走此将”按钮
+      if (this.phase === 'draft') {
+        const btn = document.createElement('button');
+        btn.className = 'act-btn';
+        btn.style.marginTop = '12px';
+        const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
+        const alreadyTaken = this.pickedRed.find(g => g.id === piece.id) ||
+                             this.pickedBlue.find(g => g.id === piece.id);
+        if (alreadyTaken) {
+          btn.textContent = '已被选走';
+          btn.disabled = true;
+        } else {
+          btn.textContent = side + '方 · 选择 ' + piece.name;
+          btn.onclick = () => {
+            document.getElementById('detail-modal').classList.add('hidden');
+            this._pickGeneral(piece);
+          };
+        }
+        body.appendChild(btn);
+      }
+
       modal.classList.remove('hidden');
     },
 
     _onCellClick(x, y) {
+      if (this.phase === 'draft') {
+        // 选将阶段：点击棋盘不操作；武将通过详情弹窗或武将列表选择
+        return;
+      }
       if (this.over) return;
       if (this.awaitingCell) {
         const valid = this.highlighted.find(h => h.x === x && h.y === y);
@@ -341,6 +410,7 @@
     },
 
     _enterMode(mode) {
+      if (this.phase !== 'battle') return;
       if (!this.selected || (this.selected.moved && this.selected.attacked)) return;
       const actor = this.selected;
       this.mode = mode;
@@ -596,6 +666,21 @@
       const atkBtn = document.getElementById('btn-attack');
       const skBtn = document.getElementById('btn-skill');
       const detailBtn = document.getElementById('btn-detail');
+      const endBtn = document.getElementById('btn-end');
+
+      if (this.phase === 'draft') {
+        const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
+        nameEl.textContent = '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · 轮到' + side + '方';
+        statsEl.textContent = '已选：红 ' + this.pickedRed.length + ' / 蓝 ' + this.pickedBlue.length + '（每方 ' + PICKS_PER_SIDE + ' 人）· 点击下方武将卡选择';
+        moveBtn.disabled = true;
+        atkBtn.disabled = true;
+        skBtn.disabled = true;
+        if (detailBtn) detailBtn.disabled = true;
+        endBtn.style.display = 'none';
+        return;
+      }
+      endBtn.style.display = '';
+
       const a = this.selected;
       if (!a) {
         nameEl.textContent = '未选择棋子';
@@ -628,15 +713,23 @@
       const render = (side, ulId) => {
         const ul = document.getElementById(ulId);
         ul.innerHTML = '';
-        const items = this.pieces.filter(p => p.side === side);
+        const items = this.phase === 'draft'
+          ? (side === 'red' ? this.pickedRed : this.pickedBlue).map(def => Generals.buildPiece(def, side, -1, -1))
+          : this.pieces.filter(p => p.side === side);
         const self = this;
         for (const p of items) {
           const li = document.createElement('li');
-          if (!p.alive) li.classList.add('dead');
-          else if (p.moved && p.attacked) li.classList.add('acted');
+          if (this.phase === 'battle') {
+            if (!p.alive) li.classList.add('dead');
+            else if (p.moved && p.attacked) li.classList.add('acted');
+          }
           const nameSpan = document.createElement('span');
-          const stateTag = (p.moved || p.attacked) ? ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + ']' : '';
-          nameSpan.textContent = p.name + ' ' + (p.alive ? p.hp : '亡') + stateTag;
+          let txt = p.name;
+          if (this.phase === 'battle') txt += ' ' + (p.alive ? p.hp : '亡');
+          if (this.phase === 'battle' && (p.moved || p.attacked)) {
+            txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + ']';
+          }
+          nameSpan.textContent = txt;
           nameSpan.style.marginRight = '4px';
           li.appendChild(nameSpan);
           const dot = document.createElement('span');
@@ -649,28 +742,113 @@
           });
           li.appendChild(dot);
 
-          li.addEventListener('click', () => {
-            if (!p.alive || (p.moved && p.attacked)) return;
-            this.selected = p;
-            this.mode = null;
-            this.highlighted = [];
-            document.getElementById('report-modal').classList.add('hidden');
-            this._render();
-            this._renderBottom();
-          });
+          if (this.phase === 'battle') {
+            li.addEventListener('click', () => {
+              if (!p.alive || (p.moved && p.attacked)) return;
+              this.selected = p;
+              this.mode = null;
+              this.highlighted = [];
+              document.getElementById('report-modal').classList.add('hidden');
+              this._render();
+              this._renderBottom();
+            });
+          }
           ul.appendChild(li);
         }
       };
       render('red', 'list-red');
       render('blue', 'list-blue');
+
+      // 选将阶段：展示可选择的武将列表（战报浮窗中）
+      const draftBlock = document.getElementById('draft-pool');
+      if (this.phase === 'draft' && draftBlock) {
+        draftBlock.style.display = '';
+        draftBlock.innerHTML = '';
+        const title = document.createElement('div');
+        const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
+        title.className = 'block-title';
+        title.textContent = '武将池 · 轮到 ' + side + '方 选择';
+        draftBlock.appendChild(title);
+        const pool = Generals.list.filter(g =>
+          !this.pickedRed.find(p => p.id === g.id) &&
+          !this.pickedBlue.find(p => p.id === g.id)
+        );
+        const self = this;
+        for (const g of pool) {
+          const row = document.createElement('div');
+          row.className = 'row draft-row';
+          row.style.padding = '4px 0';
+          row.style.borderBottom = '1px solid rgba(255,255,255,0.08)';
+          const left = document.createElement('span');
+          left.className = 'label';
+          left.textContent = g.name;
+          const right = document.createElement('span');
+          right.className = 'value';
+          right.textContent = '血' + g.hp + ' / 攻' + g.atk + ' / 防' + g.def + (g.skill ? ' · 技能：' + g.skill.name : '');
+          row.appendChild(left);
+          row.appendChild(right);
+          row.addEventListener('click', () => {
+            document.getElementById('report-modal').classList.add('hidden');
+            self._pickGeneral(g);
+          });
+          draftBlock.appendChild(row);
+        }
+      } else if (draftBlock) {
+        draftBlock.style.display = 'none';
+      }
+    },
+
+    _renderDraftCards() {
+      const panel = document.getElementById('draft-panel');
+      const cards = document.getElementById('draft-cards');
+      const status = document.getElementById('draft-status');
+      if (!panel || !cards) return;
+      if (this.phase !== 'draft') {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = '';
+      const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
+      status.textContent = '第 ' + (this.draftIndex + 1) + ' 选 · ' + side + '方';
+      cards.innerHTML = '';
+      const pool = Generals.list.filter(g =>
+        !this.pickedRed.find(p => p.id === g.id) &&
+        !this.pickedBlue.find(p => p.id === g.id)
+      );
+      const self = this;
+      for (const g of pool) {
+        const card = document.createElement('div');
+        card.className = 'draft-card';
+        const head = document.createElement('div');
+        head.className = 'draft-card-head';
+        head.textContent = g.name;
+        const body = document.createElement('div');
+        body.className = 'draft-card-body';
+        body.innerHTML =
+          '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
+          '<br/>移动 ' + g.moveRange.n + '<br/>攻击 ' + g.attackRange.n +
+          (g.skill ? '<br/>技能：' + g.skill.name : '');
+        const footer = document.createElement('div');
+        footer.className = 'draft-card-footer';
+        footer.textContent = side + '方 选择';
+        card.appendChild(head);
+        card.appendChild(body);
+        card.appendChild(footer);
+        card.addEventListener('click', () => self._pickGeneral(g));
+        cards.appendChild(card);
+      }
     },
 
     _refreshUi() {
       document.getElementById('turn-info').textContent =
-        '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+        this.phase === 'draft'
+          ? '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (this.draftIndex % 2 === 0 ? '红' : '蓝') + '方'
+          : '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+      this._renderDraftCards();
       this._render();
       this._renderBottom();
 
+      if (this.phase !== 'battle') return;
       if (this.awaitingCell) return;
       const side = this.currentSide;
       const aliveActable = this.pieces.filter(p => p.side === side && p.alive);

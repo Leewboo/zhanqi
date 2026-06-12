@@ -256,6 +256,15 @@ html, body {
 .cell.terrain-r { background: var(--terrain-r); }
 .cell.terrain-w { background: var(--terrain-w); }
 
+.cell.zone-red {
+  box-shadow: inset 0 0 0 2px rgba(178, 58, 58, 0.55);
+  background: rgba(255, 225, 225, 0.55);
+}
+.cell.zone-blue {
+  box-shadow: inset 0 0 0 2px rgba(58, 107, 178, 0.55);
+  background: rgba(225, 235, 255, 0.55);
+}
+
 .cell.move {
   background: var(--cell-move);
   box-shadow: inset 0 0 0 2px rgba(58,107,178,0.5);
@@ -567,4 +576,104 @@ html, body {
 /* 大屏优化：棋盘缩放到 60px */
 @media (min-width: 900px) {
   :root { --cell-size: 60px; }
+}
+
+/* 选将面板 */
+.draft-panel {
+  background: #fff;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px 10px;
+  display: none;
+}
+
+.draft-panel .draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.draft-panel .draft-status {
+  font-weight: 700;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.draft-panel .draft-hint {
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+
+.draft-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  max-height: 38vh;
+  overflow-y: auto;
+}
+
+.draft-card {
+  border: 1px solid var(--line);
+  background: #fafaf6;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  line-height: 1.6;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.draft-card:hover {
+  background: #fff3c4;
+}
+
+.draft-card:active {
+  transform: translateY(1px);
+}
+
+.draft-card-head {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+  color: var(--fg);
+}
+
+.draft-card-body {
+  color: var(--muted);
+}
+
+.draft-card-footer {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--fg);
+  border-top: 1px dashed var(--line);
+  padding-top: 4px;
+  opacity: 0.75;
+}
+
+/* 战报浮窗中的武将池 */
+.draft-pool-modal {
+  display: none;
+  margin-bottom: 10px;
+}
+
+.draft-pool-modal .draft-row {
+  cursor: pointer;
+}
+
+.draft-pool-modal .draft-row:hover {
+  background: #fff3c4;
+}
+
+/* 选将时底部操作按钮弱化 */
+.bottom-bar .actions {
+  opacity: 1;
 }
