@@ -292,7 +292,6 @@
 
       document.getElementById('btn-move').onclick = () => this._enterMode('move');
       document.getElementById('btn-attack').onclick = () => this._enterMode('attack');
-      document.getElementById('btn-skill').onclick = () => this._enterMode('skill');
       document.getElementById('btn-cancel').onclick = () => {
         this._clearSelection();
         this._refreshUi();
@@ -303,9 +302,6 @@
         document.getElementById('log').innerHTML = '';
         this.init(this.aiMode ? 'ai' : 'local');
       };
-      document.getElementById('btn-home').onclick = () => this.goHome();
-      document.getElementById('btn-local').onclick = () => this.startGame('local');
-      document.getElementById('btn-ai').onclick = () => this.startGame('ai');
       document.getElementById('detail-close').onclick = () => {
         document.getElementById('detail-modal').classList.add('hidden');
       };
