@@ -133,7 +133,8 @@
       this._bind();
       this._highlightDeployZones();
       this._refreshUi();
-      this.log('选将开始：双方轮流挑选武将，每方 ' + PICKS_PER_SIDE + ' 人。', 'turn');
+      const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
+      this.log('选将开始：双方轮流挑选武将，每方 ' + effectivePicks + ' 人。', 'turn');
       if (this.aiMode) {
         this.log('人机对战：你执红，AI 执蓝。', 'turn');
       }
@@ -192,18 +193,18 @@
       this.log((side === 'red' ? '红' : '蓝') + '方选走 ' + generalDef.name + '。');
       this.draftIndex += 1;
 
-      if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
+      const maxPerSide = Math.floor(Generals.list.length / 2);
+      const effective = Math.min(PICKS_PER_SIDE, maxPerSide);
+      if (this.pickedRed.length >= effective && this.pickedBlue.length >= effective) {
         this._startDeploy();
         return;
       }
 
-      // 如果一方已选满但另一方还没，让未选满的一方继续（正常交替应该不会触发）
       const need = this.draftIndex % 2 === 0 ? 'red' : 'blue';
-      const sideFull = (need === 'red' ? this.pickedRed : this.pickedBlue).length >= PICKS_PER_SIDE;
+      const sideFull = (need === 'red' ? this.pickedRed : this.pickedBlue).length >= effective;
       if (sideFull) {
-        // 跳过给另一方
         this.draftIndex += 1;
-        if (this.pickedRed.length >= PICKS_PER_SIDE && this.pickedBlue.length >= PICKS_PER_SIDE) {
+        if (this.pickedRed.length >= effective && this.pickedBlue.length >= effective) {
           this._startDeploy();
           return;
         }
@@ -796,8 +797,9 @@
 
       if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
+        const effective = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
         nameEl.textContent = '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · 轮到' + side + '方';
-        statsEl.textContent = '已选：红 ' + this.pickedRed.length + ' / 蓝 ' + this.pickedBlue.length + '（每方 ' + PICKS_PER_SIDE + ' 人）· 点击下方武将卡选择';
+        statsEl.textContent = '已选：红 ' + this.pickedRed.length + ' / 蓝 ' + this.pickedBlue.length + '（每方 ' + effective + ' 人）· 点击下方武将卡选择';
         moveBtn.disabled = true;
         atkBtn.disabled = true;
         skBtn.disabled = true;

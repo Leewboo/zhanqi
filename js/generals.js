@@ -7,19 +7,10 @@
   };
 
   const generals = [
-    { id: 'gy',  name: '关羽', hp: 260, atk: 75, def: 25, moveRange: { shape: '+', n: 5 }, attackRange: { shape: '+', n: 1 }, skill: Skills.feint },
-    { id: 'zf',  name: '张飞', hp: 280, atk: 80, def: 20, moveRange: { shape: 'r', n: 3 }, attackRange: { shape: '+', n: 1 }, skill: Skills.rage },
-    { id: 'zy',  name: '赵云', hp: 240, atk: 70, def: 30, moveRange: { shape: '+', n: 6 }, attackRange: { shape: '+', n: 1 }, skill: Skills.charge },
-    { id: 'hz',  name: '黄忠', hp: 200, atk: 70, def: 20, moveRange: { shape: '+', n: 2 }, attackRange: { shape: '+', n: 3 }, skill: Skills.volly },
-    { id: 'zm',  name: '诸葛亮', hp: 180, atk: 55, def: 20, moveRange: { shape: 'x', n: 2 }, attackRange: { shape: 'r', n: 3 }, skill: Skills.stratagem },
-    { id: 'lb',  name: '刘备', hp: 220, atk: 45, def: 25, moveRange: { shape: '+', n: 3 }, attackRange: { shape: '+', n: 1 }, skill: Skills.heal },
-
-    { id: 'xc',  name: '夏侯惇', hp: 270, atk: 75, def: 28, moveRange: { shape: '+', n: 4 }, attackRange: { shape: '+', n: 1 }, skill: Skills.rage },
-    { id: 'dy',  name: '典韦', hp: 260, atk: 80, def: 25, moveRange: { shape: 'r', n: 3 }, attackRange: { shape: '+', n: 1 }, skill: Skills.charge },
-    { id: 'xc2', name: '许褚', hp: 280, atk: 78, def: 22, moveRange: { shape: '+', n: 3 }, attackRange: { shape: '+', n: 1 }, skill: Skills.feint },
-    { id: 'zlj', name: '张辽', hp: 250, atk: 72, def: 28, moveRange: { shape: '+', n: 5 }, attackRange: { shape: '+', n: 1 }, skill: Skills.volly },
-    { id: 'sm',  name: '司马懿', hp: 190, atk: 55, def: 22, moveRange: { shape: 'x', n: 3 }, attackRange: { shape: 'r', n: 3 }, skill: Skills.stratagem },
-    { id: 'cc',  name: '曹操', hp: 240, atk: 60, def: 30, moveRange: { shape: '+', n: 4 }, attackRange: { shape: '+', n: 1 }, skill: Skills.fortify }
+    { id: 't1', name: '甲', hp: 200, atk: 50, def: 20, moveRange: { shape: '+', n: 4 }, attackRange: { shape: '+', n: 1 }, skill: null },
+    { id: 't2', name: '乙', hp: 240, atk: 60, def: 25, moveRange: { shape: '+', n: 3 }, attackRange: { shape: '+', n: 2 }, skill: null },
+    { id: 't3', name: '丙', hp: 180, atk: 70, def: 15, moveRange: { shape: 'r', n: 3 }, attackRange: { shape: 'r', n: 3 }, skill: null },
+    { id: 't4', name: '丁', hp: 300, atk: 40, def: 35, moveRange: { shape: 'square', n: 2 }, attackRange: { shape: '+', n: 1 }, skill: null }
   ];
 
   function buildPiece(def, side, x, y) {
