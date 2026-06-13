@@ -673,10 +673,21 @@
     },
 
     _finishActorAction() {
-      this._clearSelection();
-      this._checkWin();
-      this._render();
-      this._refreshUi();
+      const actor = this.selected;
+      if (actor && (!actor.moved || !actor.attacked)) {
+        // 还有剩余行动点，保持选中状态，仅刷新 UI
+        this.mode = null;
+        this.highlighted = [];
+        this._checkWin();
+        this._render();
+        this._renderBottom();
+      } else {
+        // 行动全部用完，清空选中，自动轮到下一枚棋子
+        this._clearSelection();
+        this._checkWin();
+        this._render();
+        this._refreshUi();
+      }
     },
 
     _clearSelection() {
