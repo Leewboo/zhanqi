@@ -89,6 +89,7 @@
       alive: true,
       moved: false,
       attacked: false,
+      skilled: false,
       cd: 0,
       cdMap: {},
       atkBuff: 0,

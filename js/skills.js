@@ -33,7 +33,7 @@
       cooldown: 2,
       desc: '在+4范围内选择一名敌人，再选择其r2范围内的空格作为落点，然后对目标造成40技能伤害。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
         // 第一步：选择 +4 范围内的敌人
@@ -52,7 +52,7 @@
         });
         if (!cell) return false;
 
-        actor.attacked = true;
+        actor.skilled = true;
         Effect.teleport(actor, cell.x, cell.y);
         Effect.damage(actor, target, 40, { ignoreDef: true });
         return true;
@@ -66,10 +66,10 @@
       cooldown: 2,
       desc: '本回合攻击力提升30，持续至本回合结束。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
-        actor.attacked = true;
+        actor.skilled = true;
         actor.atkBuff = (actor.atkBuff || 0) + 30;
         actor.atkBuffTurns = 1;
         global.Game.log(actor.name + ' 发动【怒吼】，攻击 +30！');
@@ -83,7 +83,7 @@
       cooldown: 2,
       desc: '十字4格范围内选中一格并移动过去，再对邻格敌人造成1.5倍伤害。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
         const cell = await Effect.chooseCell(actor, {
@@ -92,7 +92,7 @@
           hintText: '【突袭】请选择十字4格内的空格作为落点。'
         });
         if (!cell) return false;
-        actor.attacked = true;
+        actor.skilled = true;
         actor.x = cell.x;
         actor.y = cell.y;
         const neighbors = Range.plus(1, actor.x, actor.y, { includeSelf: false });
@@ -116,10 +116,10 @@
       cooldown: 2,
       desc: '圆形3格范围内为己方单位回复80生命。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
-        actor.attacked = true;
+        actor.skilled = true;
         const area = Range.circle(3, actor.x, actor.y, { includeSelf: true });
         let n = 0;
         for (const c of area) {
@@ -140,10 +140,10 @@
       cooldown: 3,
       desc: '圆形5格范围对所有敌人造成0.8倍攻击伤害。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
-        actor.attacked = true;
+        actor.skilled = true;
         const area = Range.circle(5, actor.x, actor.y, { includeSelf: false });
         let n = 0;
         for (const c of area) {
@@ -164,10 +164,10 @@
       cooldown: 2,
       desc: '防御提升25，持续2回合。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
-        actor.attacked = true;
+        actor.skilled = true;
         actor.defBuff = (actor.defBuff || 0) + 25;
         actor.defBuffTurns = 2;
         global.Game.log(actor.name + ' 发动【坚守】，防御 +25。');
@@ -181,7 +181,7 @@
       cooldown: 3,
       desc: '十字3格范围内选择敌人，造成2倍攻击伤害。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
         const target = await Effect.chooseEnemy(actor, {
@@ -189,7 +189,7 @@
           hintText: '【妙计】请选择十字3格范围内的敌人。'
         });
         if (!target) return false;
-        actor.attacked = true;
+        actor.skilled = true;
         Effect.damage(actor, target, actor.atk, { mul: 2 });
         global.Game.log(actor.name + ' 发动【妙计】！');
         return true;
@@ -203,7 +203,7 @@
       cooldown: 3,
       desc: '方形2格范围内选择敌人，造成1.8倍伤害并击退2格。',
       filter(actor) {
-        return actor.alive && !actor.attacked;
+        return actor.alive && !actor.skilled;
       },
       async content(actor) {
         const target = await Effect.chooseEnemy(actor, {
@@ -211,7 +211,7 @@
           hintText: '【强袭】请选择方形2格范围内的敌人。'
         });
         if (!target) return false;
-        actor.attacked = true;
+        actor.skilled = true;
         Effect.damage(actor, target, actor.atk, { mul: 1.8 });
         const dir = [Math.sign(target.x - actor.x) || 1, Math.sign(target.y - actor.y) || 0];
         Effect.push(actor, target, dir, 2);

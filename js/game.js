@@ -447,7 +447,7 @@
         return;
       }
 
-      if (target && target.alive && target.side === this.currentSide && (!target.moved || !target.attacked)) {
+      if (target && target.alive && target.side === this.currentSide && (!target.moved || !target.attacked || !target.skilled)) {
         this.selected = target;
         this.mode = null;
         this.highlighted = [];
@@ -538,7 +538,7 @@
     _castSkill(skill) {
       if (this.phase !== 'battle') return;
       const actor = this.selected;
-      if (!actor || actor.attacked) return;
+      if (!actor || actor.skilled) return;
       if (!skill || skill.type === '被动') return;
       actor.cdMap = actor.cdMap || {};
       if ((actor.cdMap[skill.id] || 0) > 0) {
@@ -549,21 +549,28 @@
         this.log('【' + skill.name + '】条件未满足。');
         return;
       }
-      if (skill.cooldown) actor.cdMap[skill.id] = skill.cooldown;
       this.log(actor.name + ' 发动技能：' + skill.name);
+      const beforeSkilled = !!actor.skilled;
       const promise = skill.content(actor);
       this.mode = null;
       const self = this;
-      Promise.resolve(promise).then(function () {
-        self._render();
-        self._renderBottom();
-        self._checkWin();
+      const cooldown = skill.cooldown;
+      Promise.resolve(promise).then(function (result) {
+        const actuallyUsed = actor.skilled && !beforeSkilled;
+        if (actuallyUsed && cooldown) actor.cdMap[skill.id] = cooldown;
+        if (actuallyUsed) {
+          self._finishActorAction();
+        } else {
+          self._render();
+          self._renderBottom();
+          self._checkWin();
+        }
       });
     },
 
     _enterMode(mode) {
       if (this.phase !== 'battle') return;
-      if (!this.selected || (this.selected.moved && this.selected.attacked)) return;
+      if (!this.selected || (this.selected.moved && this.selected.attacked && this.selected.skilled)) return;
       const actor = this.selected;
       this.mode = mode;
       this.highlighted = [];
@@ -673,7 +680,7 @@
 
     _finishActorAction() {
       const actor = this.selected;
-      if (actor && (!actor.moved || !actor.attacked)) {
+      if (actor && (!actor.moved || !actor.attacked || !actor.skilled)) {
         // 还有剩余行动点，保持选中状态，仅刷新 UI
         this.mode = null;
         this.highlighted = [];
@@ -711,7 +718,7 @@
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => {
-          if (p.side === 'blue') { p.moved = false; p.attacked = false; }
+          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; }
           if (p.side === 'blue' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -721,7 +728,7 @@
         this.currentSide = 'red';
         this.turn += 1;
         this.pieces.forEach(p => {
-          if (p.side === 'red') { p.moved = false; p.attacked = false; }
+          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; }
           if (p.side === 'red' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -863,12 +870,13 @@
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
       if (a.attacked) stateParts.push('已攻击');
+      if (a.skilled) stateParts.push('已技能');
       parts.push(stateParts.length ? stateParts.join('/') : '可行动');
       statsEl.textContent = parts.join(' · ');
 
       moveBtn.disabled = !!a.moved;
       atkBtn.disabled = !!a.attacked;
-      if (skBtn) skBtn.disabled = !!a.attacked;
+      if (skBtn) skBtn.disabled = !!a.skilled;
       if (detailBtn) detailBtn.disabled = false;
 
       // 渲染多技能按钮
@@ -881,7 +889,7 @@
             const btn = document.createElement('button');
             btn.className = 'skill-btn';
             const cdLeft = a.cdMap[sk.id] || 0;
-            const usable = !a.attacked && sk.type !== '被动' && cdLeft <= 0 && (!sk.filter || sk.filter(a));
+            const usable = !a.skilled && sk.type !== '被动' && cdLeft <= 0 && (!sk.filter || sk.filter(a));
             let label = '【' + sk.name + '】';
             if (sk.type === '被动') label += '被动';
             else if (cdLeft > 0) label += '冷却' + cdLeft;
@@ -912,13 +920,13 @@
           const li = document.createElement('li');
           if (this.phase === 'battle') {
             if (!p.alive) li.classList.add('dead');
-            else if (p.moved && p.attacked) li.classList.add('acted');
+            else if (p.moved && p.attacked && p.skilled) li.classList.add('acted');
           }
           const nameSpan = document.createElement('span');
           let txt = p.name;
           if (this.phase === 'battle') txt += ' ' + (p.alive ? p.hp : '亡');
-          if (this.phase === 'battle' && (p.moved || p.attacked)) {
-            txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + ']';
+          if (this.phase === 'battle' && (p.moved || p.attacked || p.skilled)) {
+            txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + (p.skilled ? '技' : '') + ']';
           }
           nameSpan.textContent = txt;
           nameSpan.style.marginRight = '4px';
@@ -935,7 +943,7 @@
 
           if (this.phase === 'battle') {
             li.addEventListener('click', () => {
-              if (!p.alive || (p.moved && p.attacked)) return;
+              if (!p.alive || (p.moved && p.attacked && p.skilled)) return;
               this.selected = p;
               this.mode = null;
               this.highlighted = [];
@@ -1194,7 +1202,7 @@
       const side = this.currentSide;
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
       // 每个未完成行动的棋子依次行动
-      const cand = myAlive.find(p => !(p.moved && p.attacked));
+      const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
       if (!cand) {
         // 所有人都已行动，自动结束回合
         this.endTurn();
@@ -1279,6 +1287,7 @@
       // 不能移动也不能攻击，标记完成这枚棋子
       actor.moved = true;
       actor.attacked = true;
+      actor.skilled = true;
       this._render();
       this._renderBottom();
       this._scheduleNext();

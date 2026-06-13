@@ -68,7 +68,8 @@
       if (!actor || !actor.alive) return false;
       actor.moved = false;
       actor.attacked = false;
-      if (global.Game) global.Game.log(actor.name + ' 恢复行动（可再次移动与攻击）！', 'turn');
+      actor.skilled = false;
+      if (global.Game) global.Game.log(actor.name + ' 恢复行动（可再次移动、攻击与使用技能）！', 'turn');
       return true;
     },
 
