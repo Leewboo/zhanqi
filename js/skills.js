@@ -21,7 +21,7 @@
       filter(actor) {
         return actor && actor.alive;
       },
-      async content(actor) {
+      content(actor) {
         Effect.resetAction(actor);
       }
     },
