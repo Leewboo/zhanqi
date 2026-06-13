@@ -97,6 +97,7 @@
     selected: null,        // battle 阶段选中的己方阵中棋子
     deploySelected: null,  // deploy 阶段选中的待布阵武将
     mode: null,
+    pendingSkillId: null,  // 当前等待确认释放的技能 id（预览范围）
     highlighted: [],
     awaitingCell: null,
     over: false,
@@ -290,12 +291,6 @@
         this._onCellClick(x, y);
       });
 
-      document.getElementById('btn-move').onclick = () => this._enterMode('move');
-      document.getElementById('btn-attack').onclick = () => this._enterMode('attack');
-      document.getElementById('btn-cancel').onclick = () => {
-        this._clearSelection();
-        this._refreshUi();
-      };
       document.getElementById('btn-end').onclick = () => { if (!this.over) this.endTurn(); };
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
@@ -549,6 +544,7 @@
         this.log('【' + skill.name + '】条件未满足。');
         return;
       }
+      this.pendingSkillId = null;
       this.log(actor.name + ' 发动技能：' + skill.name);
       const beforeSkilled = !!actor.skilled;
       const promise = skill.content(actor);
@@ -568,11 +564,34 @@
       });
     },
 
+    _onSkillButtonClick(skill) {
+      if (this.phase !== 'battle') return;
+      const a = this.selected;
+      if (!a || !skill) return;
+      if (!skill.preview) {
+        // 没有预览范围的技能，直接释放
+        this._castSkill(skill);
+        return;
+      }
+      // 有 preview 的技能：若当前已在预览中，则真正释放
+      if (this.pendingSkillId === skill.id) {
+        this._castSkill(skill);
+        return;
+      }
+      // 否则进入预览状态，显示技能范围
+      this.pendingSkillId = skill.id;
+      this.mode = null;
+      this.highlighted = [];
+      this._render();
+      this._renderBottom();
+    },
+
     _enterMode(mode) {
       if (this.phase !== 'battle') return;
       if (!this.selected || (this.selected.moved && this.selected.attacked && this.selected.skilled)) return;
       const actor = this.selected;
       this.mode = mode;
+      this.pendingSkillId = null;
       this.highlighted = [];
 
       if (mode === 'move') {
@@ -699,6 +718,7 @@
     _clearSelection() {
       this.selected = null;
       this.mode = null;
+      this.pendingSkillId = null;
       this.highlighted = [];
     },
 
@@ -779,7 +799,21 @@
         const el = children[i];
         el.classList.remove('move', 'attack', 'skill', 'sel');
       }
-      for (const h of this.highlighted) {
+      // 决定高亮来源：mode 高亮 / pendingSkillId 预览 / 原有 highlighted
+      let activeHighlight = this.highlighted;
+      if (this.pendingSkillId && this.selected) {
+        const a = this.selected;
+        const skillList = a.skills || (a.skill ? [a.skill] : []);
+        const sk = skillList.find(s => s.id === this.pendingSkillId);
+        if (sk && sk.preview) {
+          const previewCells = Range.cellsInRangeWithBlock(
+            sk.preview.shape, sk.preview.n, a.x, a.y,
+            { pieceAt: (x, y) => this.pieceAt(x, y) }
+          );
+          activeHighlight = previewCells.map(c => ({ x: c.x, y: c.y, kind: 'skill' }));
+        }
+      }
+      for (const h of activeHighlight || []) {
         const idx = h.y * SIZE + h.x;
         const el = children[idx];
         if (el) el.classList.add(h.kind);
@@ -798,7 +832,7 @@
         if (existing) existing.remove();
         if (piece) {
           const p = document.createElement('div');
-          const done = piece.moved && piece.attacked;
+          const done = piece.moved && piece.attacked && piece.skilled;
           p.className = 'piece ' + piece.side + (done ? ' acted' : '');
           const nameSpan = document.createElement('span');
           nameSpan.className = 'p-name';
@@ -820,38 +854,43 @@
     },
 
     _renderBottom() {
+      const actionsEl = document.getElementById('actions');
       const nameEl = document.querySelector('#selected-info .s-name');
       const statsEl = document.querySelector('#selected-info .s-stats');
-      const moveBtn = document.getElementById('btn-move');
-      const atkBtn = document.getElementById('btn-attack');
-      const skBtn = document.getElementById('btn-skill');
       const detailBtn = document.getElementById('btn-detail');
       const endBtn = document.getElementById('btn-end');
-      const skillBar = document.getElementById('skill-bar');
 
       if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? '红' : '蓝';
         const effective = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
         nameEl.textContent = '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · 轮到' + side + '方';
         statsEl.textContent = '已选：红 ' + this.pickedRed.length + ' / 蓝 ' + this.pickedBlue.length + '（每方 ' + effective + ' 人）· 点击下方武将卡选择';
-        moveBtn.disabled = true;
-        atkBtn.disabled = true;
-        if (skBtn) skBtn.disabled = true;
+        actionsEl.innerHTML = '';
         if (detailBtn) detailBtn.disabled = true;
-        if (skillBar) skillBar.innerHTML = '';
         endBtn.style.display = 'none';
         return;
       }
+
+      if (this.phase === 'deploy') {
+        const side = this.deploySide;
+        const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
+        const placed = this.pieces.filter(p => p.side === side).length;
+        nameEl.textContent = '布阵阶段 · ' + (side === 'red' ? '红' : '蓝') + '方';
+        statsEl.textContent = '已布置 ' + placed + ' / ' + picked.length + ' · 点击下方武将卡选择后再点棋盘空格';
+        actionsEl.innerHTML = '';
+        if (detailBtn) detailBtn.disabled = true;
+        endBtn.style.display = 'none';
+        return;
+      }
+
       endBtn.style.display = '';
 
       const a = this.selected;
       if (!a) {
         nameEl.textContent = '未选择棋子';
-        statsEl.textContent = '';
-        moveBtn.disabled = atkBtn.disabled = true;
-        if (skBtn) skBtn.disabled = true;
+        statsEl.textContent = '点击己方棋子选择操作';
+        actionsEl.innerHTML = '';
         if (detailBtn) detailBtn.disabled = true;
-        if (skillBar) skillBar.innerHTML = '';
         return;
       }
       nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
@@ -859,53 +898,62 @@
       parts.push('生命' + a.hp + '/' + a.maxHp);
       parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
-      const moveShapeMap = { '+': '十字', 'r': '圆', 'square': '方', 'x': '斜' };
-      parts.push('移动' + moveShapeMap[a.moveRange.shape] + a.moveRange.n);
-      const skillList = a.skills || (a.skill ? [a.skill] : []);
-      if (skillList.length) {
-        a.cdMap = a.cdMap || {};
-        const skInfo = skillList.map(s => s.name + ((a.cdMap[s.id] || 0) > 0 ? '(' + a.cdMap[s.id] + ')' : '')).join('/');
-        parts.push('技能' + skInfo);
-      }
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
       if (a.attacked) stateParts.push('已攻击');
       if (a.skilled) stateParts.push('已技能');
       parts.push(stateParts.length ? stateParts.join('/') : '可行动');
       statsEl.textContent = parts.join(' · ');
-
-      moveBtn.disabled = !!a.moved;
-      atkBtn.disabled = !!a.attacked;
-      if (skBtn) skBtn.disabled = !!a.skilled;
       if (detailBtn) detailBtn.disabled = false;
 
-      // 渲染多技能按钮
-      if (skillBar) {
-        skillBar.innerHTML = '';
-        if (skillList.length) {
-          a.cdMap = a.cdMap || {};
-          const self = this;
-          for (const sk of skillList) {
-            const btn = document.createElement('button');
-            btn.className = 'skill-btn';
-            const cdLeft = a.cdMap[sk.id] || 0;
-            const usable = !a.skilled && sk.type !== '被动' && cdLeft <= 0 && (!sk.filter || sk.filter(a));
-            let label = '【' + sk.name + '】';
-            if (sk.type === '被动') label += '被动';
-            else if (cdLeft > 0) label += '冷却' + cdLeft;
-            btn.textContent = label;
-            btn.disabled = !usable;
-            btn.title = (sk.desc || '') + (sk.cooldown ? '（冷却 ' + sk.cooldown + ' 回合）' : '');
-            if (usable) {
-              btn.addEventListener('click', function () {
-                self.selected = a;
-                self._castSkill(sk);
-              });
-            }
-            skillBar.appendChild(btn);
-          }
-        }
+      // 横向按钮：移动 / 攻击 / 技能... / 取消
+      actionsEl.innerHTML = '';
+      const self = this;
+
+      // 移动按钮
+      const moveBtn = document.createElement('button');
+      moveBtn.className = 'act-btn';
+      moveBtn.textContent = '移动';
+      moveBtn.disabled = !!a.moved;
+      moveBtn.onclick = () => self._enterMode('move');
+      actionsEl.appendChild(moveBtn);
+
+      // 攻击按钮
+      const atkBtn = document.createElement('button');
+      atkBtn.className = 'act-btn';
+      atkBtn.textContent = '攻击';
+      atkBtn.disabled = !!a.attacked;
+      atkBtn.onclick = () => self._enterMode('attack');
+      actionsEl.appendChild(atkBtn);
+
+      // 技能按钮
+      const skillList = a.skills || (a.skill ? [a.skill] : []);
+      a.cdMap = a.cdMap || {};
+      for (const sk of skillList) {
+        if (sk.type === '被动') continue;
+        const btn = document.createElement('button');
+        btn.className = 'act-btn skill-btn';
+        const cdLeft = a.cdMap[sk.id] || 0;
+        const usable = !a.skilled && cdLeft <= 0 && (!sk.filter || sk.filter(a));
+        let label = sk.name;
+        if (sk.cooldown && cdLeft > 0) label += '(' + cdLeft + ')';
+        btn.textContent = label;
+        btn.disabled = !usable;
+        btn.title = (sk.desc || '') + (sk.cooldown ? '（冷却 ' + sk.cooldown + ' 回合）' : '');
+        if (this.pendingSkillId === sk.id) btn.classList.add('pending');
+        btn.onclick = () => self._onSkillButtonClick(sk);
+        actionsEl.appendChild(btn);
       }
+
+      // 取消按钮
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'act-btn ghost';
+      cancelBtn.textContent = '取消';
+      cancelBtn.onclick = () => {
+        self._clearSelection();
+        self._refreshUi();
+      };
+      actionsEl.appendChild(cancelBtn);
     },
 
     _renderSideList() {

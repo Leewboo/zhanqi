@@ -31,6 +31,7 @@
       name: '胆勇',
       type: '主动',
       cooldown: 2,
+      preview: { shape: '+', n: 4 },
       desc: '在+4范围内选择一名敌人，再选择其r2范围内的空格作为落点，然后对目标造成40技能伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -81,6 +82,7 @@
       name: '突袭',
       type: '主动',
       cooldown: 2,
+      preview: { shape: '+', n: 4 },
       desc: '十字4格范围内选中一格并移动过去，再对邻格敌人造成1.5倍伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -114,6 +116,7 @@
       name: '疗伤',
       type: '主动',
       cooldown: 2,
+      preview: { shape: 'r', n: 3 },
       desc: '圆形3格范围内为己方单位回复80生命。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -138,6 +141,7 @@
       name: '齐射',
       type: '主动',
       cooldown: 3,
+      preview: { shape: 'r', n: 5 },
       desc: '圆形5格范围对所有敌人造成0.8倍攻击伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -179,6 +183,7 @@
       name: '妙计',
       type: '主动',
       cooldown: 3,
+      preview: { shape: '+', n: 3 },
       desc: '十字3格范围内选择敌人，造成2倍攻击伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -201,6 +206,7 @@
       name: '强袭',
       type: '主动',
       cooldown: 3,
+      preview: { shape: 'square', n: 2 },
       desc: '方形2格范围内选择敌人，造成1.8倍伤害并击退2格。',
       filter(actor) {
         return actor.alive && !actor.skilled;

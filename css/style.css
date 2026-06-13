@@ -513,20 +513,24 @@ html, body {
 }
 
 .actions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 6px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 4px;
 }
 
 .act-btn {
   border: 1px solid var(--line);
   background: #fff;
   color: var(--fg);
-  padding: 12px 4px;
+  padding: 10px 14px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
-  letter-spacing: 2px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .act-btn.ghost {
@@ -539,6 +543,13 @@ html, body {
   color: var(--muted);
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.act-btn.pending {
+  background: #fff3c4;
+  border-color: #d9a441;
+  color: #5a3e00;
+  font-weight: 600;
 }
 
 /* 胜利横幅 */
