@@ -102,7 +102,7 @@
         for (const c of neighbors) {
           const t = global.Game.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side) {
-            Effect.damage(actor, t, actor.atk, { mul: 1.5 });
+            Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 });
             hit++;
           }
         }
@@ -153,7 +153,7 @@
         for (const c of area) {
           const t = global.Game.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side) {
-            Effect.damage(actor, t, actor.atk, { mul: 0.8 });
+            Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 0.8 });
             n++;
           }
         }
@@ -195,7 +195,7 @@
         });
         if (!target) return false;
         actor.skilled = true;
-        Effect.damage(actor, target, actor.atk, { mul: 2 });
+        Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2 });
         global.Game.log(actor.name + ' 发动【妙计】！');
         return true;
       }
@@ -218,7 +218,7 @@
         });
         if (!target) return false;
         actor.skilled = true;
-        Effect.damage(actor, target, actor.atk, { mul: 1.8 });
+        Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.8 });
         const dir = [Math.sign(target.x - actor.x) || 1, Math.sign(target.y - actor.y) || 0];
         Effect.push(actor, target, dir, 2);
         global.Game.log(actor.name + ' 发动【强袭】！');
@@ -248,7 +248,7 @@
         for (const c of inRange) {
           const t = g.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side) {
-            Effect.mark(t, 'wei', { from: actor.name });
+            Effect.mark(t, 'wei', { display: '威', modifiers: { zeroDef: true }, data: { from: actor.name } });
             marked++;
           }
         }

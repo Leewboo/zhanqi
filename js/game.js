@@ -715,11 +715,10 @@
       const actor = this.selected;
       const target = this.pieceAt(x, y);
       actor.attacked = true;
-      const atkVal = actor.atk + (actor.atkBuff || 0);
-      const origDef = target.def;
-      target.def = origDef + (target.defBuff || 0) + terrainDefBonus(this.terrain[target.y][target.x]);
+      // 攻击力由 Effect.getEffectiveAttack 计算（含 buff、标记）
+      // 防御由 Effect.damage 内部处理（含 buff、地形、标记 zeroDef）
+      const atkVal = Effect.getEffectiveAttack(actor);
       Effect.damage(actor, target, atkVal);
-      target.def = origDef;
       this._finishActorAction();
     },
 
@@ -879,12 +878,11 @@
           nameSpan.textContent = piece.name[0];
           p.appendChild(nameSpan);
           // 显示所有标记
-          const allMarks = Object.keys(Effect._marks).filter(k => Effect._marks[k].actor === piece);
-          for (const mk of allMarks) {
-            const m = Effect._marks[mk];
+          const marks = Effect.getMarksOn(piece);
+          for (const m of marks) {
             const tag = document.createElement('span');
             tag.className = 'piece-mark';
-            tag.textContent = m.name === 'wei' ? '威' : m.name;
+            tag.textContent = m.display;
             p.appendChild(tag);
           }
           const hpNum = document.createElement('span');
@@ -1428,23 +1426,14 @@
         }
       });
       if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
-      const tBonus = terrainDefBonus(this.terrain[target.y][target.x]) || 0;
-      const defVal = target.def + (target.defBuff || 0) + tBonus;
-      let dmg = Math.max(1, (actor.atk + (actor.atkBuff || 0)) - defVal);
-      target.hp -= dmg;
-      this.log(actor.name + ' 攻击 ' + target.name + '，造成 ' + dmg + ' 伤害。');
+      const atkVal = Effect.getEffectiveAttack(actor);
+      const dmg = Effect.damage(actor, target, atkVal);
       actor.attacked = true;
-      if (target.hp <= 0) {
-        target.hp = 0;
-        target.alive = false;
-        this.log(target.name + ' 阵亡！', 'turn');
-        this._onKill(actor, target);
-        this._checkWin();
-      }
       this.highlighted = [];
       this.mode = null;
       this._render();
       this._renderBottom();
+      this._checkWin();
       return true;
     }
   };

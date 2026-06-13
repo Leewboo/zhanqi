@@ -2,13 +2,22 @@
   const SIZE = Range.BOARD_SIZE;
   const Effect = {
     // ========== 标记系统 ==========
-    // marks: { 'actorId_markName': { actor, name, data } }
+    // marks: { 'actorId_markName': { actor, name, display, data, modifiers } }
+    //   display: 显示在棋子左上角的文字
+    //   modifiers: { zeroDef: bool, defBuff: num, atkBuff: num }
     _marks: {},
 
-    mark(actor, name, data) {
+    mark(actor, name, opts) {
+      opts = opts || {};
       if (!actor || !actor.alive) return false;
       const key = actor.generalId + '_' + name;
-      this._marks[key] = { actor, name, data };
+      this._marks[key] = {
+        actor,
+        name,
+        display: opts.display || name,
+        data: opts.data || {},
+        modifiers: opts.modifiers || {}
+      };
       if (global.Game) global.Game._render();
       return true;
     },
@@ -40,8 +49,50 @@
       return this._marks[key] ? this._marks[key].data : undefined;
     },
 
+    getMarksOn(actor) {
+      if (!actor) return [];
+      const list = [];
+      for (const key in this._marks) {
+        const m = this._marks[key];
+        if (m.actor === actor) list.push(m);
+      }
+      return list;
+    },
+
+    // ========== 战斗数值辅助 ==========
+    getEffectiveDefense(target) {
+      if (!target) return 0;
+      // 标记中若有 zeroDef => 防御归零
+      const marks = this.getMarksOn(target);
+      for (const m of marks) {
+        if (m.modifiers && m.modifiers.zeroDef) return 0;
+      }
+      // 基础防御 + 防御 buff
+      let def = target.def + (target.defBuff || 0);
+      // 地形加成（m=山+10, w=水+15, f=林+5）
+      if (global.Game && global.Game.terrain) {
+        const t = target.y >= 0 && global.Game.terrain[target.y]
+          ? global.Game.terrain[target.y][target.x]
+          : 'plain';
+        if (t === 'm') def += 10;
+        if (t === 'w') def += 15;
+        if (t === 'f') def += 5;
+      }
+      return Math.max(0, def);
+    },
+
+    getEffectiveAttack(actor) {
+      if (!actor) return 0;
+      let atk = actor.atk + (actor.atkBuff || 0);
+      // 标记中若有 atkBuff 加成
+      const marks = this.getMarksOn(actor);
+      for (const m of marks) {
+        if (m.modifiers && typeof m.modifiers.atkBuff === 'number') atk += m.modifiers.atkBuff;
+      }
+      return atk;
+    },
+
     // ========== 事件系统 ==========
-    // _events: { eventName: [callback, callback, ...] }
     _events: {},
 
     on(eventName, cb) {
@@ -76,20 +127,20 @@
     damage(actor, target, amount, opts) {
       opts = opts || {};
       if (!target || !target.alive) return 0;
-      // 有「威」标记时防御归零
-      const weiMarked = this.hasMark(target, 'wei');
       let atk = amount;
+      const marks = this.getMarksOn(target);
+      const hasZeroDef = marks.some(m => m.modifiers && m.modifiers.zeroDef);
+      const markNames = marks.map(m => m.display).join('、');
+
       if (!opts.ignoreDef) {
-        atk = weiMarked ? amount : Math.max(1, amount - target.def);
+        const effDef = hasZeroDef ? 0 : this.getEffectiveDefense(target);
+        atk = Math.max(1, amount - effDef);
       }
       const final = Math.max(1, Math.floor(atk * (opts.mul || 1)));
       target.hp -= final;
       if (global.Game) {
-        if (weiMarked) {
-          global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害（『威』标记，防御归零）！');
-        } else {
-          global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害。');
-        }
+        const note = hasZeroDef ? '（' + markNames + '，防御归零）' : '';
+        global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害' + note + '。');
         if (target.hp <= 0) {
           target.hp = 0;
           target.alive = false;
@@ -102,7 +153,7 @@
     },
 
     basicAttack(actor, target) {
-      return Effect.damage(actor, target, actor.atk);
+      return Effect.damage(actor, target, this.getEffectiveAttack(actor));
     },
 
     changeTerrain(x, y, terrain) {
