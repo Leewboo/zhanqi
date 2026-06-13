@@ -41,7 +41,7 @@
           range: { shape: '+', n: 4 },
           hintText: '【胆勇·第一步】请选择 +4 范围内的敌人。'
         });
-        if (!target) return;
+        if (!target) return false;
 
         // 第二步：以敌人为中心，选择 r2 范围内的空格作为落点
         const cell = await Effect.chooseCell(actor, {
@@ -50,11 +50,12 @@
           mustEmpty: true,
           hintText: '【胆勇·第二步】请选择 ' + target.name + ' 周围的空格作为落点。'
         });
-        if (!cell) return;
+        if (!cell) return false;
 
         // 第三步：位移并造成伤害
         Effect.teleport(actor, cell.x, cell.y);
         Effect.damage(actor, target, 40, { ignoreDef: true });
+        return true;
       }
     },
 
