@@ -8,6 +8,14 @@
 
   const generals = [
     {
+      id: 'gy',
+      name: '关羽',
+      hp: 200, atk: 90, def: 20,
+      moveRange: { shape: '+', n: 2 },
+      attackRange: { shape: 'square', n: 1 },
+      skills: [Skills.weiZhen, Skills.shuiYan]
+    },
+    {
       id: 'zy',
       name: '赵云',
       hp: 150, atk: 60, def: 20,

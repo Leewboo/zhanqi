@@ -125,6 +125,7 @@
       this.pickedBlue = [];
       this.selected = null;
       this.mode = null;
+      this.pendingSkillId = null;
       this.highlighted = [];
       this.over = false;
       this.aiMode = (mode === 'ai');
@@ -132,6 +133,7 @@
       this.phase = 'draft';
       this._buildDom();
       this._bind();
+      this._setupPassiveEvents();
       this._highlightDeployZones();
       this._refreshUi();
       const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
@@ -280,6 +282,30 @@
           this.boardEl.appendChild(c);
         }
       }
+    },
+
+    _setupPassiveEvents() {
+      // 清空旧的事件绑定，重新注册所有被动技能
+      const passiveHandlers = [];
+      // 遍历所有技能，找到被动技能并注册
+      const allSkills = Object.values(Skills || {});
+      for (const sk of allSkills) {
+        if (sk.type !== '被动' || !sk.trigger) continue;
+        const handler = (context) => {
+          // 被动技能作用于所有己方存活的、有此技能的棋子
+          const myPieces = this.pieces.filter(p => p.alive && p.side === this.currentSide);
+          for (const p of myPieces) {
+            const hasSkill = (p.skills || []).some(s => s.id === sk.id);
+            if (hasSkill && (!sk.filter || sk.filter(p))) {
+              const skill = (p.skills || []).find(s => s.id === sk.id);
+              try { skill.content(p, context); } catch (e) { console.error(e); }
+            }
+          }
+        };
+        Effect.on(sk.trigger, handler);
+        passiveHandlers.push({ event: sk.trigger, handler });
+      }
+      this._passiveHandlers = passiveHandlers;
     },
 
     _bind() {
@@ -735,6 +761,9 @@
     },
 
     endTurn() {
+      // 回合结束时触发全局事件（如威震被动效果）
+      Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
+
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => {
@@ -758,6 +787,17 @@
       this._clearSelection();
       this._refreshUi();
       this._maybeAiAct();
+    },
+
+    _setCellTerrain(x, y, terrain) {
+      if (!this.terrain) return;
+      if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return;
+      this.terrain[y][x] = terrain;
+      const idx = y * SIZE + x;
+      const el = this.boardEl.children[idx];
+      if (!el) return;
+      el.className = el.className.replace(/terrain-\w+/g, '').trim();
+      if (terrain && terrain !== 'plain') el.classList.add('terrain-' + terrain);
     },
 
     requestCell(actor, options, cb) {
@@ -838,6 +878,15 @@
           nameSpan.className = 'p-name';
           nameSpan.textContent = piece.name[0];
           p.appendChild(nameSpan);
+          // 显示所有标记
+          const allMarks = Object.keys(Effect._marks).filter(k => Effect._marks[k].actor === piece);
+          for (const mk of allMarks) {
+            const m = Effect._marks[mk];
+            const tag = document.createElement('span');
+            tag.className = 'piece-mark';
+            tag.textContent = m.name === 'wei' ? '威' : m.name;
+            p.appendChild(tag);
+          }
           const hpNum = document.createElement('span');
           hpNum.className = 'hp-num';
           hpNum.textContent = piece.hp;

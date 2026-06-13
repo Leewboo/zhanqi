@@ -1,6 +1,67 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
   const Effect = {
+    // ========== 标记系统 ==========
+    // marks: { 'actorId_markName': { actor, name, data } }
+    _marks: {},
+
+    mark(actor, name, data) {
+      if (!actor || !actor.alive) return false;
+      const key = actor.generalId + '_' + name;
+      this._marks[key] = { actor, name, data };
+      if (global.Game) global.Game._render();
+      return true;
+    },
+
+    unmark(actor, name) {
+      if (!actor) return false;
+      const key = actor.generalId + '_' + name;
+      delete this._marks[key];
+      if (global.Game) global.Game._render();
+      return true;
+    },
+
+    unmarkAll(actor) {
+      if (!actor) return;
+      const prefix = actor.generalId + '_';
+      for (const key in this._marks) {
+        if (key.startsWith(prefix)) delete this._marks[key];
+      }
+      if (global.Game) global.Game._render();
+    },
+
+    hasMark(actor, name) {
+      const key = actor.generalId + '_' + name;
+      return !!this._marks[key];
+    },
+
+    getMarkData(actor, name) {
+      const key = actor.generalId + '_' + name;
+      return this._marks[key] ? this._marks[key].data : undefined;
+    },
+
+    // ========== 事件系统 ==========
+    // _events: { eventName: [callback, callback, ...] }
+    _events: {},
+
+    on(eventName, cb) {
+      if (!this._events[eventName]) this._events[eventName] = [];
+      this._events[eventName].push(cb);
+    },
+
+    off(eventName, cb) {
+      if (!this._events[eventName]) return;
+      this._events[eventName] = this._events[eventName].filter(f => f !== cb);
+    },
+
+    trigger(eventName, context) {
+      const handlers = this._events[eventName] || [];
+      for (const cb of handlers) {
+        try { cb(context); } catch (e) { console.error(e); }
+      }
+    },
+
+    // ========== 基础效果 ==========
     heal(actor, amount) {
       if (!actor || !actor.alive) return amount;
       const before = actor.hp;
@@ -15,15 +76,24 @@
     damage(actor, target, amount, opts) {
       opts = opts || {};
       if (!target || !target.alive) return 0;
+      // 有「威」标记时防御归零
+      const weiMarked = this.hasMark(target, 'wei');
       let atk = amount;
-      if (!opts.ignoreDef) atk = Math.max(1, amount - target.def);
+      if (!opts.ignoreDef) {
+        atk = weiMarked ? amount : Math.max(1, amount - target.def);
+      }
       const final = Math.max(1, Math.floor(atk * (opts.mul || 1)));
       target.hp -= final;
       if (global.Game) {
-        global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害。');
+        if (weiMarked) {
+          global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害（『威』标记，防御归零）！');
+        } else {
+          global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害。');
+        }
         if (target.hp <= 0) {
           target.hp = 0;
           target.alive = false;
+          this.unmarkAll(target);
           global.Game.log(target.name + ' 被击败！');
           if (actor) global.Game._onKill(actor, target);
         }
@@ -33,6 +103,17 @@
 
     basicAttack(actor, target) {
       return Effect.damage(actor, target, actor.atk);
+    },
+
+    changeTerrain(x, y, terrain) {
+      if (!global.Game) return false;
+      const g = global.Game;
+      if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return false;
+      const old = g.terrain[y][x];
+      if (old === terrain) return false;
+      g._setCellTerrain(x, y, terrain);
+      g.log('(' + x + ',' + y + ') 地形变为 ' + (terrain === 'r' ? '河' : terrain) + '。');
+      return true;
     },
 
     addBuff(actor, target, buff) {

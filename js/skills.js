@@ -224,6 +224,79 @@
         global.Game.log(actor.name + ' 发动【强袭】！');
         return true;
       }
+    },
+
+    weiZhen: {
+      id: 'weiZhen',
+      name: '威震',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnEnd',
+      desc: '回合结束时，对己身方形1范围内所有敌方武将施加「威」标记，其他敌方武将的「威」标记移除。带「威」标记的角色被攻击时防御归零。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        if (!global.Game) return;
+        const g = global.Game;
+        const enemies = g.pieces.filter(p => p.alive && p.side !== actor.side);
+        // 先移除所有敌人的「威」标记
+        enemies.forEach(e => Effect.unmark(e, 'wei'));
+        // 再对范围内敌人施加「威」标记
+        const inRange = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false });
+        let marked = 0;
+        for (const c of inRange) {
+          const t = g.pieceAt(c.x, c.y);
+          if (t && t.alive && t.side !== actor.side) {
+            Effect.mark(t, 'wei', { from: actor.name });
+            marked++;
+          }
+        }
+        if (marked > 0) {
+          g.log('【威震】' + actor.name + ' 标记 ' + marked + ' 名敌人「威」！', 'turn');
+        }
+      }
+    },
+
+    shuiYan: {
+      id: 'shuiYan',
+      name: '水淹',
+      type: '主动',
+      cooldown: 3,
+      preview: { shape: 'r', n: 2 },
+      desc: '圆形2格范围内：若目标所在地形不为河，则改为河；若已是河，则造成50点伤害。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        const g = global.Game;
+        const area = await Effect.chooseCell(actor, {
+          range: { shape: 'r', n: 2 },
+          hintText: '【水淹】请选择圆形2格范围内的目标位置。'
+        });
+        if (!area) return false;
+        actor.skilled = true;
+        // 以落点为中心，r2范围内所有敌方武将
+        const cells = Range.cellsInRange('r', 2, area.x, area.y, { includeSelf: true });
+        let hit = 0;
+        for (const c of cells) {
+          const t = g.pieceAt(c.x, c.y);
+          if (t && t.alive && t.side !== actor.side) {
+            const curTerrain = g.terrain[t.y][t.x];
+            if (curTerrain === 'r') {
+              // 已是河，直接造成50伤害
+              Effect.damage(actor, t, 50, { ignoreDef: true });
+              hit++;
+            } else {
+              // 改变地形为河
+              Effect.changeTerrain(t.x, t.y, 'r');
+              hit++;
+            }
+          }
+        }
+        g.log(actor.name + ' 发动【水淹】，影响 ' + hit + ' 名敌人。');
+        return true;
+      }
     }
   };
 
