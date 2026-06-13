@@ -31,7 +31,7 @@
       name: '胆勇',
       type: '主动',
       cooldown: 2,
-      preview: { shape: '+', n: 4 },
+      preview: { shape: '+', n: 4, passThrough: true },
       desc: '在+4范围内选择一名敌人，再选择其r2范围内的空格作为落点，然后对目标造成40技能伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -40,6 +40,7 @@
         // 第一步：选择 +4 范围内的敌人
         const target = await Effect.chooseEnemy(actor, {
           range: { shape: '+', n: 4 },
+          passThrough: true,
           hintText: '【胆勇·第一步】请选择 +4 范围内的敌人。'
         });
         if (!target) return false;
@@ -49,6 +50,7 @@
           center: { x: target.x, y: target.y },
           range: { shape: 'r', n: 2 },
           mustEmpty: true,
+          passThrough: true,
           hintText: '【胆勇·第二步】请选择 ' + target.name + ' 周围的空格作为落点。'
         });
         if (!cell) return false;
@@ -82,7 +84,7 @@
       name: '突袭',
       type: '主动',
       cooldown: 2,
-      preview: { shape: '+', n: 4 },
+      preview: { shape: '+', n: 4, passThrough: true },
       desc: '十字4格范围内选中一格并移动过去，再对邻格敌人造成1.5倍伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -91,6 +93,7 @@
         const cell = await Effect.chooseCell(actor, {
           range: { shape: '+', n: 4 },
           mustEmpty: true,
+          passThrough: true,
           hintText: '【突袭】请选择十字4格内的空格作为落点。'
         });
         if (!cell) return false;
@@ -116,7 +119,7 @@
       name: '疗伤',
       type: '主动',
       cooldown: 2,
-      preview: { shape: 'r', n: 3 },
+      preview: { shape: 'r', n: 3, passThrough: true },
       desc: '圆形3格范围内为己方单位回复80生命。',
       filter(actor) {
         return actor.alive && !actor.skilled;

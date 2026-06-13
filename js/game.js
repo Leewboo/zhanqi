@@ -860,10 +860,15 @@
         const skillList = a.skills || (a.skill ? [a.skill] : []);
         const sk = skillList.find(s => s.id === this.pendingSkillId);
         if (sk && sk.preview) {
-          const previewCells = Range.cellsInRangeWithBlock(
-            sk.preview.shape, sk.preview.n, a.x, a.y,
-            { pieceAt: (x, y) => this.pieceAt(x, y) }
-          );
+          let previewCells;
+          if (sk.preview.passThrough) {
+            previewCells = Range.cellsInRange(
+              sk.preview.shape, sk.preview.n, a.x, a.y, { includeSelf: true });
+          } else {
+            previewCells = Range.cellsInRangeWithBlock(
+              sk.preview.shape, sk.preview.n, a.x, a.y,
+              { pieceAt: (x, y) => this.pieceAt(x, y) });
+          }
           activeHighlight = previewCells.map(c => ({ x: c.x, y: c.y, kind: 'skill' }));
         }
       }
