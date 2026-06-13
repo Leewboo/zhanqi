@@ -554,8 +554,7 @@
       const promise = skill.content(actor);
       this.mode = null;
       const self = this;
-      Promise.resolve(promise).then(function (ok) {
-        if (ok !== false) actor.attacked = true;
+      Promise.resolve(promise).then(function () {
         self._render();
         self._renderBottom();
         self._checkWin();

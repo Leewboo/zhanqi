@@ -52,7 +52,7 @@
         });
         if (!cell) return false;
 
-        // 第三步：位移并造成伤害
+        actor.attacked = true;
         Effect.teleport(actor, cell.x, cell.y);
         Effect.damage(actor, target, 40, { ignoreDef: true });
         return true;
@@ -69,6 +69,7 @@
         return actor.alive && !actor.attacked;
       },
       async content(actor) {
+        actor.attacked = true;
         actor.atkBuff = (actor.atkBuff || 0) + 30;
         actor.atkBuffTurns = 1;
         global.Game.log(actor.name + ' 发动【怒吼】，攻击 +30！');
@@ -90,7 +91,8 @@
           mustEmpty: true,
           hintText: '【突袭】请选择十字4格内的空格作为落点。'
         });
-        if (!cell) return;
+        if (!cell) return false;
+        actor.attacked = true;
         actor.x = cell.x;
         actor.y = cell.y;
         const neighbors = Range.plus(1, actor.x, actor.y, { includeSelf: false });
@@ -103,6 +105,7 @@
           }
         }
         global.Game.log(actor.name + ' 发动【突袭】，命中 ' + hit + ' 人。');
+        return true;
       }
     },
 
@@ -116,6 +119,7 @@
         return actor.alive && !actor.attacked;
       },
       async content(actor) {
+        actor.attacked = true;
         const area = Range.circle(3, actor.x, actor.y, { includeSelf: true });
         let n = 0;
         for (const c of area) {
@@ -139,6 +143,7 @@
         return actor.alive && !actor.attacked;
       },
       async content(actor) {
+        actor.attacked = true;
         const area = Range.circle(5, actor.x, actor.y, { includeSelf: false });
         let n = 0;
         for (const c of area) {
@@ -162,6 +167,7 @@
         return actor.alive && !actor.attacked;
       },
       async content(actor) {
+        actor.attacked = true;
         actor.defBuff = (actor.defBuff || 0) + 25;
         actor.defBuffTurns = 2;
         global.Game.log(actor.name + ' 发动【坚守】，防御 +25。');
@@ -182,9 +188,11 @@
           range: { shape: '+', n: 3 },
           hintText: '【妙计】请选择十字3格范围内的敌人。'
         });
-        if (!target) return;
+        if (!target) return false;
+        actor.attacked = true;
         Effect.damage(actor, target, actor.atk, { mul: 2 });
         global.Game.log(actor.name + ' 发动【妙计】！');
+        return true;
       }
     },
 
@@ -202,11 +210,13 @@
           range: { shape: 'square', n: 2 },
           hintText: '【强袭】请选择方形2格范围内的敌人。'
         });
-        if (!target) return;
+        if (!target) return false;
+        actor.attacked = true;
         Effect.damage(actor, target, actor.atk, { mul: 1.8 });
         const dir = [Math.sign(target.x - actor.x) || 1, Math.sign(target.y - actor.y) || 0];
         Effect.push(actor, target, dir, 2);
         global.Game.log(actor.name + ' 发动【强袭】！');
+        return true;
       }
     }
   };
