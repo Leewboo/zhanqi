@@ -447,7 +447,7 @@
         return;
       }
 
-      if (target && target.alive && target.side === this.currentSide && !(target.moved && target.attacked)) {
+      if (target && target.alive && target.side === this.currentSide && (!target.moved || !target.attacked)) {
         this.selected = target;
         this.mode = null;
         this.highlighted = [];
