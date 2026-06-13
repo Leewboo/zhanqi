@@ -456,6 +456,13 @@
           this.highlighted = [];
           this._render();
           cb({ x, y });
+        } else {
+          // 点击非法目标 → 取消选择
+          const cb = this.awaitingCell;
+          this.awaitingCell = null;
+          this.highlighted = [];
+          this._render();
+          cb(null);
         }
         return;
       }
@@ -571,7 +578,6 @@
         return;
       }
       this.pendingSkillId = null;
-      this.log(actor.name + ' 发动技能：' + skill.name);
       const beforeSkilled = !!actor.skilled;
       const promise = skill.content(actor);
       this.mode = null;
@@ -579,10 +585,14 @@
       const cooldown = skill.cooldown;
       Promise.resolve(promise).then(function (result) {
         const actuallyUsed = actor.skilled && !beforeSkilled;
-        if (actuallyUsed && cooldown) actor.cdMap[skill.id] = cooldown;
         if (actuallyUsed) {
+          self.log(actor.name + ' 发动技能：' + skill.name);
+          if (cooldown) actor.cdMap[skill.id] = cooldown;
           self._finishActorAction();
         } else {
+          // 技能未真正发动（选择非法目标或中途取消）
+          self.log('【' + skill.name + '】已取消。');
+          self.pendingSkillId = null;
           self._render();
           self._renderBottom();
           self._checkWin();
@@ -741,6 +751,11 @@
     },
 
     _clearSelection() {
+      if (this.awaitingCell) {
+        const cb = this.awaitingCell;
+        this.awaitingCell = null;
+        try { cb(null); } catch (_) {}
+      }
       this.selected = null;
       this.mode = null;
       this.pendingSkillId = null;
