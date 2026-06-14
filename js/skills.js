@@ -144,7 +144,7 @@
       name: '齐射',
       type: '主动',
       cooldown: 3,
-      preview: { shape: 'r', n: 5 },
+      preview: { shape: 'r', n: 5, passThrough: true },
       desc: '圆形5格范围对所有敌人造成0.8倍攻击伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -186,7 +186,7 @@
       name: '妙计',
       type: '主动',
       cooldown: 3,
-      preview: { shape: '+', n: 3 },
+      preview: { shape: '+', n: 3, passThrough: true },
       desc: '十字3格范围内选择敌人，造成2倍攻击伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -194,6 +194,7 @@
       async content(actor) {
         const target = await Effect.chooseEnemy(actor, {
           range: { shape: '+', n: 3 },
+          passThrough: true,
           hintText: '【妙计】请选择十字3格范围内的敌人。'
         });
         if (!target) return false;
@@ -209,7 +210,7 @@
       name: '强袭',
       type: '主动',
       cooldown: 3,
-      preview: { shape: 'square', n: 2 },
+      preview: { shape: 'square', n: 2, passThrough: true },
       desc: '方形2格范围内选择敌人，造成1.8倍伤害并击退2格。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -217,6 +218,7 @@
       async content(actor) {
         const target = await Effect.chooseEnemy(actor, {
           range: { shape: 'square', n: 2 },
+          passThrough: true,
           hintText: '【强袭】请选择方形2格范围内的敌人。'
         });
         if (!target) return false;
@@ -266,7 +268,7 @@
       name: '水淹',
       type: '主动',
       cooldown: 3,
-      preview: { shape: 'r', n: 2 },
+      preview: { shape: 'r', n: 2, passThrough: true },
       desc: '圆形2格范围内：若目标所在地形不为河，则改为河；若已是河，则造成50点伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -275,6 +277,7 @@
         const g = global.Game;
         const area = await Effect.chooseCell(actor, {
           range: { shape: 'r', n: 2 },
+          passThrough: true,
           hintText: '【水淹】请选择圆形2格范围内的目标位置。'
         });
         if (!area) return false;
