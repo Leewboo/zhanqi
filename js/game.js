@@ -103,6 +103,8 @@
     over: false,
     aiMode: false,         // 是否人机对战
     aiSide: 'blue',        // AI 控制的一方
+    _turnEnding: false,    // 防止 endTurn 重入
+    _aiActing: false,      // AI 是否正在执行行动
 
     log(text, cls) {
       const box = document.getElementById('log');
@@ -775,6 +777,12 @@
     },
 
     endTurn() {
+      // 防重入：正在切换回合时禁止再次调用
+      if (this._turnEnding) return;
+      this._turnEnding = true;
+      const endBtn = document.getElementById('btn-end');
+      if (endBtn) endBtn.disabled = true;
+
       // 回合结束时触发全局事件（如威震被动效果）
       Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
 
@@ -1243,13 +1251,25 @@
       } else if (this.phase === 'battle') {
         if (this.currentSide === this.aiSide) aiShouldAct = true;
       }
-      if (!aiShouldAct) return;
+      if (!aiShouldAct) {
+        // 人操控 → 解锁回合切换，允许再次点击结束回合
+        this._turnEnding = false;
+        this._aiActing = false;
+        const endBtn = document.getElementById('btn-end');
+        if (endBtn) endBtn.disabled = false;
+        return;
+      }
+      // AI 操控 → 解锁（AI 会自己调用 endTurn），标记 AI 正在执行
+      this._turnEnding = false;
+      this._aiActing = true;
       const self = this;
       setTimeout(() => self._aiStep(), 700);
     },
 
     _aiStep() {
       if (this.over) return;
+      // 如果 AI 行动已结束，不再继续调度
+      if (!this._aiActing) return;
       if (this.phase === 'draft') this._aiPickGeneral();
       else if (this.phase === 'deploy') this._aiPlaceOne();
       else if (this.phase === 'battle') this._aiBattleStep();
@@ -1319,8 +1339,8 @@
       // 每个未完成行动的棋子依次行动
       const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
       if (!cand) {
-        // 所有人都已行动，自动结束回合
-        this.endTurn();
+        // 所有人都已行动，调用 _scheduleNext 让 AI 行动通过 _maybeAiAct 自然解锁
+        this._scheduleNext();
         return;
       }
       const actor = cand;
