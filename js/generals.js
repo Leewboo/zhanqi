@@ -24,6 +24,14 @@
       skills: [Skills.changSheng, Skills.danYong]
     },
     {
+      id: 'hz',
+      name: '黄忠',
+      hp: 180, atk: 70, def: 18,
+      moveRange: { shape: '+', n: 2 },
+      attackRange: { shape: 'square', n: 2 },
+      skills: [Skills.laoDangYiZhuang, Skills.baiBuChuanYang]
+    },
+    {
       id: 't1',
       name: '甲',
       hp: 200, atk: 50, def: 20,

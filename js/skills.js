@@ -300,7 +300,60 @@
             }
           }
         }
-        g.log(actor.name + ' 发动【水淹】，影响 ' + hit + ' 名敌人。');
+        g.log(actor.name + ' 发动【水淹】，影响 ' + hit + ' 人。');
+        return true;
+      }
+    },
+
+    laoDangYiZhuang: {
+      id: 'laoDangYiZhuang',
+      name: '老当益壮',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnEnd',
+      desc: '回合结束时，根据损失血量提升攻击力：每损失 50 生命，本回合攻击力 +20（通过标记 modifiers 实现）。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        if (!global.Game) return;
+        // 先移除之前的「壮」标记
+        Effect.unmark(actor, 'lao');
+        // 根据损失血量计算攻击加成（软编码：通过 modifiers.atkBuff 声明）
+        const lost = actor.maxHp - actor.hp;
+        if (lost > 0) {
+          const buff = Math.floor(lost / 50) * 20;  // 每损失50血+20攻
+          if (buff > 0) {
+            Effect.mark(actor, 'lao', {
+              display: '壮',
+              modifiers: { atkBuff: buff },
+              data: { lostHp: lost, atkBonus: buff }
+            });
+          }
+        }
+      }
+    },
+
+    baiBuChuanYang: {
+      id: 'baiBuChuanYang',
+      name: '百步穿杨',
+      type: '主动',
+      cooldown: 2,
+      preview: { shape: 'square', n: 3, passThrough: true },
+      desc: '方形 3 格范围内选择一名敌人，造成 1.6 倍攻击力伤害并 无视防御。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        const target = await Effect.chooseEnemy(actor, {
+          range: { shape: 'square', n: 3 },
+          passThrough: true,
+          hintText: '【百步穿杨】请选择方形 3 格范围内的敌人。'
+        });
+        if (!target) return false;
+        actor.skilled = true;
+        const baseAtk = Effect.getEffectiveAttack(actor);
+        Effect.damage(actor, target, Math.floor(baseAtk * 1.6), { ignoreDef: true });
         return true;
       }
     }
