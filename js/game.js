@@ -639,9 +639,8 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
-          pieceAt: (x, y) => this.pieceAt(x, y)
-        });
+        // 使用 reachableCells 考虑地形消耗（河流消耗2步）
+        const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -811,6 +810,14 @@
       this._clearSelection();
       this._refreshUi();
       this._maybeAiAct();
+    },
+
+    cellMoveCost(x, y) {
+      if (!this.terrain) return 1;
+      const t = this.terrain[y][x];
+      // 河流(r)消耗2步，其他地形消耗1步
+      if (t === 'r') return 2;
+      return 1;
     },
 
     _setCellTerrain(x, y, terrain) {
@@ -1367,15 +1374,9 @@
           return;
         }
       }
-      // 2) 否则移动：朝最近敌人移动
+      // 2) 否则移动：朝最近敌人移动（考虑地形消耗，河流消耗2步）
       if (!actor.moved) {
-        const moveCells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
-          pieceAt: (x, y) => {
-            const p = this.pieceAt(x, y);
-            if (!p || !p.alive) return null;
-            return p;
-          }
-        });
+        const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
         const enemies = this.pieces.filter(p => p.side !== side && p.alive);
         if (!enemies.length) { this._scheduleNext(); return; }
         // 找一个最近的敌人作为目标
@@ -1441,13 +1442,8 @@
     _executeMove(actor, x, y) {
       if (actor.side !== this.currentSide || actor.moved) return false;
       if (this.pieceAt(x, y)) return false;
-      const cells = Range.cellsInRangeWithBlock(actor.moveRange.shape, actor.moveRange.n, actor.x, actor.y, {
-        pieceAt: (px, py) => {
-          const p = this.pieceAt(px, py);
-          if (!p || !p.alive) return null;
-          return p;
-        }
-      });
+      // 使用 reachableCells 考虑地形消耗（河流消耗2步）
+      const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
       if (!cells.find(c => c.x === x && c.y === y)) return false;
       actor.x = x;
       actor.y = y;
