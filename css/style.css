@@ -18,6 +18,14 @@
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
   --cell-size: 48px;
+
+  /* 字体栈：本地 Noto Sans SC 为主，ZCOOL XiaoWei 用于标题，
+     失败回退到系统常见中文字体，最后是 sans-serif */
+  --font-primary: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans SC", "Source Han Sans CN",
+                 "Heiti SC", sans-serif;
+  --font-title: "ZCOOL XiaoWei", "Noto Sans SC", "PingFang SC",
+                 "Microsoft YaHei", "STXihei", serif;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -27,9 +35,13 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
+  font-family: var(--font-primary);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.55;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overscroll-behavior: none;
   height: 100%;
   overflow: hidden;
@@ -347,6 +359,8 @@ html, body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: clip;
+  font-family: var(--font-title);
+  font-weight: 400;
 }
 
 /* 攻防数据：紧凑一行 */
@@ -661,11 +675,14 @@ html, body {
   max-width: 92vw;
 }
 
+/* 标题字体：ZCOOL XiaoWei 文艺体 */
 .home-title {
   font-size: 42px;
   margin: 0 0 8px;
   letter-spacing: 14px;
   padding-left: 14px;
+  font-family: var(--font-title);
+  font-weight: 400;
 }
 
 .home-subtitle {
