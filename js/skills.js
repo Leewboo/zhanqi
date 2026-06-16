@@ -237,7 +237,7 @@
       type: '被动',
       cooldown: 0,
       trigger: 'turnEnd',
-      desc: '回合结束时，对己身方形1范围内所有敌方武将施加「威」标记，其他敌方武将的「威」标记移除。带「威」标记的角色被攻击时防御归零。',
+      desc: '回合结束时，对己身方片1范围内所有敌方武将施加「威」标记，其他敌方武将的「威」标记移除。带「威」标记的角色被攻击时防御归零。',
       filter(actor) {
         return actor && actor.alive;
       },
@@ -268,39 +268,34 @@
       name: '水淹',
       type: '主动',
       cooldown: 3,
-      preview: { shape: 'r', n: 2, passThrough: true },
-      desc: '圆形2格范围内：若目标所在地形不为河，则改为河；若已是河，则造成50点伤害。',
+      preview: { shape: 'square', n: 2, passThrough: true },
+      desc: '选择方形2范围内的一个格子，以此格为中心方形1范围内所有格子改为河，并对敌方单位造成40点伤害。',
       filter(actor) {
         return actor.alive && !actor.skilled;
       },
       async content(actor) {
         const g = global.Game;
-        const area = await Effect.chooseCell(actor, {
-          range: { shape: 'r', n: 2 },
+        const target = await Effect.chooseCell(actor, {
+          range: { shape: 'square', n: 2 },
           passThrough: true,
-          hintText: '【水淹】请选择圆形2格范围内的目标位置。'
+          hintText: '【水淹】请选择方形2范围内的目标位置。'
         });
-        if (!area) return false;
+        if (!target) return false;
         actor.skilled = true;
-        // 以落点为中心，r2范围内所有敌方武将
-        const cells = Range.cellsInRange('r', 2, area.x, area.y, { includeSelf: true });
+        // 以落点为中心，方形1范围内所有格子
+        const cells = Range.cellsInRange('square', 1, target.x, target.y, { includeSelf: true });
         let hit = 0;
         for (const c of cells) {
+          // 改变地形为河
+          Effect.changeTerrain(c.x, c.y, 'r');
+          // 对格子上敌方单位造成40伤害
           const t = g.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side) {
-            const curTerrain = g.terrain[t.y][t.x];
-            if (curTerrain === 'r') {
-              // 已是河，直接造成50伤害
-              Effect.damage(actor, t, 50, { ignoreDef: true });
-              hit++;
-            } else {
-              // 改变地形为河
-              Effect.changeTerrain(t.x, t.y, 'r');
-              hit++;
-            }
+            Effect.damage(actor, t, 40, { ignoreDef: true });
+            hit++;
           }
         }
-        g.log(actor.name + ' 发动【水淹】，影响 ' + hit + ' 人。');
+        g.log(actor.name + ' 发动【水淹】，影响 ' + cells.length + ' 格，命中 ' + hit + ' 人。');
         return true;
       }
     },
