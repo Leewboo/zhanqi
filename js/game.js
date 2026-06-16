@@ -932,16 +932,6 @@
             p.appendChild(markWrap);
           }
 
-          // 攻防：单行两列，左攻右防
-          const effAtk = Effect.getEffectiveAttack ? Effect.getEffectiveAttack(piece) : piece.atk;
-          const effDef = Effect.getEffectiveDefense ? Effect.getEffectiveDefense(piece) : piece.def;
-          const stats = document.createElement('span');
-          stats.className = 'p-stats';
-          stats.innerHTML =
-            '<span class="p-atk">⚔ ' + effAtk + '</span>' +
-            '<span class="p-def">🛡 ' + effDef + '</span>';
-          p.appendChild(stats);
-
           // 血条：数字直接嵌在血条上
           const hpBar = document.createElement('span');
           hpBar.className = 'hp-bar';
