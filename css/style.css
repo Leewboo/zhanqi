@@ -17,7 +17,7 @@
   --terrain-f: #d6c2a0;
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
-  --cell-size: max(32px, min(8.33vw, calc((100vh - 120px) / 12)));
+  --cell-size: max(40px, min(8.33vw, calc((100vh - 100px) / 12)));
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
