@@ -31,10 +31,13 @@ html, body {
   font-size: 14px;
   line-height: 1.45;
   overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -188,13 +191,13 @@ html, body {
 .chip-list li.dead .chip-info,
 .chip-list li.acted .chip-info { opacity: 0.55; cursor: pointer; }
 
-/* 棋盘区 */
+/* 棋盘自适应填满手机屏幕 */
 .board-wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 10px;
+  padding: 6px;
+  gap: 6px;
   min-height: 0;
   overflow: hidden;
 }
@@ -208,6 +211,9 @@ html, body {
   padding: 4px;
   touch-action: pan-x pan-y;
   min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .board {
@@ -217,6 +223,8 @@ html, body {
   background: var(--line);
   gap: 1px;
   user-select: none;
+  /* 动态单元格尺寸：宽度优先或高度优先，取小值确保填满 */
+  --cell-size: min(8.33vw, calc((100vh - 80px) / 12));
 }
 
 .cell {
@@ -226,7 +234,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: calc(var(--cell-size) * 0.14);
   color: rgba(0,0,0,0.25);
   width: var(--cell-size);
   height: var(--cell-size);
@@ -291,7 +299,7 @@ html, body {
   justify-content: center;
   font-weight: 700;
   color: #fff;
-  font-size: 15px;
+  font-size: calc(var(--cell-size) * 0.22);
   border: 2px solid rgba(0,0,0,0.25);
   position: relative;
   flex-direction: column;
@@ -320,7 +328,7 @@ html, body {
 }
 
 .piece .p-name {
-  font-size: 14px;
+  font-size: calc(var(--cell-size) * 0.2);
   line-height: 1;
   margin-top: 2px;
 }
@@ -345,7 +353,7 @@ html, body {
 .piece .hp-num {
   position: absolute;
   bottom: 10px;
-  font-size: 10px;
+  font-size: calc(var(--cell-size) * 0.14);
   opacity: 0.9;
   letter-spacing: 0;
 }
@@ -682,17 +690,6 @@ html, body {
   margin: 0 0 18px;
   font-size: 28px;
   letter-spacing: 8px;
-}
-
-/* 小屏优化：棋盘缩放到 48px */
-@media (max-width: 420px) {
-  :root { --cell-size: 48px; }
-  .piece { font-size: 14px; }
-}
-
-/* 大屏优化：棋盘缩放到 60px */
-@media (min-width: 900px) {
-  :root { --cell-size: 60px; }
 }
 
 /* 选将面板 */
