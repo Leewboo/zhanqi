@@ -17,7 +17,7 @@
   --terrain-f: #d6c2a0;
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
-  --cell-size: 64px;
+  --cell-size: min(8.33vw, calc((100vh - 120px) / 12));
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -223,8 +223,6 @@ html, body {
   background: var(--line);
   gap: 1px;
   user-select: none;
-  /* 动态单元格尺寸：宽度优先或高度优先，取小值确保填满 */
-  --cell-size: min(8.33vw, calc((100vh - 80px) / 12));
 }
 
 .cell {
