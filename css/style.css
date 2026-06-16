@@ -729,14 +729,18 @@ html, body {
 }
 
 .draft-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 6px;
-  max-height: 180px;
-  overflow-y: auto;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .draft-card {
+  flex-shrink: 0;
+  width: 140px;
   border: 1px solid var(--line);
   background: #fafaf6;
   padding: 6px 8px;
