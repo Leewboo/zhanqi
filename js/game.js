@@ -909,29 +909,55 @@
         if (piece) {
           const p = document.createElement('div');
           const done = piece.moved && piece.attacked && piece.skilled;
-          p.className = 'piece ' + piece.side + (done ? ' acted' : '');
+          const lowHp = piece.hp / piece.maxHp <= 0.3;
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
+
+          // 姓名（中心醒目）
           const nameSpan = document.createElement('span');
           nameSpan.className = 'p-name';
-          nameSpan.textContent = piece.name[0];
+          nameSpan.textContent = piece.name;
           p.appendChild(nameSpan);
-          // 显示所有标记
+
+          // 显示标记（右上角角标）
           const marks = Effect.getMarksOn(piece);
-          for (const m of marks) {
-            const tag = document.createElement('span');
-            tag.className = 'piece-mark';
-            tag.textContent = m.display;
-            p.appendChild(tag);
+          if (marks && marks.length) {
+            const markWrap = document.createElement('span');
+            markWrap.className = 'piece-marks';
+            for (const m of marks) {
+              const tag = document.createElement('span');
+              tag.className = 'piece-mark';
+              tag.textContent = m.display;
+              markWrap.appendChild(tag);
+            }
+            p.appendChild(markWrap);
           }
+
+          // 攻防：紧凑一行
+          const effAtk = Effect.getEffectiveAttack ? Effect.getEffectiveAttack(piece) : piece.atk;
+          const effDef = Effect.getEffectiveDefense ? Effect.getEffectiveDefense(piece) : piece.def;
+          const atkDef = document.createElement('span');
+          atkDef.className = 'p-stats';
+          atkDef.innerHTML =
+            '<span class="p-atk">⚔' + effAtk + '</span>' +
+            '<span class="p-sep">·</span>' +
+            '<span class="p-def">🛡' + effDef + '</span>';
+          p.appendChild(atkDef);
+
+          // 血量：数字 + 血条
+          const hpWrap = document.createElement('span');
+          hpWrap.className = 'p-hp';
           const hpNum = document.createElement('span');
           hpNum.className = 'hp-num';
-          hpNum.textContent = piece.hp;
-          p.appendChild(hpNum);
-          const bar = document.createElement('div');
+          hpNum.textContent = piece.hp + '/' + piece.maxHp;
+          const bar = document.createElement('span');
           bar.className = 'hp-bar';
           const inner = document.createElement('span');
           inner.style.width = Math.max(0, Math.min(100, (piece.hp / piece.maxHp) * 100)) + '%';
           bar.appendChild(inner);
-          p.appendChild(bar);
+          hpWrap.appendChild(hpNum);
+          hpWrap.appendChild(bar);
+          p.appendChild(hpWrap);
+
           el.appendChild(p);
         }
       }

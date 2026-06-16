@@ -286,71 +286,132 @@ html, body {
 .cell.sel { background: var(--cell-sel); }
 
 .piece {
-  width: calc(var(--cell-size) - 8px);
-  height: calc(var(--cell-size) - 8px);
+  width: calc(var(--cell-size) - 4px);
+  height: calc(var(--cell-size) - 4px);
   border-radius: 4px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   color: #fff;
-  font-size: calc(var(--cell-size) * 0.22);
-  border: 2px solid rgba(0,0,0,0.25);
+  font-size: calc(var(--cell-size) * 0.18);
+  border: 2px solid rgba(0,0,0,0.35);
   position: relative;
-  flex-direction: column;
-  padding-bottom: 4px;
+  padding: 2px 2px 3px;
+  box-sizing: border-box;
+  gap: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
-.piece.red { background: var(--red); }
-.piece.blue { background: var(--blue); }
-.piece.acted { opacity: 0.5; }
+.piece.red { background: linear-gradient(180deg, #c94646, #8a2b2b); }
+.piece.blue { background: linear-gradient(180deg, #4a7fc2, #2b4e8a); }
+.piece.acted {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+/* 标记容器（右上角） */
+.piece .piece-marks {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  z-index: 3;
+  pointer-events: none;
+}
 
 .piece .piece-mark {
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  font-size: 9px;
+  font-size: calc(var(--cell-size) * 0.16);
   background: #c0392b;
   color: #fff;
-  padding: 0 3px;
-  border-radius: 2px;
-  line-height: 12px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
   font-weight: 700;
   letter-spacing: 0;
-  pointer-events: none;
-  z-index: 2;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.35);
 }
 
 .piece .p-name {
-  font-size: calc(var(--cell-size) * 0.2);
+  font-size: calc(var(--cell-size) * 0.24);
+  line-height: 1.05;
+  margin-bottom: 1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+  letter-spacing: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+/* 攻防数据：紧凑一行 */
+.piece .p-stats {
+  font-size: calc(var(--cell-size) * 0.15);
   line-height: 1;
-  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 1px 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.piece .p-atk {
+  color: #ffe6a8;
+}
+
+.piece .p-def {
+  color: #c6f0ff;
+}
+
+.piece .p-sep {
+  opacity: 0.5;
+  font-size: 0.8em;
+}
+
+/* 血量区 */
+.piece .p-hp {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 1px;
+}
+
+.piece .hp-num {
+  font-size: calc(var(--cell-size) * 0.13);
+  opacity: 0.95;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .piece .hp-bar {
-  position: absolute;
-  bottom: 3px;
-  left: 4px;
-  right: 4px;
-  height: 5px;
-  background: rgba(0,0,0,0.35);
-  border-radius: 1px;
+  width: 100%;
+  height: 4px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 2px;
   overflow: hidden;
+  display: block;
 }
 
 .piece .hp-bar > span {
   display: block;
   height: 100%;
-  background: #fff;
+  background: linear-gradient(90deg, #ffe066, #ff9a3c);
+  transition: width 0.25s ease;
 }
 
-.piece .hp-num {
-  position: absolute;
-  bottom: 10px;
-  font-size: calc(var(--cell-size) * 0.14);
-  opacity: 0.9;
-  letter-spacing: 0;
+/* 低血量提示：血条颜色变化 */
+.piece.hp-low .hp-bar > span {
+  background: linear-gradient(90deg, #ff5a5a, #c92b2b);
 }
 
 /* 详情弹窗 */
