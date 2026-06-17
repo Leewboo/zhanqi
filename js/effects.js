@@ -141,10 +141,6 @@
       target.hp -= final;
       
       if (global.Game) {
-        // 显示攻击特效
-        if (actor) {
-          global.Game._showAttackEffect(actor.x, actor.y, target.x, target.y);
-        }
         // 显示受击特效
         global.Game._showHitEffect(target.x, target.y, final > 50);
         // 显示伤害飘字
