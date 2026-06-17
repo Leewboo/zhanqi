@@ -295,7 +295,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--line);
   color: var(--fg);
   font-weight: 700;
@@ -303,15 +303,16 @@ html, body {
   padding: 2px 3px;
   box-sizing: border-box;
   gap: 2px;
+  backdrop-filter: blur(1px);
 }
 
 .piece.red {
-  border-color: var(--red);
-  background: linear-gradient(180deg, #fff 0%, #fff6f2 100%);
+  border-color: rgba(178, 58, 58, 0.7);
+  background: rgba(255, 246, 242, 0.8);
 }
 .piece.blue {
-  border-color: var(--blue);
-  background: linear-gradient(180deg, #fff 0%, #f2f6fb 100%);
+  border-color: rgba(58, 107, 178, 0.7);
+  background: rgba(242, 246, 251, 0.8);
 }
 
 .piece.acted {
@@ -386,11 +387,10 @@ html, body {
 .piece .hp-bar {
   position: relative;
   width: 100%;
-  height: calc(var(--cell-size) * 0.2);
-  background: var(--cell-alt);
+  height: calc(var(--cell-size) * 0.12);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 2px;
   overflow: hidden;
-  display: block;
 }
 
 .piece .hp-fill {
@@ -398,15 +398,15 @@ html, body {
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(90deg, #ffb347, #ff7f3f);
-  transition: width 0.25s ease;
+  background: #e57373;
+  transition: width 0.2s ease;
 }
 
 .piece.red .hp-fill {
-  background: linear-gradient(90deg, #e87272, #b23a3a);
+  background: #c94646;
 }
 .piece.blue .hp-fill {
-  background: linear-gradient(90deg, #7fa3d9, #3a6bb2);
+  background: #4a7fc2;
 }
 
 .piece .hp-num {
@@ -415,17 +415,17 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(var(--cell-size) * 0.14);
+  font-size: calc(var(--cell-size) * 0.12);
   font-variant-numeric: tabular-nums;
   color: #fff;
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   font-weight: 700;
 }
 
 /* 低血量提示 */
 .piece.hp-low .hp-fill {
-  background: linear-gradient(90deg, #ff9e7a, #e04b4b) !important;
+  background: #e04b4b !important;
 }
 
 /* 受击抖动动画 */
