@@ -1,12 +1,15 @@
 @font-face {
-  font-family: 'Noto Sans SC';
+  font-family: 'XiaoZhuan';
   font-style: normal;
   font-weight: 400;
-  src: url(https://fonts.gstatic.com/l/font?kit=k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaG9_FnYxV5_c3RPGtSL6Il8EO7F21mMLxAufUbvb2tTZt5TykZvm1P4v6Xy7MMdE5aZ5joIfnbV6aFnF8UzTz0luk6b0gMyCotKVhdVi-qtEolLYTXOTcg2uVvxhnrqBvf9EuYAikUmbV_y17BLvcogcGni7fHAZ-nR3OdmXKIt3sxzuhKD2SkfBT3JYqnaQNyHqMmsPopIgpPmafYT1f-YgvmcKvc4Trk2ZmUL63Wd2e3yf08nLrtyWCr7vV9qwPJ86r5S9blJCoGpffn1oHGgnPZC9bSM5KjqOmTh4DpJd_yqIM5VXL1laKZIZ2_FRV9i_aM9bJyjh5JIa2yPQvQfWv-ez_eki2uhadMzKZVBxKy30eF4545M-LVQ21shzrTE9j4S6SNORJ1EelCs2JaePgtQxbGDKL2eALcQc9RHr1_KA3Naqpkf6cP6rbt4bOmdIS78rZZe4weADqb1hbH0cCjfssSlg4l6g_0nCqxoQi27mzG8-5hrde8UnMT7hgElzOL2B-gbQ8FVyjHhzMpy0xm14kpKo&skey=cf0bb10b5602fdc3&v=v40) format('truetype');
+  font-display: swap;
+  src: url('xiaozhuan.woff2') format('woff2');
 }
+
 @font-face {
-  font-family: 'Noto Sans SC';
+  font-family: 'XingKai';
   font-style: normal;
-  font-weight: 700;
-  src: url(https://fonts.gstatic.com/l/font?kit=k3kCo84MPvpLmixcA63oeAL7Iqp5IZJF9bmaGzjCnYxV5_c3RPGtSL6Il8EO7F21mMLxAufUbvb2tTZt5TykZvm1P4v6Xy7MMdE5aZ5joIfnbV6aFnF8UzTz0luk6b0gMyCotKVhdVi-qtEolLYTXOTcg2uVvxhnrqBvf9EuYAikUmbV_y17BLvcogcGni7fHAZ-nR3OdmXKIt3sxzuhKD2SkfBT3JYqnaQNyHqMmsPopIgpPmafYT1f-YgvmcKvc4Trk2ZmUL63Wd2e3yf08nLrtyWCr7vV9qwPJ86r5S9blJCoGpffn1oHGgnPZC9bSM5KjqOmTh4DpJd_yqIM5VXL1laKZIZ2_FRV9i_aM9bJyjh5JIa2yPQvQfWv-ez_eki2uhadMzKZVBxKy30eF4545M-LVQ21shzrTE9j4S6SNORJ1EelCs2JaePgtQxbGDKL2eALcQc9RHr1_KA3Naqpkf6cP6rbt4bOmdIS78rZZe4weADqb1hbH0cCjfssSlg4l6g_0nCqxoQi27mzG8-5hrde8UnMT7hgElzOL2B-gbQ8FVyjHhzMpy0xm14kpKo&skey=cf0bb10b5602fdc3&v=v40) format('truetype');
+  font-weight: 400;
+  font-display: swap;
+  src: url('xingkai.woff2') format('woff2');
 }
