@@ -319,6 +319,38 @@
         this._onCellClick(x, y);
       });
 
+      this.boardEl.addEventListener('mousemove', (e) => {
+        const cell = e.target.closest('.cell');
+        if (!cell) {
+          this._clearTargetLine();
+          return;
+        }
+        const x = parseInt(cell.dataset.x, 10);
+        const y = parseInt(cell.dataset.y, 10);
+        
+        if (this.selected && this.mode === 'attack') {
+          const target = this.pieceAt(x, y);
+          if (target && target.alive && target.side !== this.currentSide) {
+            this._showTargetLine(this.selected.x, this.selected.y, x, y);
+            return;
+          }
+        }
+        
+        if (this.awaitingCell) {
+          const valid = this.highlighted.find(h => h.x === x && h.y === y);
+          if (valid && this.selected) {
+            this._showTargetLine(this.selected.x, this.selected.y, x, y);
+            return;
+          }
+        }
+        
+        this._clearTargetLine();
+      });
+
+      this.boardEl.addEventListener('mouseleave', () => {
+        this._clearTargetLine();
+      });
+
       document.getElementById('btn-end').onclick = () => { if (!this.over) this.endTurn(); };
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
@@ -563,6 +595,126 @@
           try { sk.content(actor, { target }); } catch (e) {}
         }
       }
+    },
+
+    // ========== 特效系统 ==========
+    _showAttackEffect(fromX, fromY, toX, toY) {
+      const board = this.boardEl;
+      if (!board) return;
+      
+      const fromCell = board.querySelector(`.cell[data-x="${fromX}"][data-y="${fromY}"]`);
+      const toCell = board.querySelector(`.cell[data-x="${toX}"][data-y="${toY}"]`);
+      if (!fromCell || !toCell) return;
+
+      const fromRect = fromCell.getBoundingClientRect();
+      const toRect = toCell.getBoundingClientRect();
+      
+      const line = document.createElement('div');
+      line.className = 'attack-line';
+      line.style.position = 'fixed';
+      
+      const startX = fromRect.left + fromRect.width / 2;
+      const startY = fromRect.top + fromRect.height / 2;
+      const endX = toRect.left + toRect.width / 2;
+      const endY = toRect.top + toRect.height / 2;
+      
+      const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+      const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+      
+      line.style.left = startX + 'px';
+      line.style.top = startY + 'px';
+      line.style.width = length + 'px';
+      line.style.transform = `rotate(${angle}deg)`;
+      line.style.transformOrigin = '0 50%';
+      
+      document.body.appendChild(line);
+      
+      setTimeout(() => {
+        line.remove();
+      }, 300);
+    },
+
+    _showHitEffect(x, y, heavy) {
+      const board = this.boardEl;
+      if (!board) return;
+      
+      const cell = board.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+      if (!cell) return;
+      
+      const piece = cell.querySelector('.piece');
+      if (!piece) return;
+      
+      const hitClass = heavy ? 'hit-heavy' : 'hit';
+      const flashClass = piece.classList.contains('red') ? 'flash-red' : 'flash-blue';
+      
+      piece.classList.add(hitClass, flashClass);
+      
+      setTimeout(() => {
+        piece.classList.remove(hitClass, flashClass);
+      }, 500);
+    },
+
+    _showFloatText(x, y, text, type) {
+      const board = this.boardEl;
+      if (!board) return;
+      
+      const cell = board.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+      if (!cell) return;
+      
+      const rect = cell.getBoundingClientRect();
+      const float = document.createElement('div');
+      float.className = type === 'heal' ? 'heal-float' : 'damage-float';
+      float.textContent = text;
+      float.style.position = 'fixed';
+      float.style.left = (rect.left + rect.width / 2) + 'px';
+      float.style.top = rect.top + 'px';
+      float.style.transform = 'translateX(-50%)';
+      
+      document.body.appendChild(float);
+      
+      setTimeout(() => {
+        float.remove();
+      }, 800);
+    },
+
+    _showTargetLine(fromX, fromY, toX, toY) {
+      this._clearTargetLine();
+      
+      const board = this.boardEl;
+      if (!board) return;
+      
+      const fromCell = board.querySelector(`.cell[data-x="${fromX}"][data-y="${fromY}"]`);
+      const toCell = board.querySelector(`.cell[data-x="${toX}"][data-y="${toY}"]`);
+      if (!fromCell || !toCell) return;
+
+      const fromRect = fromCell.getBoundingClientRect();
+      const toRect = toCell.getBoundingClientRect();
+      
+      const line = document.createElement('div');
+      line.className = 'target-line';
+      line.id = 'target-indicator-line';
+      line.style.position = 'fixed';
+      
+      const startX = fromRect.left + fromRect.width / 2;
+      const startY = fromRect.top + fromRect.height / 2;
+      const endX = toRect.left + toRect.width / 2;
+      const endY = toRect.top + toRect.height / 2;
+      
+      const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+      const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+      
+      line.style.left = startX + 'px';
+      line.style.top = startY + 'px';
+      line.style.width = length + 'px';
+      line.style.transform = `rotate(${angle}deg)`;
+      line.style.transformOrigin = '0 50%';
+      
+      document.body.appendChild(line);
+    },
+
+    _clearTargetLine() {
+      const existing = document.getElementById('target-indicator-line');
+      if (existing) existing.remove();
     },
 
     _castSkill(skill) {

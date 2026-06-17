@@ -120,6 +120,7 @@
       const delta = actor.hp - before;
       if (global.Game && delta !== 0) {
         global.Game.log(actor.name + ' 恢复 ' + delta + ' 生命。');
+        global.Game._showFloatText(actor.x, actor.y, '+' + delta, 'heal');
       }
       return delta;
     },
@@ -138,7 +139,17 @@
       }
       const final = Math.max(1, Math.floor(atk * (opts.mul || 1)));
       target.hp -= final;
+      
       if (global.Game) {
+        // 显示攻击特效
+        if (actor) {
+          global.Game._showAttackEffect(actor.x, actor.y, target.x, target.y);
+        }
+        // 显示受击特效
+        global.Game._showHitEffect(target.x, target.y, final > 50);
+        // 显示伤害飘字
+        global.Game._showFloatText(target.x, target.y, '-' + final, 'damage');
+        
         const note = hasZeroDef ? '（' + markNames + '，防御归零）' : '';
         global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害' + note + '。');
         if (target.hp <= 0) {

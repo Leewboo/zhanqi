@@ -18,14 +18,6 @@
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
   --cell-size: 48px;
-
-  /* 字体栈：本地 Noto Sans SC 为主，ZCOOL XiaoWei 用于标题，
-     失败回退到系统常见中文字体，最后是 sans-serif */
-  --font-primary: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
-                 "Microsoft YaHei", "Source Han Sans SC", "Source Han Sans CN",
-                 "Heiti SC", sans-serif;
-  --font-title: "ZCOOL XiaoWei", "Noto Sans SC", "PingFang SC",
-                 "Microsoft YaHei", "STXihei", serif;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -35,13 +27,9 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
   font-size: 14px;
-  line-height: 1.55;
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  line-height: 1.45;
   overscroll-behavior: none;
   height: 100%;
   overflow: hidden;
@@ -361,8 +349,6 @@ html, body {
   letter-spacing: 1px;
   overflow: hidden;
   white-space: nowrap;
-  font-family: var(--font-title);
-  font-weight: 400;
   flex: 1;
   display: flex;
   align-items: center;
@@ -436,6 +422,123 @@ html, body {
 /* 低血量提示 */
 .piece.hp-low .hp-fill {
   background: linear-gradient(90deg, #ff9e7a, #e04b4b) !important;
+}
+
+/* 受击抖动动画 */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+@keyframes shake-vertical {
+  0%, 100% { transform: translateY(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateY(-3px); }
+  20%, 40%, 60%, 80% { transform: translateY(3px); }
+}
+
+.piece.hit {
+  animation: shake 0.4s ease-in-out;
+}
+
+.piece.hit-heavy {
+  animation: shake 0.5s ease-in-out, shake-vertical 0.3s ease-in-out;
+}
+
+/* 受击闪光 */
+.piece.flash-red {
+  animation: flash-red 0.3s ease-out;
+}
+
+.piece.flash-blue {
+  animation: flash-blue 0.3s ease-out;
+}
+
+@keyframes flash-red {
+  0% { box-shadow: inset 0 0 20px rgba(178, 58, 58, 0.8); }
+  100% { box-shadow: inset 0 0 0 rgba(178, 58, 58, 0); }
+}
+
+@keyframes flash-blue {
+  0% { box-shadow: inset 0 0 20px rgba(58, 107, 178, 0.8); }
+  100% { box-shadow: inset 0 0 0 rgba(58, 107, 178, 0); }
+}
+
+/* 攻击特效 */
+.attack-line {
+  position: absolute;
+  background: linear-gradient(90deg, rgba(178, 58, 58, 0.8), rgba(255, 150, 60, 0.6));
+  height: 4px;
+  border-radius: 2px;
+  z-index: 10;
+  animation: attack-pulse 0.3s ease-out;
+  pointer-events: none;
+}
+
+@keyframes attack-pulse {
+  0% { opacity: 0; transform: scaleX(0); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+/* 飘字效果 */
+.damage-float {
+  position: absolute;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff4444;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 50;
+  animation: float-up 0.8s ease-out forwards;
+}
+
+.heal-float {
+  position: absolute;
+  font-size: 16px;
+  font-weight: 700;
+  color: #44ff44;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 50;
+  animation: float-up 0.8s ease-out forwards;
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+}
+
+/* 选择目标指示线 */
+.target-line {
+  position: absolute;
+  background: rgba(58, 178, 120, 0.6);
+  height: 3px;
+  border-radius: 2px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.target-line::before,
+.target-line::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(58, 178, 120, 0.8);
+}
+
+.target-line::before {
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.target-line::after {
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* 详情弹窗 */
@@ -691,8 +794,6 @@ html, body {
   margin: 0 0 8px;
   letter-spacing: 14px;
   padding-left: 14px;
-  font-family: var(--font-title);
-  font-weight: 400;
 }
 
 .home-subtitle {
