@@ -319,12 +319,16 @@
         this._onCellClick(x, y);
       });
 
-      this.boardEl.addEventListener('mousemove', (e) => {
-        const cell = e.target.closest('.cell');
+      const handlePointerMove = (e) => {
+        const touch = e.touches ? e.touches[0] : e;
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const cell = element ? element.closest('.cell') : null;
+        
         if (!cell) {
           this._clearTargetLine();
           return;
         }
+        
         const x = parseInt(cell.dataset.x, 10);
         const y = parseInt(cell.dataset.y, 10);
         
@@ -345,10 +349,25 @@
         }
         
         this._clearTargetLine();
-      });
+      };
 
-      this.boardEl.addEventListener('mouseleave', () => {
+      this.boardEl.addEventListener('mousemove', handlePointerMove);
+      this.boardEl.addEventListener('touchmove', handlePointerMove, { passive: false });
+
+      const handlePointerLeave = () => {
         this._clearTargetLine();
+      };
+
+      this.boardEl.addEventListener('mouseleave', handlePointerLeave);
+      this.boardEl.addEventListener('touchend', handlePointerLeave);
+
+      document.addEventListener('scroll', () => {
+        if (this.selected && this.mode === 'attack') {
+          const line = document.getElementById('target-indicator-line');
+          if (line) {
+            this._clearTargetLine();
+          }
+        }
       });
 
       document.getElementById('btn-end').onclick = () => { if (!this.over) this.endTurn(); };
@@ -700,14 +719,20 @@
       const endX = toRect.left + toRect.width / 2;
       const endY = toRect.top + toRect.height / 2;
       
-      const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-      const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
       
       line.style.left = startX + 'px';
       line.style.top = startY + 'px';
-      line.style.width = length + 'px';
+      line.style.width = Math.max(1, length) + 'px';
+      line.style.height = '3px';
       line.style.transform = `rotate(${angle}deg)`;
       line.style.transformOrigin = '0 50%';
+      line.style.background = 'rgba(58, 178, 120, 0.7)';
+      line.style.borderRadius = '2px';
+      line.style.zIndex = '50';
       
       document.body.appendChild(line);
     },
