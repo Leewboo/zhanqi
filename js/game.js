@@ -709,11 +709,6 @@
       const fromRect = fromCell.getBoundingClientRect();
       const toRect = toCell.getBoundingClientRect();
       
-      const line = document.createElement('div');
-      line.className = 'target-line';
-      line.id = 'target-indicator-line';
-      line.style.position = 'fixed';
-      
       const startX = fromRect.left + fromRect.width / 2;
       const startY = fromRect.top + fromRect.height / 2;
       const endX = toRect.left + toRect.width / 2;
@@ -724,17 +719,43 @@
       const length = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx) * 180 / Math.PI;
       
-      line.style.left = startX + 'px';
-      line.style.top = startY + 'px';
-      line.style.width = Math.max(1, length) + 'px';
-      line.style.height = '3px';
-      line.style.transform = `rotate(${angle}deg)`;
-      line.style.transformOrigin = '0 50%';
-      line.style.background = 'rgba(58, 178, 120, 0.7)';
-      line.style.borderRadius = '2px';
-      line.style.zIndex = '50';
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNS, 'svg');
+      svg.id = 'target-indicator-line';
+      svg.style.position = 'fixed';
+      svg.style.left = '0';
+      svg.style.top = '0';
+      svg.style.width = '100vw';
+      svg.style.height = '100vh';
+      svg.style.pointerEvents = 'none';
+      svg.style.zIndex = '50';
       
-      document.body.appendChild(line);
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', startX.toString());
+      line.setAttribute('y1', startY.toString());
+      line.setAttribute('x2', endX.toString());
+      line.setAttribute('y2', endY.toString());
+      line.setAttribute('stroke', 'rgba(58, 178, 120, 0.7)');
+      line.setAttribute('stroke-width', '3');
+      line.setAttribute('stroke-linecap', 'round');
+      
+      const startCircle = document.createElementNS(svgNS, 'circle');
+      startCircle.setAttribute('cx', startX.toString());
+      startCircle.setAttribute('cy', startY.toString());
+      startCircle.setAttribute('r', '5');
+      startCircle.setAttribute('fill', 'rgba(58, 178, 120, 0.9)');
+      
+      const endCircle = document.createElementNS(svgNS, 'circle');
+      endCircle.setAttribute('cx', endX.toString());
+      endCircle.setAttribute('cy', endY.toString());
+      endCircle.setAttribute('r', '6');
+      endCircle.setAttribute('fill', 'rgba(58, 178, 120, 0.9)');
+      
+      svg.appendChild(line);
+      svg.appendChild(startCircle);
+      svg.appendChild(endCircle);
+      
+      document.body.appendChild(svg);
     },
 
     _clearTargetLine() {
