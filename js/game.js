@@ -20,33 +20,34 @@
     }
     const set = (x, y, t) => { if (Range.inBounds(x, y)) map[y][x] = t; };
 
-    // 中央河流（横贯 y=5,6 —— 完全对称）
-    for (let x = 1; x < 11; x++) {
-      if (x !== 5 && x !== 6) set(x, 6, 'r');
-      if (x !== 5 && x !== 6) set(x, 5, 'r');
+    // ============ 中央河流：横贯 y=5, y=6 两排 ============
+    for (let x = 1; x < SIZE - 1; x++) {
+      set(x, 5, 'r');
+      set(x, 6, 'r');
     }
-    // 河流中央的两处渡口（保留平地，让中段有通道）
+    // 中央 2x2 渡口通道
     set(5, 5, 'plain'); set(6, 5, 'plain');
     set(5, 6, 'plain'); set(6, 6, 'plain');
 
-    // 山丘林地：上半区（3,4）与下半区（7,8）完全对称
-    // 左中林
-    [[2,3],[2,4],[3,3],[3,4]].forEach(p => set(p[0], p[1], 'm'));
-    [[2,7],[2,8],[3,7],[3,8]].forEach(p => set(p[0], p[1], 'm'));
-    // 右中林
-    [[8,3],[8,4],[9,3],[9,4]].forEach(p => set(p[0], p[1], 'm'));
-    [[8,7],[8,8],[9,7],[9,8]].forEach(p => set(p[0], p[1], 'm'));
-    // 散丘
-    [[5,3],[6,3]].forEach(p => set(p[0], p[1], 'm'));
-    [[5,8],[6,8]].forEach(p => set(p[0], p[1], 'm'));
+    // ============ 林地（山丘）：左右对称，且180°旋转对称 ============
+    // 左中林（蓝方左侧前哨）
+    [[2, 3], [3, 3], [2, 4], [3, 4]].forEach(p => set(p[0], p[1], 'm'));
+    // 右中林（蓝方右侧前哨）
+    [[8, 3], [9, 3], [8, 4], [9, 4]].forEach(p => set(p[0], p[1], 'm'));
+    // 左中林（红方左侧前哨）
+    [[2, 7], [3, 7], [2, 8], [3, 8]].forEach(p => set(p[0], p[1], 'm'));
+    // 右中林（红方右侧前哨）
+    [[8, 7], [9, 7], [8, 8], [9, 8]].forEach(p => set(p[0], p[1], 'm'));
+    // 中央散丘（前后对称）
+    [[5, 3], [6, 3], [5, 8], [6, 8]].forEach(p => set(p[0], p[1], 'm'));
 
-    // 城池（战略要点，对称分布）
-    [[0,0],[11,0],[0,11],[11,11]].forEach(p => set(p[0], p[1], 'w')); // 四角
-    [[5,2],[6,2],[5,9],[6,9]].forEach(p => set(p[0], p[1], 'w'));     // 双方中场
-    [[0,5],[11,5],[0,6],[11,6]].forEach(p => set(p[0], p[1], 'w'));     // 东西桥头
+    // ============ 城池：四角 / 中翼桥头 180°对称 ============
+    [[0, 0], [11, 0], [0, 11], [11, 11]].forEach(p => set(p[0], p[1], 'w')); // 四角
+    [[0, 5], [0, 6], [11, 5], [11, 6]].forEach(p => set(p[0], p[1], 'w'));  // 东西桥头
+    [[5, 2], [6, 2], [5, 9], [6, 9]].forEach(p => set(p[0], p[1], 'w'));   // 双方中场堡
 
-    // 前哨营地（对称小型增益点）
-    [[4,1],[7,1],[4,10],[7,10]].forEach(p => set(p[0], p[1], 'f'));
+    // ============ 前哨营地：双方对称小增益点 ============
+    [[4, 1], [7, 1], [4, 10], [7, 10]].forEach(p => set(p[0], p[1], 'f'));
 
     return map;
   }
@@ -264,11 +265,18 @@
 
     _buildDom() {
       this.boardEl.innerHTML = '';
+      const half = SIZE / 2;
       for (let y = 0; y < SIZE; y++) {
         for (let x = 0; x < SIZE; x++) {
           const c = document.createElement('div');
           c.className = 'cell';
           if ((x + y) % 2) c.classList.add('alt');
+          // 上半区（蓝方）、下半区（红方）对称着色
+          if (y < half) c.classList.add('zone-blue');
+          else c.classList.add('zone-red');
+          // 中线：y=5 行的底部、y=6 行的顶部加粗
+          if (y === half - 1) c.classList.add('midline-bottom');
+          if (y === half) c.classList.add('midline-top');
           const t = this.terrain[y][x];
           if (t && t !== 'plain') c.classList.add('terrain-' + t);
           c.dataset.x = x;
@@ -279,10 +287,6 @@
             lb.textContent = TERRAIN_NAMES[t];
             c.appendChild(lb);
           }
-          const coord = document.createElement('span');
-          coord.className = 'coord-label';
-          coord.textContent = x + ',' + y;
-          c.appendChild(coord);
           this.boardEl.appendChild(c);
         }
       }

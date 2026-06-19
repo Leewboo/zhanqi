@@ -325,35 +325,61 @@ html, body {
 .chip-list li.dead .chip-info,
 .chip-list li.acted .chip-info { opacity: 0.55; cursor: pointer; }
 
-/* 棋盘自适应填满手机屏幕 */
+/* 棋盘自适应填满手机屏幕 —— 对称布局 */
 .board-wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 6px;
-  gap: 6px;
   min-height: 0;
   overflow: hidden;
 }
 
 .board-scroll {
   flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  background: #fafaf6;
-  border: 1px solid var(--line);
-  padding: 4px;
-  touch-action: pan-x pan-y;
+  background: transparent;
+  padding: 10px;
   min-height: 0;
 }
 
+/* 棋盘：居中，正方形，视觉对称 */
 .board {
   display: grid;
   grid-template-columns: repeat(12, var(--cell-size));
   grid-template-rows: repeat(12, var(--cell-size));
-  background: var(--line);
-  gap: 1px;
+  background: linear-gradient(180deg,
+    rgba(58, 107, 178, 0.18) 0%,
+    rgba(58, 107, 178, 0.08) 49.5%,
+    rgba(178, 58, 58, 0.35) 49.5%,
+    rgba(178, 58, 58, 0.35) 50.5%,
+    rgba(178, 58, 58, 0.08) 50.5%,
+    rgba(178, 58, 58, 0.18) 100%);
+  border: 2px solid var(--line);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12), inset 0 0 0 3px rgba(255, 255, 255, 0.5);
   user-select: none;
+  position: relative;
+  padding: 0;
+  gap: 0;
+}
+
+/* 棋盘外框：顶部蓝、底部红，强化双方概念 */
+.board::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, #3a6bb2 0%, #3a6bb2 8%, transparent 8%, transparent 92%, #b23a3a 92%, #b23a3a 100%);
+  opacity: 0.85;
 }
 
 .cell {
@@ -364,10 +390,23 @@ html, body {
   align-items: center;
   justify-content: center;
   font-size: calc(var(--cell-size) * 0.14);
-  color: rgba(0,0,0,0.25);
+  color: rgba(0, 0, 0, 0.25);
   width: var(--cell-size);
   height: var(--cell-size);
+  box-sizing: border-box;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
+
+/* 中线：双方分界线上加一条清晰的分割线（位于 y=5 与 y=6 之间） */
+.cell.midline-bottom { border-bottom: 2px solid rgba(0, 0, 0, 0.55); }
+.cell.midline-top { border-top: 2px solid rgba(0, 0, 0, 0.55); }
+
+/* 去掉最后一列 / 最后一行 额外边，避免 1px 抖动 */
+.board > .cell:nth-child(12n) { border-right: 1px solid transparent; }
+
+/* 去掉最后一行底部额外细线，保持整体平衡 */
+.board > .cell:nth-child(12n+1) { border-left: 1px solid transparent; }
 
 .cell .terrain-label {
   position: absolute;
@@ -396,14 +435,36 @@ html, body {
 .cell.terrain-r { background: var(--terrain-r); }
 .cell.terrain-w { background: var(--terrain-w); }
 
+/* 区域对称着色 —— 非常淡，不遮挡地形与棋子 */
 .cell.zone-red {
-  box-shadow: inset 0 0 0 2px rgba(178, 58, 58, 0.55);
-  background: rgba(255, 225, 225, 0.55);
+  background-color: rgba(255, 220, 210, 0.45);
+}
+.cell.zone-red.alt {
+  background-color: rgba(240, 200, 190, 0.5);
 }
 .cell.zone-blue {
-  box-shadow: inset 0 0 0 2px rgba(58, 107, 178, 0.55);
-  background: rgba(225, 235, 255, 0.55);
+  background-color: rgba(215, 230, 250, 0.45);
 }
+.cell.zone-blue.alt {
+  background-color: rgba(200, 215, 235, 0.5);
+}
+/* 地形颜色与区域着色叠加 */
+.cell.terrain-m.zone-red,
+.cell.terrain-m.zone-red.alt { background-color: rgba(207, 226, 208, 0.85); }
+.cell.terrain-m.zone-blue,
+.cell.terrain-m.zone-blue.alt { background-color: rgba(200, 226, 212, 0.85); }
+.cell.terrain-f.zone-red,
+.cell.terrain-f.zone-red.alt { background-color: rgba(214, 194, 160, 0.92); }
+.cell.terrain-f.zone-blue,
+.cell.terrain-f.zone-blue.alt { background-color: rgba(210, 194, 170, 0.92); }
+.cell.terrain-r.zone-red,
+.cell.terrain-r.zone-red.alt,
+.cell.terrain-r.zone-blue,
+.cell.terrain-r.zone-blue.alt { background-color: rgba(155, 195, 227, 0.92); }
+.cell.terrain-w.zone-red,
+.cell.terrain-w.zone-red.alt,
+.cell.terrain-w.zone-blue,
+.cell.terrain-w.zone-blue.alt { background-color: rgba(225, 199, 199, 0.9); }
 
 .cell.move {
   background: var(--cell-move);
@@ -420,21 +481,24 @@ html, body {
 .cell.sel { background: var(--cell-sel); }
 
 .piece {
-  width: calc(var(--cell-size) - 4px);
-  height: calc(var(--cell-size) - 4px);
-  border-radius: 2px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--cell-size) - 6px);
+  height: calc(var(--cell-size) - 6px);
+  transform: translate(-50%, -50%);
+  border-radius: 3px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--line);
-  color: var(--fg);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  color: #222;
   font-weight: 700;
-  position: relative;
-  padding: 2px 3px;
   box-sizing: border-box;
-  gap: 2px;
-  backdrop-filter: blur(1px);
+  padding: 2px 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  z-index: 2;
 }
 
 .piece.red {
