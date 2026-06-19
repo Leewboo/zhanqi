@@ -1709,12 +1709,50 @@
     const app = document.getElementById('app');
     if (home) home.classList.remove('hidden');
     if (app) app.classList.add('hidden');
+    // 背景音乐控制
+    const bgm = document.getElementById('bgm');
+    const musicBtn = document.getElementById('btn-music');
+    let musicUserToggled = false;
+    if (bgm) bgm.volume = 0.35;
+    function syncMusicBtn() {
+      if (!bgm || !musicBtn) return;
+      if (!bgm.paused) {
+        musicBtn.classList.add('playing');
+        musicBtn.textContent = '♪';
+      } else {
+        musicBtn.classList.remove('playing');
+        musicBtn.textContent = '♫';
+      }
+    }
+    function tryPlayBgm() {
+      if (!bgm) return;
+      if (bgm.paused && !musicUserToggled) {
+        const p = bgm.play();
+        if (p && p.then) p.then(syncMusicBtn).catch(() => { syncMusicBtn(); });
+      }
+    }
+    if (musicBtn) {
+      musicBtn.addEventListener('click', () => {
+        if (!bgm) return;
+        if (bgm.paused) {
+          const p = bgm.play();
+          if (p && p.then) p.then(syncMusicBtn).catch(() => {});
+        } else {
+          bgm.pause();
+        }
+        musicUserToggled = true;
+        syncMusicBtn();
+      });
+    }
+    if (bgm) bgm.addEventListener('play', syncMusicBtn);
+    if (bgm) bgm.addEventListener('pause', syncMusicBtn);
+    syncMusicBtn();
     // 主页按钮：提前绑定，无需先 init 游戏
     const localBtn = document.getElementById('btn-local');
     const aiBtn = document.getElementById('btn-ai');
     const homeBtn = document.getElementById('btn-home');
-    if (localBtn) localBtn.addEventListener('click', () => Game.startGame('local'));
-    if (aiBtn) aiBtn.addEventListener('click', () => Game.startGame('ai'));
+    if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(); Game.startGame('local'); });
+    if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(); Game.startGame('ai'); });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 

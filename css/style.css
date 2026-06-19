@@ -38,6 +38,37 @@ html, body {
   overflow: hidden;
 }
 
+.music-btn {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--fg);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, opacity 0.2s, transform 0.2s;
+  opacity: 0.55;
+}
+.music-btn:hover { opacity: 1; background: #fff3c4; }
+.music-btn.playing {
+  color: #b23a3a;
+  opacity: 1;
+  background: #fff4ec;
+  animation: musicPulse 2s ease-in-out infinite;
+}
+@keyframes musicPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 #app {
   height: 100vh;
   height: 100dvh;
