@@ -208,10 +208,12 @@
 
     _drawCard(side, count) {
       count = count || 1;
-      const cards = Generals.soldierCards;
+      const cardsObj = Generals.soldierCards;
+      const cardKeys = Object.keys(cardsObj);
       for (let i = 0; i < count; i++) {
-        const idx = Math.floor(Math.random() * cards.length);
-        this.cards[side].push(Object.assign({}, cards[idx]));
+        const idx = Math.floor(Math.random() * cardKeys.length);
+        const cardKey = cardKeys[idx];
+        this.cards[side].push(Object.assign({}, cardsObj[cardKey]));
       }
     },
 
@@ -662,9 +664,13 @@
         return;
       }
 
-      if (target && target.alive && target.side === this.currentSide && (!target.moved || !target.attacked || !target.skilled)) {
+      if (target && target.alive && target.side === this.currentSide) {
         // 攻守模式：城墙棋子不可操作
         if (this.gameMode === 'siege' && target.isWall) {
+          return;
+        }
+        // 只有未完成所有行动的棋子才能被选中
+        if (target.moved && target.attacked && target.skilled) {
           return;
         }
         this.selected = target;
@@ -1686,7 +1692,8 @@
         card.appendChild(body);
         card.appendChild(foot);
         if (!this.deployedThisTurn && !this.over) {
-          card.addEventListener('click', () => self._selectCard(i));
+          const idx = i;
+          card.addEventListener('click', () => self._selectCard(idx));
         } else {
           card.classList.add('disabled');
         }
