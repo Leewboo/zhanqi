@@ -1401,7 +1401,10 @@
             (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
           card.appendChild(head);
           card.appendChild(body);
-          card.addEventListener('click', () => self._pickGeneral(g));
+          const draftSide = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+          if (!(this.aiMode && draftSide === this.aiSide)) {
+            card.addEventListener('click', () => self._pickGeneral(g));
+          }
           cards.appendChild(card);
         }
         return;
