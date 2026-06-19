@@ -97,54 +97,6 @@
     }
   ];
 
-  const wall = {
-    id: 'wall',
-    name: '城墙',
-    hp: 500, atk: 0, def: 40,
-    moveRange: { shape: 'square', n: 0 },
-    attackRange: { shape: 'square', n: 0 },
-    skills: [],
-    isWall: true
-  };
-
-  const soldierBase = {
-    hp: 100, atk: 40, def: 20,
-    moveRange: { shape: '+', n: 2 },
-    attackRange: { shape: '+', n: 1 },
-    skills: []
-  };
-
-  const soldierCards = {
-    infantry: {
-      id: 'infantry',
-      name: '步兵',
-      hp: 150, atk: 40, def: 20,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: '+', n: 1 }
-    },
-    archer: {
-      id: 'archer',
-      name: '弓兵',
-      hp: 100, atk: 50, def: 10,
-      moveRange: { shape: '+', n: 2 },
-      attackRange: { shape: 'square', n: 2 }
-    },
-    cavalry: {
-      id: 'cavalry',
-      name: '骑兵',
-      hp: 130, atk: 55, def: 15,
-      moveRange: { shape: '+', n: 4 },
-      attackRange: { shape: '+', n: 1 }
-    },
-    spearman: {
-      id: 'spearman',
-      name: '枪兵',
-      hp: 180, atk: 45, def: 25,
-      moveRange: { shape: '+', n: 2 },
-      attackRange: { shape: '+', n: 1 }
-    }
-  };
-
   function buildPiece(def, side, x, y) {
     const piece = Object.assign({}, base, def, {
       side,
@@ -165,42 +117,8 @@
     return piece;
   }
 
-  function buildWall(side, x, y) {
-    return buildPiece(wall, side, x, y);
-  }
-
-  function buildSoldier(card, side, x, y, turn) {
-    const t = turn || 1;
-    const bonus = Math.floor(t / 2) * 5;
-    const def = Object.assign({}, card, {
-      atk: card.atk + bonus
-    });
-    const piece = Object.assign({}, soldierBase, def, {
-      side,
-      x, y,
-      maxHp: def.hp,
-      alive: true,
-      moved: false,
-      attacked: false,
-      skilled: false,
-      cd: 0,
-      cdMap: {},
-      atkBuff: 0,
-      defBuff: 0,
-      buffs: [],
-      skills: (card.skills && card.skills.length) ? card.skills.slice() : (card.skill ? [card.skill] : []),
-      generalId: card.id,
-      isSoldier: true
-    });
-    return piece;
-  }
-
   global.Generals = {
     list: generals,
-    buildPiece,
-    wall,
-    soldierCards,
-    buildSoldier,
-    buildWall
+    buildPiece
   };
 })(window);

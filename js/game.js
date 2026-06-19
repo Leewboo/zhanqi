@@ -86,7 +86,6 @@
   const Game = {
     boardEl: null,
     phase: 'draft', // draft | deploy | battle
-    gameMode: 'classic', // classic | siege
     turn: 1,
     currentSide: 'red',
     draftIndex: 0,
@@ -106,11 +105,6 @@
     aiSide: 'blue',        // AI 控制的一方
     _turnEnding: false,    // 防止 endTurn 重入
     _aiActing: false,      // AI 是否正在执行行动
-
-    // 攻守模式：卡牌系统
-    cards: { red: [], blue: [] },
-    selectedCard: null,    // 当前选中的手牌
-    deployedThisTurn: false, // 本回合是否已部署
 
     log(text, cls) {
       const box = document.getElementById('log');
@@ -136,32 +130,12 @@
       this.pendingSkillId = null;
       this.highlighted = [];
       this.over = false;
-      this.aiMode = (mode === 'ai' || mode === 'siege-ai');
+      this.aiMode = (mode === 'ai');
       this.aiSide = 'blue';
-      this.gameMode = (mode === 'siege' || mode === 'siege-ai') ? 'siege' : 'classic';
-      this.cards = { red: [], blue: [] };
-      this.selectedCard = null;
-      this.deployedThisTurn = false;
       this._buildDom();
       this._bind();
       this._setupPassiveEvents();
       this._refreshUi();
-
-      if (this.gameMode === 'siege') {
-        // 攻守模式：先选将，再布阵，再战斗（带城墙+卡牌）
-        this.phase = 'draft';
-        this._highlightDeployZones();
-        const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
-        this.log('攻守模式开始：红方为攻方，蓝方为守方。', 'turn');
-        this.log('守方前排将构筑城墙，双方每回合可抽卡并部署一名士兵。', 'turn');
-        this.log('选将阶段：双方轮流挑选武将，每方 ' + effectivePicks + ' 人。', 'turn');
-        if (this.aiMode) {
-          this.log('人机对战：你执红，AI 执蓝。', 'turn');
-        }
-        this.log('红方先选。', 'turn');
-        this._maybeAiAct();
-        return;
-      }
 
       this.phase = 'draft';
       this._highlightDeployZones();
@@ -172,113 +146,6 @@
       }
       this.log('红方先选。', 'turn');
       this._maybeAiAct();
-    },
-
-    _initSiege() {
-      this.phase = 'battle';
-      // 守方（蓝方）位于上方，有一排城墙
-      // 攻方（红方）位于下方
-      this.log('攻守模式开始：红方为攻方，蓝方为守方。', 'turn');
-      this.log('守方拥有一排城墙，双方每回合可抽卡并部署一名士兵。', 'turn');
-
-      // 放置城墙：蓝方前沿一排（y = 4，居中 8 格）
-      for (let x = 2; x < 10; x++) {
-        if (!this.pieceAt(x, 4)) {
-          this.pieces.push(Generals.buildWall('blue', x, 4));
-        }
-      }
-
-      // 放置守方初始武将（蓝方，城墙后方 y=2,3）
-      const defGenerals = Generals.list.slice(2, 5); // 黄忠、乙、丁
-      for (let i = 0; i < defGenerals.length; i++) {
-        const g = defGenerals[i];
-        const x = 3 + i * 2;
-        const y = 2;
-        if (!this.pieceAt(x, y)) {
-          this.pieces.push(Generals.buildPiece(g, 'blue', x, y));
-        }
-      }
-
-      // 放置攻方初始武将（红方，位于下方 y=8,9）
-      const atkGenerals = [Generals.list[0], Generals.list[1], Generals.list[3]]; // 关羽、赵云、甲
-      for (let i = 0; i < atkGenerals.length; i++) {
-        const g = atkGenerals[i];
-        const x = 3 + i * 2;
-        const y = 9;
-        if (!this.pieceAt(x, y)) {
-          this.pieces.push(Generals.buildPiece(g, 'red', x, y));
-        }
-      }
-
-      // 初始抽卡：双方各抽 2 张
-      this._drawCard('red', 2);
-      this._drawCard('blue', 2);
-
-      this._refreshUi();
-    },
-
-    _drawCard(side, count) {
-      count = count || 1;
-      const cardsObj = Generals.soldierCards;
-      const cardKeys = Object.keys(cardsObj);
-      for (let i = 0; i < count; i++) {
-        const idx = Math.floor(Math.random() * cardKeys.length);
-        const cardKey = cardKeys[idx];
-        this.cards[side].push(Object.assign({}, cardsObj[cardKey]));
-      }
-    },
-
-    _selectCard(index) {
-      if (this.gameMode !== 'siege') return;
-      const side = this.currentSide;
-      const hand = this.cards[side];
-      if (this.deployedThisTurn) {
-        this.log('本回合已部署。');
-        return;
-      }
-      if (index < 0 || index >= hand.length) return;
-      this.selectedCard = { side, index };
-      this.selected = null;
-      this.mode = 'deployCard';
-      // 高亮己方半场空格
-      const half = Math.floor(SIZE / 2);
-      const yStart = side === 'red' ? half : 0;
-      const yEnd = side === 'red' ? SIZE : half;
-      const cells = [];
-      for (let y = yStart; y < yEnd; y++) {
-        for (let x = 0; x < SIZE; x++) {
-          if (!this.pieceAt(x, y)) {
-            cells.push({ x, y, kind: 'skill' });
-          }
-        }
-      }
-      if (cells.length === 0) {
-        this.log('没有可部署的空格。');
-        this.selectedCard = null;
-        this.mode = null;
-        return;
-      }
-      this.highlighted = cells;
-      this.log('已选择 ' + hand[index].name + '，点击棋盘空格部署。');
-      this._refreshUi();
-    },
-
-    _deployCard(x, y) {
-      if (!this.selectedCard) return;
-      const side = this.selectedCard.side;
-      const idx = this.selectedCard.index;
-      const card = this.cards[side][idx];
-      if (!card) return;
-      const piece = Generals.buildSoldier(card, side, x, y, this.turn);
-      this.pieces.push(piece);
-      this.cards[side].splice(idx, 1);
-      this.log((side === 'red' ? '红' : '蓝') + '方部署 ' + card.name + ' 到 (' + x + ',' + y + ')。');
-      this.selectedCard = null;
-      this.mode = null;
-      this.highlighted = [];
-      this.deployedThisTurn = true;
-      this._checkWin();
-      this._refreshUi();
     },
 
     goHome() {
@@ -389,22 +256,7 @@
       this.mode = null;
       this.highlighted = [];
 
-      // 攻守模式：放置城墙 + 初始抽卡
-      if (this.gameMode === 'siege') {
-        // 放置城墙：蓝方前沿一排（y = 5，整排 12 格）
-        for (let x = 0; x < SIZE; x++) {
-          if (!this.pieceAt(x, 5)) {
-            this.pieces.push(Generals.buildWall('blue', x, 5));
-          }
-        }
-        // 初始抽卡：双方各抽 2 张
-        this._drawCard('red', 2);
-        this._drawCard('blue', 2);
-        this.log('守方城墙已构筑完毕，双方各抽 2 张兵卡。', 'turn');
-        this.log('战斗开始：红方先动。', 'turn');
-      } else {
-        this.log('阵容已就位。战斗开始，红方先动。', 'turn');
-      }
+      this.log('阵容已就位。战斗开始，红方先动。', 'turn');
       this._renderDraftCards();
       this._refreshUi();
       this._maybeAiAct();
@@ -524,11 +376,7 @@
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
         document.getElementById('log').innerHTML = '';
-        let mode = 'local';
-        if (this.gameMode === 'siege' && this.aiMode) mode = 'siege-ai';
-        else if (this.gameMode === 'siege') mode = 'siege';
-        else if (this.aiMode) mode = 'ai';
-        this.init(mode);
+        this.init(this.aiMode ? 'ai' : 'local');
       };
       document.getElementById('detail-close').onclick = () => {
         document.getElementById('detail-modal').classList.add('hidden');
@@ -655,20 +503,6 @@
       }
       if (this.over) return;
 
-      // 攻守模式：部署卡牌
-      if (this.gameMode === 'siege' && this.mode === 'deployCard') {
-        const valid = this.highlighted.find(h => h.x === x && h.y === y);
-        if (valid) {
-          this._deployCard(x, y);
-        } else {
-          this.selectedCard = null;
-          this.mode = null;
-          this.highlighted = [];
-          this._refreshUi();
-        }
-        return;
-      }
-
       if (this.awaitingCell) {
         const valid = this.highlighted.find(h => h.x === x && h.y === y);
         if (valid) {
@@ -696,10 +530,6 @@
       }
 
       if (target && target.alive && target.side === this.currentSide) {
-        // 攻守模式：城墙棋子不可操作
-        if (this.gameMode === 'siege' && target.isWall) {
-          return;
-        }
         // 只有未完成所有行动的棋子才能被选中
         if (target.moved && target.attacked && target.skilled) {
           return;
@@ -1137,37 +967,6 @@
     },
 
     _checkWin() {
-      if (this.gameMode === 'siege') {
-        const redAlive = this.pieces.some(p => p.side === 'red' && p.alive && !p.isWall);
-        const blueAlive = this.pieces.some(p => p.side === 'blue' && p.alive && !p.isWall);
-        const wallsAlive = this.pieces.some(p => p.side === 'blue' && p.alive && p.isWall);
-        // 红方（攻方）：消灭守方所有武将 或 摧毁所有城墙 即胜利
-        // 蓝方（守方）：消灭攻方所有武将 即胜利
-        if (!redAlive || (!blueAlive && !wallsAlive)) {
-          this.over = true;
-          const title = document.getElementById('banner-title');
-          title.textContent = redAlive ? '攻方胜利' : '守方胜利';
-          document.getElementById('banner').classList.remove('hidden');
-          this.log(title.textContent + '！', 'turn');
-          return;
-        }
-        if (!blueAlive) {
-          this.over = true;
-          document.getElementById('banner-title').textContent = '攻方胜利';
-          document.getElementById('banner').classList.remove('hidden');
-          this.log('攻方胜利！', 'turn');
-          return;
-        }
-        if (!wallsAlive) {
-          this.over = true;
-          document.getElementById('banner-title').textContent = '攻方胜利';
-          document.getElementById('banner').classList.remove('hidden');
-          this.log('城墙已全部摧毁，攻方胜利！', 'turn');
-          return;
-        }
-        return;
-      }
-
       const redAlive = this.pieces.some(p => p.side === 'red' && p.alive);
       const blueAlive = this.pieces.some(p => p.side === 'blue' && p.alive);
       if (!redAlive || !blueAlive) {
@@ -1200,10 +999,6 @@
           }
         });
         this.log('回合 ' + this.turn + ' · 蓝方行动。', 'turn');
-        if (this.gameMode === 'siege') {
-          this.deployedThisTurn = false;
-          this._drawCard('blue', 1);
-        }
       } else {
         this.currentSide = 'red';
         this.turn += 1;
@@ -1214,10 +1009,6 @@
           }
         });
         this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
-        if (this.gameMode === 'siege') {
-          this.deployedThisTurn = false;
-          this._drawCard('red', 1);
-        }
       }
       this._clearSelection();
       this._refreshUi();
@@ -1327,7 +1118,7 @@
           const p = document.createElement('div');
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
-          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') + (piece.isWall ? ' wall' : '');
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
 
           // 姓名
           const nameSpan = document.createElement('span');
@@ -1664,9 +1455,7 @@
 
     _refreshUi() {
       const el = document.getElementById('turn-info');
-      if (this.gameMode === 'siege') {
-        el.textContent = '攻守 · 回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '攻方' : '守方');
-      } else if (this.phase === 'draft') {
+      if (this.phase === 'draft') {
         el.textContent = '选将阶段 · 第 ' + (this.draftIndex + 1) + ' 选 · ' + (this.draftIndex % 2 === 0 ? '红' : '蓝') + '方';
       } else if (this.phase === 'deploy') {
         const side = this.deploySide;
@@ -1677,59 +1466,8 @@
         el.textContent = '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
       }
       this._renderDraftCards();
-      this._renderCards();
       this._render();
       this._renderBottom();
-    },
-
-    _renderCards() {
-      const panel = document.getElementById('card-panel');
-      const handsEl = document.getElementById('card-hands');
-      if (!panel || !handsEl) return;
-      if (this.gameMode !== 'siege' || this.phase !== 'battle') {
-        panel.classList.add('hidden');
-        return;
-      }
-      panel.classList.remove('hidden');
-      const side = this.currentSide;
-      const hand = this.cards[side] || [];
-      handsEl.innerHTML = '';
-      const self = this;
-      if (hand.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'card-empty';
-        empty.textContent = '（本回合无手牌）';
-        handsEl.appendChild(empty);
-        return;
-      }
-      for (let i = 0; i < hand.length; i++) {
-        const c = hand[i];
-        const card = document.createElement('div');
-        card.className = 'unit-card ' + side;
-        if (this.selectedCard && this.selectedCard.side === side && this.selectedCard.index === i) {
-          card.classList.add('selected');
-        }
-        const head = document.createElement('div');
-        head.className = 'unit-card-head';
-        head.textContent = c.name;
-        const body = document.createElement('div');
-        body.className = 'unit-card-body';
-        body.innerHTML = '生命 ' + c.hp + ' · 攻 ' + c.atk + ' · 防 ' + c.def +
-          '<br/>移动 ' + c.moveRange.n + ' · 攻击 ' + c.attackRange.n;
-        const foot = document.createElement('div');
-        foot.className = 'unit-card-foot';
-        foot.textContent = this.deployedThisTurn ? '本回合已部署' : '点击部署';
-        card.appendChild(head);
-        card.appendChild(body);
-        card.appendChild(foot);
-        if (!this.deployedThisTurn && !this.over) {
-          const idx = i;
-          card.addEventListener('click', () => self._selectCard(idx));
-        } else {
-          card.classList.add('disabled');
-        }
-        handsEl.appendChild(card);
-      }
     },
 
     _maybeAiAct() {
@@ -1829,39 +1567,7 @@
     _aiBattleStep() {
       const side = this.currentSide;
 
-      // 攻守模式：AI 优先尝试部署兵卡（每回合一次）
-      if (this.gameMode === 'siege' && !this.deployedThisTurn) {
-        const hand = this.cards[side] || [];
-        if (hand.length > 0) {
-          // 选择己方半场的一个空格，尽量靠前（靠近中线）
-          const half = Math.floor(SIZE / 2);
-          const yStart = side === 'red' ? half : 0;
-          const yEnd = side === 'red' ? SIZE : half;
-          const empty = [];
-          for (let y = yStart; y < yEnd; y++) {
-            for (let x = 0; x < SIZE; x++) {
-              if (!this.pieceAt(x, y)) empty.push({ x, y });
-            }
-          }
-          if (empty.length) {
-            // 攻方靠前部署，守方靠后部署（均靠近中线）
-            empty.sort((a, b) => {
-              if (side === 'red') return b.y - a.y;
-              return a.y - b.y;
-            });
-            const spot = empty[0];
-            // 选择一张兵卡：优先骑兵/步兵
-            const cardIdx = Math.min(0, hand.length - 1);
-            this.selectedCard = { side, index: cardIdx };
-            this._deployCard(spot.x, spot.y);
-            this.selectedCard = null;
-            this._scheduleNext();
-            return;
-          }
-        }
-      }
-
-      const myAlive = this.pieces.filter(p => p.side === side && p.alive && !p.isWall);
+      const myAlive = this.pieces.filter(p => p.side === side && p.alive);
       const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
       if (!cand) {
         // 所有人都已行动，解锁后调用 endTurn() 切换回合
@@ -2006,10 +1712,6 @@
     const homeBtn = document.getElementById('btn-home');
     if (localBtn) localBtn.addEventListener('click', () => Game.startGame('local'));
     if (aiBtn) aiBtn.addEventListener('click', () => Game.startGame('ai'));
-    const siegeBtn = document.getElementById('btn-siege');
-    if (siegeBtn) siegeBtn.addEventListener('click', () => Game.startGame('siege'));
-    const siegeAiBtn = document.getElementById('btn-siege-ai');
-    if (siegeAiBtn) siegeAiBtn.addEventListener('click', () => Game.startGame('siege-ai'));
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 
