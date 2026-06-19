@@ -18,9 +18,10 @@
       <div class="home-buttons">
         <button id="btn-local" class="home-btn primary">本机对战</button>
         <button id="btn-ai" class="home-btn">人机对战</button>
+        <button id="btn-siege" class="home-btn">攻守对战</button>
       </div>
       <div class="home-foot">
-        双人轮流操作棋盘 &nbsp;·&nbsp; 选择武将 · 布阵 · 战斗
+        双人轮流操作棋盘 &nbsp;·&nbsp; 选择武将 · 布阵 · 战斗 · 攻防
       </div>
     </div>
   </section>
@@ -48,6 +49,14 @@
       </div>
       <div id="draft-summary" class="draft-summary"></div>
       <div id="draft-cards" class="draft-cards"></div>
+    </section>
+
+    <section id="card-panel" class="card-panel hidden">
+      <div class="card-head">
+        <span class="card-title">手牌</span>
+        <span class="card-hint">每回合自动抽一张 · 点击卡牌部署到己方半场</span>
+      </div>
+      <div id="card-hands" class="card-hands"></div>
     </section>
 
     <footer class="bottom-bar">
