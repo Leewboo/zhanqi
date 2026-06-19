@@ -136,9 +136,9 @@
       this.pendingSkillId = null;
       this.highlighted = [];
       this.over = false;
-      this.aiMode = (mode === 'ai');
+      this.aiMode = (mode === 'ai' || mode === 'siege-ai');
       this.aiSide = 'blue';
-      this.gameMode = (mode === 'siege') ? 'siege' : 'classic';
+      this.gameMode = (mode === 'siege' || mode === 'siege-ai') ? 'siege' : 'classic';
       this.cards = { red: [], blue: [] };
       this.selectedCard = null;
       this.deployedThisTurn = false;
@@ -148,7 +148,18 @@
       this._refreshUi();
 
       if (this.gameMode === 'siege') {
-        this._initSiege();
+        // 攻守模式：先选将，再布阵，再战斗（带城墙+卡牌）
+        this.phase = 'draft';
+        this._highlightDeployZones();
+        const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
+        this.log('攻守模式开始：红方为攻方，蓝方为守方。', 'turn');
+        this.log('守方前排将构筑城墙，双方每回合可抽卡并部署一名士兵。', 'turn');
+        this.log('选将阶段：双方轮流挑选武将，每方 ' + effectivePicks + ' 人。', 'turn');
+        if (this.aiMode) {
+          this.log('人机对战：你执红，AI 执蓝。', 'turn');
+        }
+        this.log('红方先选。', 'turn');
+        this._maybeAiAct();
         return;
       }
 
@@ -377,7 +388,23 @@
       this.selected = null;
       this.mode = null;
       this.highlighted = [];
-      this.log('阵容已就位。战斗开始，红方先动。', 'turn');
+
+      // 攻守模式：放置城墙 + 初始抽卡
+      if (this.gameMode === 'siege') {
+        // 放置城墙：蓝方前沿一排（y = 5，整排 12 格）
+        for (let x = 0; x < SIZE; x++) {
+          if (!this.pieceAt(x, 5)) {
+            this.pieces.push(Generals.buildWall('blue', x, 5));
+          }
+        }
+        // 初始抽卡：双方各抽 2 张
+        this._drawCard('red', 2);
+        this._drawCard('blue', 2);
+        this.log('守方城墙已构筑完毕，双方各抽 2 张兵卡。', 'turn');
+        this.log('战斗开始：红方先动。', 'turn');
+      } else {
+        this.log('阵容已就位。战斗开始，红方先动。', 'turn');
+      }
       this._renderDraftCards();
       this._refreshUi();
       this._maybeAiAct();
@@ -497,7 +524,11 @@
       document.getElementById('btn-restart').onclick = () => {
         document.getElementById('banner').classList.add('hidden');
         document.getElementById('log').innerHTML = '';
-        this.init(this.aiMode ? 'ai' : 'local');
+        let mode = 'local';
+        if (this.gameMode === 'siege' && this.aiMode) mode = 'siege-ai';
+        else if (this.gameMode === 'siege') mode = 'siege';
+        else if (this.aiMode) mode = 'ai';
+        this.init(mode);
       };
       document.getElementById('detail-close').onclick = () => {
         document.getElementById('detail-modal').classList.add('hidden');
@@ -1797,8 +1828,40 @@
 
     _aiBattleStep() {
       const side = this.currentSide;
-      const myAlive = this.pieces.filter(p => p.side === side && p.alive);
-      // 每个未完成行动的棋子依次行动
+
+      // 攻守模式：AI 优先尝试部署兵卡（每回合一次）
+      if (this.gameMode === 'siege' && !this.deployedThisTurn) {
+        const hand = this.cards[side] || [];
+        if (hand.length > 0) {
+          // 选择己方半场的一个空格，尽量靠前（靠近中线）
+          const half = Math.floor(SIZE / 2);
+          const yStart = side === 'red' ? half : 0;
+          const yEnd = side === 'red' ? SIZE : half;
+          const empty = [];
+          for (let y = yStart; y < yEnd; y++) {
+            for (let x = 0; x < SIZE; x++) {
+              if (!this.pieceAt(x, y)) empty.push({ x, y });
+            }
+          }
+          if (empty.length) {
+            // 攻方靠前部署，守方靠后部署（均靠近中线）
+            empty.sort((a, b) => {
+              if (side === 'red') return b.y - a.y;
+              return a.y - b.y;
+            });
+            const spot = empty[0];
+            // 选择一张兵卡：优先骑兵/步兵
+            const cardIdx = Math.min(0, hand.length - 1);
+            this.selectedCard = { side, index: cardIdx };
+            this._deployCard(spot.x, spot.y);
+            this.selectedCard = null;
+            this._scheduleNext();
+            return;
+          }
+        }
+      }
+
+      const myAlive = this.pieces.filter(p => p.side === side && p.alive && !p.isWall);
       const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
       if (!cand) {
         // 所有人都已行动，解锁后调用 endTurn() 切换回合
@@ -1945,6 +2008,8 @@
     if (aiBtn) aiBtn.addEventListener('click', () => Game.startGame('ai'));
     const siegeBtn = document.getElementById('btn-siege');
     if (siegeBtn) siegeBtn.addEventListener('click', () => Game.startGame('siege'));
+    const siegeAiBtn = document.getElementById('btn-siege-ai');
+    if (siegeAiBtn) siegeAiBtn.addEventListener('click', () => Game.startGame('siege-ai'));
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 
