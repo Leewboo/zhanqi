@@ -1709,13 +1709,48 @@
     const app = document.getElementById('app');
     if (home) home.classList.remove('hidden');
     if (app) app.classList.add('hidden');
-    // 背景音乐控制
+
+    // ========== 背景音乐控制（拖动 / 长按菜单 / 自动播放） ==========
     const bgm = document.getElementById('bgm');
     const musicBtn = document.getElementById('btn-music');
-    let musicUserToggled = false;
-    if (bgm) bgm.volume = 0.35;
+    const musicMenu = document.getElementById('music-menu');
+    const volSlider = document.getElementById('music-volume');
+    const volVal = document.getElementById('music-volume-val');
+    const autoPlayBox = document.getElementById('music-autoplay');
+
+    // 默认设置 + localStorage 恢复
+    let settings = { volume: 35, autoPlay: true };
+    try {
+      const saved = JSON.parse(localStorage.getItem('sanguosha_music') || '{}');
+      if (typeof saved.volume === 'number') settings.volume = saved.volume;
+      if (typeof saved.autoPlay === 'boolean') settings.autoPlay = saved.autoPlay;
+    } catch (_) {}
+
+    function saveSettings() {
+      try { localStorage.setItem('sanguosha_music', JSON.stringify(settings)); } catch (_) {}
+    }
+
+    // 恢复按钮位置
+    function restoreBtnPos() {
+      if (!musicBtn) return;
+      let pos = null;
+      try { pos = JSON.parse(localStorage.getItem('sanguosha_btn_pos') || 'null'); } catch (_) {}
+      if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+        musicBtn.style.left = pos.left + 'px';
+        musicBtn.style.top = pos.top + 'px';
+        musicBtn.style.right = 'auto';
+      }
+    }
+    restoreBtnPos();
+
+    // 应用音量
+    if (bgm) bgm.volume = settings.volume / 100;
+    if (volSlider) volSlider.value = String(settings.volume);
+    if (volVal) volVal.textContent = String(settings.volume);
+    if (autoPlayBox) autoPlayBox.checked = !!settings.autoPlay;
+
     function syncMusicBtn() {
-      if (!bgm || !musicBtn) return;
+      if (!musicBtn || !bgm) return;
       if (!bgm.paused) {
         musicBtn.classList.add('playing');
         musicBtn.textContent = '♪';
@@ -1724,35 +1759,172 @@
         musicBtn.textContent = '♫';
       }
     }
-    function tryPlayBgm() {
+
+    // 自动播放：尝试在页面加载后直接播放；若被浏览器拦截，则等待首次用户手势触发
+    let firstGestureDone = false;
+    function tryPlayBgm(forceFromGesture) {
       if (!bgm) return;
-      if (bgm.paused && !musicUserToggled) {
-        const p = bgm.play();
-        if (p && p.then) p.then(syncMusicBtn).catch(() => { syncMusicBtn(); });
-      }
+      if (!bgm.paused) { syncMusicBtn(); return; }
+      if (!settings.autoPlay && !forceFromGesture) return;
+      const p = bgm.play();
+      if (p && p.then) p.then(syncMusicBtn).catch(() => { syncMusicBtn(); });
+      else syncMusicBtn();
     }
-    if (musicBtn) {
-      musicBtn.addEventListener('click', () => {
-        if (!bgm) return;
-        if (bgm.paused) {
-          const p = bgm.play();
-          if (p && p.then) p.then(syncMusicBtn).catch(() => {});
-        } else {
-          bgm.pause();
-        }
-        musicUserToggled = true;
-        syncMusicBtn();
+    if (bgm) {
+      bgm.addEventListener('play', syncMusicBtn);
+      bgm.addEventListener('pause', syncMusicBtn);
+    }
+    syncMusicBtn();
+
+    // 首次加载尝试播放
+    if (settings.autoPlay) tryPlayBgm(false);
+
+    // 全局首次手势兜底：若自动播放被拦截，则在任意首次操作后开始播放
+    function onFirstGesture() {
+      if (firstGestureDone) return;
+      firstGestureDone = true;
+      if (settings.autoPlay && bgm && bgm.paused) tryPlayBgm(true);
+      document.removeEventListener('pointerdown', onFirstGesture);
+      document.removeEventListener('keydown', onFirstGesture);
+    }
+    document.addEventListener('pointerdown', onFirstGesture);
+    document.addEventListener('keydown', onFirstGesture);
+
+    // 音量滑块
+    if (volSlider && bgm) {
+      volSlider.addEventListener('input', () => {
+        const v = parseInt(volSlider.value, 10) || 0;
+        settings.volume = v;
+        bgm.volume = v / 100;
+        if (volVal) volVal.textContent = String(v);
+        saveSettings();
       });
     }
-    if (bgm) bgm.addEventListener('play', syncMusicBtn);
-    if (bgm) bgm.addEventListener('pause', syncMusicBtn);
-    syncMusicBtn();
-    // 主页按钮：提前绑定，无需先 init 游戏
+
+    // 自动播放开关
+    if (autoPlayBox) {
+      autoPlayBox.addEventListener('change', () => {
+        settings.autoPlay = autoPlayBox.checked;
+        saveSettings();
+        if (settings.autoPlay && bgm && bgm.paused) tryPlayBgm(true);
+      });
+    }
+
+    // ========== 按钮：拖动 + 点击切换 + 长按弹菜单 ==========
+    if (musicBtn) {
+      let startX = 0, startY = 0;
+      let moved = false;
+      let dragStartLeft = 0, dragStartTop = 0;
+      let isDragging = false;
+      let longPressTimer = null;
+      let longPressFired = false;
+      const DRAG_THRESHOLD = 6;
+      const LONG_PRESS_MS = 450;
+
+      musicBtn.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        startX = e.clientX;
+        startY = e.clientY;
+        moved = false;
+        longPressFired = false;
+        const rect = musicBtn.getBoundingClientRect();
+        dragStartLeft = rect.left;
+        dragStartTop = rect.top;
+        try { musicBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        longPressTimer = setTimeout(() => {
+          if (!moved) {
+            longPressFired = true;
+            openMusicMenu();
+            musicBtn.classList.add('long-press');
+            setTimeout(() => musicBtn.classList.remove('long-press'), 300);
+          }
+        }, LONG_PRESS_MS);
+      });
+
+      musicBtn.addEventListener('pointermove', (e) => {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (!moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+          moved = true;
+          isDragging = true;
+          musicBtn.classList.add('dragging');
+          if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+          // 切换为 left/top 定位
+          musicBtn.style.right = 'auto';
+        }
+        if (isDragging) {
+          const maxLeft = window.innerWidth - musicBtn.offsetWidth - 4;
+          const maxTop = window.innerHeight - musicBtn.offsetHeight - 4;
+          let newLeft = Math.max(4, Math.min(maxLeft, dragStartLeft + dx));
+          let newTop = Math.max(4, Math.min(maxTop, dragStartTop + dy));
+          musicBtn.style.left = newLeft + 'px';
+          musicBtn.style.top = newTop + 'px';
+        }
+      });
+
+      function endDrag(e) {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (isDragging) {
+          // 保存位置
+          const rect = musicBtn.getBoundingClientRect();
+          try { localStorage.setItem('sanguosha_btn_pos', JSON.stringify({ left: rect.left, top: rect.top })); } catch (_) {}
+        }
+        // 仅在没有拖动、没有长按且是一次点击时切换播放
+        if (!moved && !longPressFired && bgm) {
+          if (bgm.paused) {
+            const p = bgm.play();
+            if (p && p.then) p.then(syncMusicBtn).catch(() => {});
+          } else {
+            bgm.pause();
+          }
+          syncMusicBtn();
+        }
+        musicBtn.classList.remove('dragging');
+        isDragging = false;
+        try { musicBtn.releasePointerCapture(e.pointerId); } catch (_) {}
+      }
+      musicBtn.addEventListener('pointerup', endDrag);
+      musicBtn.addEventListener('pointercancel', endDrag);
+    }
+
+    // ========== 菜单：定位 + 显示 + 关闭 ==========
+    function openMusicMenu() {
+      if (!musicMenu || !musicBtn) return;
+      const btnRect = musicBtn.getBoundingClientRect();
+      musicMenu.classList.remove('hidden');
+      const menuRect = musicMenu.getBoundingClientRect();
+      const menuW = menuRect.width || 230;
+      const menuH = menuRect.height || 120;
+      // 默认放在按钮左下方；空间不足则出现在上方或右侧
+      let left = btnRect.left + btnRect.width / 2 - menuW / 2;
+      let top = btnRect.bottom + 8;
+      if (top + menuH > window.innerHeight - 6) top = btnRect.top - menuH - 8;
+      if (left < 6) left = 6;
+      if (left + menuW > window.innerWidth - 6) left = window.innerWidth - menuW - 6;
+      if (top < 6) top = btnRect.bottom + 8;
+      musicMenu.style.left = left + 'px';
+      musicMenu.style.top = top + 'px';
+    }
+
+    function closeMusicMenu() {
+      if (musicMenu) musicMenu.classList.add('hidden');
+    }
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!musicMenu || musicMenu.classList.contains('hidden')) return;
+      if (musicMenu.contains(e.target) || (musicBtn && musicBtn.contains(e.target))) return;
+      closeMusicMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMusicMenu();
+    });
+
+    // 主页按钮
     const localBtn = document.getElementById('btn-local');
     const aiBtn = document.getElementById('btn-ai');
     const homeBtn = document.getElementById('btn-home');
-    if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(); Game.startGame('local'); });
-    if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(); Game.startGame('ai'); });
+    if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('local'); });
+    if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('ai'); });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 

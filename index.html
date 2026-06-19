@@ -12,7 +12,22 @@
 </head>
 <body>
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
-  <button id="btn-music" class="music-btn" title="背景音乐开关">♪</button>
+  <button id="btn-music" class="music-btn" title="点击开关 · 长按打开菜单">♪</button>
+  <div id="music-menu" class="music-menu hidden">
+    <div class="music-menu-row">
+      <span class="music-menu-label">音量</span>
+      <input id="music-volume" type="range" min="0" max="100" value="35" />
+      <span id="music-volume-val" class="music-menu-val">35</span>
+    </div>
+    <div class="music-menu-row">
+      <span class="music-menu-label">自动播放</span>
+      <label class="music-switch">
+        <input id="music-autoplay" type="checkbox" checked />
+        <span class="music-switch-slider"></span>
+      </label>
+    </div>
+    <div class="music-menu-row music-menu-hint">点击菜单外任意位置关闭</div>
+  </div>
   <section id="home-screen" class="home-screen">
     <div class="home-inner">
       <h1 class="home-title">三国战棋</h1>
