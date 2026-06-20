@@ -361,13 +361,15 @@ html, body {
     rgba(178, 58, 58, 0.20) 50.5%,
     rgba(178, 58, 58, 0.04) 50.5%,
     rgba(178, 58, 58, 0.12) 100%);
-  border: 2px solid var(--line);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.14);
+  border: 3px solid rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   user-select: none;
   padding: 0;
   gap: 0;
   border-top: 3px solid #3a6bb2;
   border-bottom: 3px solid #b23a3a;
+  border-left: 3px solid rgba(58, 107, 178, 0.55);
+  border-right: 3px solid rgba(178, 58, 58, 0.55);
   flex-shrink: 0;
 }
 
