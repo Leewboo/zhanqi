@@ -333,7 +333,7 @@ html, body {
   align-items: stretch;
   justify-content: center;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .board-scroll {
@@ -364,12 +364,11 @@ html, body {
   border: 2px solid var(--line);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.14);
   user-select: none;
-  position: relative;
   padding: 0;
   gap: 0;
-  /* 顶部蓝条 + 底部红条 用 border-image / border 实现，不额外占位 */
   border-top: 3px solid #3a6bb2;
   border-bottom: 3px solid #b23a3a;
+  flex-shrink: 0;
 }
 
 .cell {
