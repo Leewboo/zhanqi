@@ -245,15 +245,18 @@
   }
 
   /* ========= 代码编辑器（双层：高亮底层 + 透明输入上层） ========= */
-  /* GitHub Dark 配色变量 */
+  /*
+    分层逻辑（从下到上）:
+    [底层 z-base] .code-editor 容器 → 提供 #0d1117 深色背景（唯一有实色的层）
+    [中层 z-1]   <pre class="hl-layer"> → 绝对定位覆盖容器，显示 hljs 彩色文字（透明背景）
+    [顶层 z-2]   <textarea> → 相对定位撑开容器，透明文字+透明背景（只有白色光标）
+  */
   .code-editor {
     position: relative;
     border: 1px solid #30363d;
-    background: #0d1117;  /* 深色背景，确保 hl-layer 的彩色文字有可见底色 */
+    background: #0d1117;
     margin-top: 8px;
     border-radius: 3px;
-    overflow: hidden;
-    /* 同时作为 .hl-layer 的绝对定位参照 */
   }
   .code-label {
     position: absolute;
@@ -263,13 +266,13 @@
     font-size: 11px;
     letter-spacing: 2px;
     pointer-events: none;
-    z-index: 5;
-    background: rgba(13, 17, 23, 0.9);
+    z-index: 3;
+    background: rgba(13, 17, 23, 0.85);
     padding: 2px 8px;
     border-radius: 2px;
   }
 
-  /* 高亮底层：<pre><code>，与 textarea 完全对齐，承接 hljs 彩色文字 */
+  /* 高亮底层：<pre><code>，绝对定位覆盖整个容器 */
   .code-editor .hl-layer {
     position: absolute;
     top: 0;
@@ -280,7 +283,7 @@
     padding: 28px 14px 14px;
     pointer-events: none;
     overflow: hidden;
-    background: #0d1117;   /* 与 .code-editor 背景一致，确保彩色文字可见 */
+    background: transparent;
     z-index: 1;
     font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
     font-size: 12px;
@@ -289,6 +292,8 @@
     overflow-wrap: normal;
     tab-size: 2;
     border-radius: 0;
+    /* 与 textarea 一致的 box-sizing */
+    box-sizing: border-box;
   }
   .code-editor .hl-layer code {
     font-family: inherit;
@@ -297,12 +302,14 @@
     white-space: pre;
     overflow-wrap: normal;
     tab-size: 2;
-    background: #0d1117 !important; /* 与外层一致，防止覆盖 hljs token 颜色 */
+    background: transparent !important;
+    color: #c9d1d9 !important;  /* github-dark 前景色：未被 hljs 着色的文字也可见 */
     padding: 0 !important;
+    margin: 0 !important;
     display: block;
     border-radius: 0;
   }
-  /* 确保 hljs 生成的 token 颜色不被意外覆盖 */
+  /* 确保 hljs token span 自身不带底色 */
   .code-editor .hl-layer code .hljs-keyword,
   .code-editor .hl-layer code .hljs-string,
   .code-editor .hl-layer code .hljs-number,
@@ -332,7 +339,7 @@
   .code-editor .hl-layer code .hljs-link,
   .code-editor .hl-layer code .hljs-emphasis,
   .code-editor .hl-layer code .hljs-strong,
-  .code-editor .hl-layer code .hljssubst,
+  .code-editor .hl-layer code .hljs-subst,
   .code-editor .hl-layer code .hljs-quote,
   .code-editor .hl-layer code .hljs-doctag,
   .code-editor .hl-layer code .hljs-type,
@@ -343,16 +350,18 @@
     background: transparent !important;
   }
 
-  /* 输入上层：透明文字 / 可见光标 */
+  /* 输入上层：position relative → 撑开容器高度；transparent → 透出底层彩色文字 */
   .code-editor textarea {
     position: relative;
+    display: block;
     width: 100%;
     min-height: 140px;
     padding: 28px 14px 14px;
     border: 0;
-    background: #0d1117;   /* textarea 自己也用深色背景，与 hl-layer 一致 */
+    margin: 0;
+    background: transparent;
     color: transparent;
-    caret-color: #fff;
+    caret-color: #ffffff;
     font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
     font-size: 12px;
     line-height: 1.7;
@@ -361,7 +370,6 @@
     overflow-wrap: normal;
     tab-size: 2;
     z-index: 2;
-    display: block;
     touch-action: auto;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
@@ -375,16 +383,6 @@
     outline: none;
     box-shadow: inset 0 0 0 1px rgba(86, 156, 214, 0.5);
     border: 0;
-  }
-
-  /* 让高亮层随 textarea 滚动 —— 通过 JS 同步，这里只保证尺寸一致 */
-  .code-editor textarea,
-  .code-editor .hl-layer {
-    width: 100%;
-    height: 100%;
-  }
-  .code-editor {
-    min-height: 140px;
   }
 
   /* ========= 按钮 ========= */
