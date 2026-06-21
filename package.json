@@ -1,0 +1,17 @@
+{
+  "name": "sanguo-zhanqi",
+  "version": "1.0.0",
+  "description": "三国战棋 · 策略对战（Koa 版）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "koa": "^2.15.3",
+    "koa-static": "^5.0.0"
+  }
+}
