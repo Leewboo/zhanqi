@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
 <title>DIY 武将 · 三国战棋</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css" />
 <style>
-  /* DIY页面：覆盖 index.css 的 body overflow:hidden，确保手机端可上下滑动 */
+  /* ========= 页面级 CSS（独立于游戏） ========= */
   html, body {
     height: auto;
     min-height: 100vh;
@@ -14,133 +14,251 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: auto;
-  }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     background: var(--bg);
     color: var(--fg);
     margin: 0;
-    padding: 0 0 60px;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
     line-height: 1.6;
-    /* 让纵向滑动可自由触发 */
-    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* 顶部悬浮按钮（全屏） */
+  .fs-btn {
+    position: fixed;
+    top: 12px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--fg);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+    user-select: none;
+    z-index: 1000;
+  }
+  .fs-btn:hover { background: var(--sel-hover, #fff3c4); }
+
   .diy-wrap {
     max-width: 1100px;
     margin: 0 auto;
-    background: #fff;
-    padding: 24px 28px;
-    border: 1px solid #cfc8ba;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    padding: 28px 24px 60px;
   }
+
   .diy-title {
-    margin: 0 0 4px;
+    margin: 0 0 8px;
     font-size: 26px;
-    letter-spacing: 4px;
+    letter-spacing: 6px;
+    font-weight: 700;
   }
   .diy-sub {
-    color: #777;
+    color: #666;
     font-size: 13px;
     margin: 0 0 24px;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
   }
+
+  /* ========= section 通用 ========= */
   .section {
-    margin: 20px 0;
-    padding: 16px;
-    background: #fafaf6;
-    border: 1px solid #e6e0cf;
+    margin: 18px 0;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    box-sizing: border-box;
   }
   .section-title {
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 3px;
     margin: 0 0 12px;
-    color: #3a3a3a;
+    color: var(--fg);
     display: flex;
     align-items: center;
     gap: 10px;
   }
   .section-title::before {
-    content: '';
+    content: "";
     width: 3px;
     height: 16px;
-    background: #b23a3a;
+    background: var(--red);
+    flex-shrink: 0;
   }
+
+  /* ========= 折叠面板（教程） ========= */
+  .collapsible {
+    border: 1px solid #e0d8c3;
+    margin-bottom: 8px;
+    background: #fffdf7;
+    border-radius: 2px;
+  }
+  .collapsible-head {
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    touch-action: manipulation;
+  }
+  .collapsible-head:hover { background: #fff6e6; }
+  .collapsible-head .arrow {
+    font-size: 16px;
+    color: var(--red);
+    line-height: 1;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .collapsible.open .collapsible-head .arrow { transform: rotate(90deg); }
+  .collapsible-body {
+    display: none;
+    padding: 6px 14px 14px;
+    font-size: 13px;
+    line-height: 1.9;
+    color: #333;
+  }
+  .collapsible.open .collapsible-body { display: block; }
+  .collapsible-body ol, .collapsible-body ul { margin: 8px 0; padding-left: 24px; }
+  .collapsible-body code {
+    background: #f0ead7;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: #7a5a00;
+  }
+  .collapsible-body pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px 14px;
+    border-radius: 3px;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: pre;
+    margin: 8px 0;
+  }
+  .collapsible-body pre code { background: transparent; color: inherit; padding: 0; font-size: 12px; }
+  .api-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .api-tag {
+    background: #fff;
+    border: 1px solid #e0d8c3;
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 2px;
+    color: #333;
+    line-height: 1.6;
+  }
+
+  /* ========= 武将属性表 ========= */
   table.tbl {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
   }
   table.tbl th, table.tbl td {
-    padding: 8px 10px;
+    padding: 8px 12px;
     border: 1px solid #e0d8c3;
     text-align: left;
+    vertical-align: middle;
+    box-sizing: border-box;
   }
   table.tbl th {
-    background: #efe9d8;
+    background: #f4eedd;
     font-weight: 700;
     letter-spacing: 1px;
     white-space: nowrap;
-    width: 120px;
+    width: 90px;
+    color: var(--fg);
   }
-  input[type="text"], input[type="number"], input[type="password"], select {
+
+  input[type="text"], input[type="number"], input[type="password"], select, textarea {
     padding: 8px 10px;
     border: 1px solid #c9bf9e;
     background: #fff;
     color: var(--fg);
     font-family: inherit;
     font-size: 13px;
-    width: 180px;
     border-radius: 2px;
+    width: 180px;
     min-height: 38px;
     touch-action: manipulation;
     box-sizing: border-box;
   }
   input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: #3a6bb2;
+    border-color: var(--blue);
     box-shadow: 0 0 0 2px rgba(58, 107, 178, 0.18);
   }
   .hint {
-    color: #888;
+    color: #777;
     font-size: 12px;
-    margin-left: 10px;
+    margin-left: 8px;
   }
+
+  /* ========= 技能卡片 ========= */
   .skill-card {
     margin: 14px 0;
-    padding: 14px;
+    padding: 14px 16px;
     background: #fff;
     border: 1px dashed #c9bf9e;
+    border-radius: 2px;
     position: relative;
   }
-  .skill-card-header {
+  .skill-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
   }
-  .skill-title-inline {
+  .skill-title {
     font-weight: 700;
-    color: #3a6bb2;
+    color: var(--blue);
     letter-spacing: 2px;
+    font-size: 13px;
   }
+
+  /* ========= 代码编辑器 ========= */
   .code-editor {
     position: relative;
     border: 1px solid #c9bf9e;
     background: #1e1e1e;
-    margin-top: 6px;
+    margin-top: 8px;
     border-radius: 3px;
+    overflow: hidden;
   }
-  .code-editor .code-label {
+  .code-label {
     position: absolute;
     top: 4px;
-    right: 8px;
+    right: 10px;
     color: #888;
     font-size: 11px;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     pointer-events: none;
     z-index: 3;
+    background: rgba(30, 30, 30, 0.6);
+    padding: 2px 8px;
+    border-radius: 2px;
   }
   .code-editor textarea {
     width: 100%;
@@ -149,9 +267,9 @@
     border: 0;
     background: transparent;
     color: #d4d4d4;
-    font-family: "SF Mono", "Menlo", "Consolas", "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.6;
+    font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.7;
     resize: vertical;
     white-space: pre;
     overflow-wrap: normal;
@@ -159,44 +277,14 @@
     caret-color: #fff;
     position: relative;
     z-index: 2;
-    /* 手机端：允许双指缩放，水平滑动也不被吞 */
+    display: block;
     touch-action: auto;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
   }
-  .code-editor .code-highlight {
-    position: absolute;
-    inset: 0;
-    padding: 28px 14px 14px;
-    font-family: "SF Mono", "Menlo", "Consolas", "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    white-space: pre;
-    color: #d4d4d4;
-    pointer-events: none;
-    overflow: hidden;
-    z-index: 1;
-  }
-  .code-editor .code-highlight .kw  { color: #569cd6; }
-  .code-editor .code-highlight .kw2 { color: #c586c0; }
-  .code-editor .code-highlight .str { color: #ce9178; }
-  .code-editor .code-highlight .num { color: #b5cea8; }
-  .code-editor .code-highlight .cmt { color: #6a9955; font-style: italic; }
-  .code-editor .code-highlight .fn  { color: #dcdcaa; }
-  .code-editor textarea:focus { outline: none; }
-  .row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .row label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    letter-spacing: 1px;
-  }
+  .code-editor textarea:focus { outline: none; box-shadow: inset 0 0 0 1px rgba(86, 156, 214, 0.5); border: 0; }
+
+  /* ========= 按钮 ========= */
   .btn {
     padding: 8px 18px;
     border: 1px solid #3a3a3a;
@@ -209,662 +297,330 @@
     min-height: 40px;
     border-radius: 2px;
     touch-action: manipulation;
+    user-select: none;
   }
   .btn:hover { background: #fff3c4; }
-  .btn.primary {
-    background: #b23a3a;
-    color: #fff;
-    border-color: #b23a3a;
-  }
+  .btn:active { background: #ffe9a8; transform: translateY(1px); }
+  .btn.primary { background: var(--red); color: #fff; border-color: var(--red); }
   .btn.primary:hover { background: #902020; }
-  .btn.mini {
-    padding: 6px 12px;
-    font-size: 12px;
-    letter-spacing: 1px;
-    min-height: 32px;
-  }
-  .btn.danger {
-    background: #fff;
-    color: #b23a3a;
-    border-color: #b23a3a;
-  }
-  .output {
-    margin-top: 16px;
-    padding: 12px 16px;
-    background: #fafaf6;
-    border: 1px solid #e6e0cf;
+  .btn.mini { padding: 6px 12px; font-size: 12px; letter-spacing: 1px; min-height: 32px; }
+  .btn.danger { background: #fff; color: var(--red); border-color: var(--red); }
+  .btn.danger:hover { background: #ffeeee; }
+
+  /* ========= 状态提示 ========= */
+  .output-msg {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
     font-size: 13px;
-    line-height: 1.8;
-  }
-  .output.success { color: #2e7d32; border-color: #b9d5b9; background: #f1f8f1; }
-  .output.error { color: #b23a3a; border-color: #e5c7c7; background: #fbf2f2; }
-  .api-list {
+    line-height: 1.6;
     background: #fffdf7;
-    border: 1px solid #e6e0cf;
-    padding: 10px 18px;
-    font-size: 12px;
-    color: #555;
-    line-height: 1.8;
-  }
-  .api-list code {
-    background: #f0ead7;
-    padding: 1px 6px;
     border-radius: 2px;
-    font-family: "SF Mono", monospace;
-    color: #333;
   }
+  .output-msg.success { color: #155724; border-color: #c3e6cb; background: #d4edda; }
+  .output-msg.error   { color: #721c24; border-color: #f5c6cb; background: #f8d7da; }
+  .output-msg.info    { color: #0c5460; border-color: #bee5eb; background: #d1ecf1; }
+
+  /* ========= 武将列表 ========= */
   .existing-list {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 6px;
+    margin-top: 4px;
   }
   .existing-item {
-    padding: 5px 12px;
+    padding: 6px 12px;
     background: #fff;
-    border: 1px solid #c9bf9e;
+    border: 1px solid var(--line);
     font-size: 12px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    border-radius: 2px;
   }
-  .existing-item .x {
+  .existing-item .del {
     cursor: pointer;
-    color: #b23a3a;
+    color: var(--red);
     font-weight: 700;
+    font-size: 14px;
     user-select: none;
+    padding: 0 4px;
+    touch-action: manipulation;
   }
-  .existing-item .x:hover { background: #f5dede; }
+  .existing-item .del:hover { background: #ffeeee; }
+  .empty-state { color: #777; font-size: 12px; padding: 4px 0; }
+
   .footer-nav {
-    margin-top: 20px;
+    margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid #e0d8c3;
+    border-top: 1px solid var(--line);
     display: flex;
-    gap: 12px;
+    gap: 14px;
     align-items: center;
     font-size: 13px;
     color: #777;
     flex-wrap: wrap;
   }
-  .footer-nav a {
-    color: #3a6bb2;
-    text-decoration: none;
-  }
+  .footer-nav a { color: var(--blue); text-decoration: none; font-weight: 600; }
+  .footer-nav a:hover { text-decoration: underline; }
 
-  /* ========== 手机端适配（DIY 页面） ========== */
+  /* ========= 手机端适配 ========= */
   @media (max-width: 768px) {
-    body { padding: 10px 0 60px; }
-    .diy-wrap {
-      padding: 14px 12px;
-      margin: 0;
-      max-width: 100%;
-      border-left: 0;
-      border-right: 0;
-    }
-    .diy-title { font-size: 20px; letter-spacing: 2px; }
-    .diy-sub { font-size: 12px; }
-    .section {
-      padding: 12px 12px;
-      margin: 14px 0;
-    }
-    .section-title { font-size: 14px; letter-spacing: 2px; }
-    table.tbl {
-      font-size: 12px;
-    }
-    table.tbl th {
-      width: 80px;
-      padding: 6px 8px;
-      font-size: 12px;
-    }
-    table.tbl td {
-      padding: 6px 8px;
-    }
+    .diy-wrap { padding: 14px 10px 80px; }
+    .diy-title { font-size: 22px; letter-spacing: 4px; }
+    .section { padding: 12px 12px; }
+    .section-title { font-size: 13px; letter-spacing: 2px; }
+    table.tbl { font-size: 12px; }
+    table.tbl th { width: 70px; padding: 6px 8px; font-size: 12px; }
+    table.tbl td { padding: 6px 8px; }
     input[type="text"], input[type="number"], input[type="password"], select {
       width: 100%;
-      max-width: 240px;
+      max-width: 260px;
       font-size: 14px;
-      min-height: 38px;
     }
-    .hint { display: block; margin: 4px 0 0; }
-    .code-editor textarea {
-      font-size: 12px;
-      line-height: 1.7;
-      min-height: 120px;
-    }
-    .row {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .btn {
-      font-size: 12px;
-      padding: 8px 14px;
-      min-height: 40px;
-    }
-    .submit-row {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
+    .hint { display: block; margin: 4px 0 0; font-size: 11px; }
+    .code-editor textarea { font-size: 12px; line-height: 1.8; }
+    .btn { font-size: 12px; padding: 8px 14px; }
+    .fs-btn { top: 10px; right: 10px; width: 40px; height: 40px; font-size: 16px; }
+    .skill-card { padding: 12px; }
   }
 
   @media (max-width: 480px) {
-    .diy-title { font-size: 18px; }
-    .section-title { font-size: 13px; }
-    table.tbl th { width: 72px; }
+    .diy-title { font-size: 20px; letter-spacing: 2px; }
+    table.tbl th { width: 64px; }
+    input[type="text"], input[type="number"], input[type="password"], select {
+      max-width: 100%;
+    }
   }
 </style>
 </head>
 <body>
 
-<!-- 一键全屏按钮（右上角悬浮） -->
-<button id="fs-btn" style="position:fixed;top:12px;right:14px;width:40px;height:40px;border-radius:50%;border:1px solid #cfc8ba;background:rgba(255,255,255,.95);color:#1a1a1a;font-size:18px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:999;touch-action:manipulation;user-select:none;">⛶</button>
+<!-- 顶部：一键全屏切换 -->
+<button id="fs-toggle" class="fs-btn" aria-label="全屏切换">⛶</button>
 
 <div class="diy-wrap">
   <h1 class="diy-title">DIY 武将</h1>
-  <p class="diy-sub">通过武将属性表 + 技能脚本，创造属于你的武将 · 全局通用</p>
+  <p class="diy-sub">填武将属性 · 写技能代码 · 提交密码 · 全局通用</p>
 
-  <!-- ========== 教程与速查（可折叠） ========== -->
+  <!-- ============ 一、教程（可折叠） ============ -->
   <div class="section">
     <div class="section-title">教程 · 速查</div>
 
-    <!-- 30秒上手 -->
-    <details open style="margin:6px 0 14px;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 30 秒上手（点击展开/收起）</summary>
-      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
-        <ol style="margin:4px 0 8px 22px;">
-          <li>填武将属性（id / name / hp / atk / def / 移动范围 / 攻击范围）</li>
-          <li>点「+ 添加一个技能」，写 filter（判断能否施放）和 content（技能主逻辑）</li>
-          <li>输入密码（默认 diy123），点「提交到服务器」</li>
-          <li>回到首页开一把，DIY 武将会出现在选将池中</li>
+    <div class="collapsible open">
+      <div class="collapsible-head">▶ 30 秒上手<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <ol>
+          <li>在下方「武将属性」填 id（英文）、name（中文）、hp、atk、def、移动范围、攻击范围。</li>
+          <li>点「<b>+ 添加一个技能</b>」，每个技能写 filter（是否可施放）和 content（技能主逻辑）。</li>
+          <li>在「提交」处输入密码 <code>diy123</code>，点「提交到服务器」。</li>
+          <li>回到游戏首页开一把，DIY 武将会出现在选将池中。</li>
         </ol>
       </div>
-    </details>
+    </div>
 
-    <!-- 完整示例 -->
-    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 完整示例：技能「强袭」（十字3格 · 1.5倍伤害）</summary>
-      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.8;color:#333;">
-        <div style="color:#777;font-size:12px;margin-bottom:6px;letter-spacing:1px;">filter(actor) — 返回 true 表示当前可以施放</div>
-        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">return actor && actor.alive && !actor.skilled;</pre>
-        <div style="color:#777;font-size:12px;margin:10px 0 6px;letter-spacing:1px;">content(actor) — 技能主逻辑</div>
-        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">// 让玩家选一个敌人
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 完整示例：技能「强袭」（十字3格 · 1.5倍伤害）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>filter（主动技能，判断是否可施放）：</p>
+<pre><code>return actor && actor.alive && !actor.skilled;</code></pre>
+        <p>content（技能主逻辑，可使用 await）：</p>
+<pre><code>// 让玩家选择一个敌人
 const target = await Effect.chooseEnemy(actor, {
   range: { shape: "+", n: 3 },
   hintText: "【强袭】请选择敌人"
 });
 if (!target) return false;
 
-// 标记本回合已施放
+// 标记当前回合已使用技能
 actor.skilled = true;
 
 // 造成 1.5 倍攻击力伤害
 Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });
+
+// 写战报
 global.Game.log(actor.name + " 发动【强袭】！");
-return true;</pre>
+return true;</code></pre>
       </div>
-    </details>
+    </div>
 
-    <!-- 被动技能示例 -->
-    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 被动技能示例：常胜（击杀后重置行动）</summary>
-      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.8;color:#333;">
-        <div style="margin:4px 0 8px;color:#555;">type：<b>被动</b> &nbsp; trigger：<b>onKill</b>（击杀时触发）</div>
-        <div style="color:#777;font-size:12px;margin-bottom:6px;letter-spacing:1px;">filter</div>
-        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">return actor && actor.alive;</pre>
-        <div style="color:#777;font-size:12px;margin:10px 0 6px;letter-spacing:1px;">content</div>
-        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">Effect.resetAction(actor);
-global.Game.log(actor.name + "【常胜】气势如虹！");</pre>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 被动技能示例：常胜（击杀后重置行动）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>type：<b>被动</b> · trigger：<b>onKill</b></p>
+        <p>filter：</p>
+<pre><code>return actor && actor.alive;</code></pre>
+        <p>content：</p>
+<pre><code>Effect.resetAction(actor);
+global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
-    </details>
+    </div>
 
-    <!-- 范围形状 -->
-    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 范围形状参数</summary>
-      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
-        <div>移动范围 / 攻击范围 / 技能范围均使用 <code>{shape, n}</code> 描述：</div>
-        <ul style="margin:4px 0 8px 22px;">
-          <li><code>shape: "+"</code> 十字形（上下左右），<code>n</code> = 距离</li>
-          <li><code>shape: "square"</code> 正方形，<code>n</code> = 半径</li>
-          <li><code>shape: "r"</code> 圆形，<code>n</code> = 半径</li>
-          <li><code>shape: "x"</code> X 形（斜向），<code>n</code> = 距离</li>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 范围形状参数<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>移动范围 / 攻击范围 / 技能范围均使用 <code>{ shape, n }</code> 描述：</p>
+        <ul>
+          <li><code>shape: "+"</code> — 十字形（四向），<code>n</code> = 距离</li>
+          <li><code>shape: "square"</code> — 正方形（八向），<code>n</code> = 半径</li>
+          <li><code>shape: "r"</code> — 圆形（曼哈顿），<code>n</code> = 半径</li>
+          <li><code>shape: "x"</code> — X 形（斜向），<code>n</code> = 距离</li>
         </ul>
       </div>
-    </details>
+    </div>
 
-    <!-- API 速查 -->
-    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ API 速查（内容中可直接使用）</summary>
-      <div style="padding:10px 14px 14px;font-size:12.5px;line-height:1.9;color:#333;">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.chooseEnemy(actor, { range, hintText })</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.chooseCell(actor, { range, mustEmpty, hintText })</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.damage(actor, target, num, { ignoreDef?, mul? })</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.heal(target, num)</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.teleport(actor, x, y)</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.push(actor, target, [dx,dy], dist)</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.mark(target, 'key', { display, modifiers, data })</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.unmark(target, 'key')</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.resetAction(actor)</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.changeTerrain(x, y, 'r'|'m'|'w'|'f'|'plain')</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.getEffectiveAttack(actor)</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Range.cellsInRange(shape, n, x, y, { includeSelf })</div>
-          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">global.Game.pieceAt(x, y) · global.Game.pieces · global.Game.log(text)</div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ API 速查（content / filter 中可直接使用）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <div class="api-tag-row">
+          <div class="api-tag"><b>Effect.chooseEnemy(actor, { range, hintText })</b> — 让玩家选敌人，返回目标或 false</div>
+          <div class="api-tag"><b>Effect.chooseCell(actor, { range, mustEmpty, hintText })</b> — 选格子</div>
+          <div class="api-tag"><b>Effect.damage(actor, target, num, { ignoreDef?, mul? })</b> — 造成伤害</div>
+          <div class="api-tag"><b>Effect.heal(target, num)</b> — 回血</div>
+          <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移</div>
+          <div class="api-tag"><b>Effect.push(actor, target, [dx,dy], dist)</b> — 击退</div>
+          <div class="api-tag"><b>Effect.mark(target, 'key', { display, modifiers, data })</b> — 加标记</div>
+          <div class="api-tag"><b>Effect.unmark(target, 'key')</b> — 移除标记</div>
+          <div class="api-tag"><b>Effect.resetAction(actor)</b> — 重置行动</div>
+          <div class="api-tag"><b>Effect.changeTerrain(x, y, 'r'|'m'|'w'|'f'|'plain')</b> — 改地形</div>
+          <div class="api-tag"><b>Effect.getEffectiveAttack(actor)</b> — 当前攻击力（含加成）</div>
+          <div class="api-tag"><b>Range.cellsInRange(shape, n, x, y, { includeSelf })</b> — 范围格子数组</div>
+          <div class="api-tag"><b>global.Game.pieceAt(x, y)</b> — 查询某格棋子</div>
+          <div class="api-tag"><b>global.Game.pieces</b> — 全部棋子数组</div>
+          <div class="api-tag"><b>global.Game.log(text)</b> — 写战报</div>
+          <div class="api-tag"><b>actor.x / actor.y / actor.hp / actor.side</b> — 武将属性</div>
+          <div class="api-tag"><b>target.hp / target.name / target.alive</b> — 目标属性</div>
         </div>
       </div>
-    </details>
+    </div>
 
-    <!-- 数值参考 -->
-    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
-      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 数值参考</summary>
-      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
-        <div>默认武将参考（平衡体验，可自由填写）：</div>
-        <div style="margin-top:6px;color:#555;">关羽：HP 200 · ATK 90 · DEF 20 · 移动 +2 · 攻击 方1</div>
-        <div style="color:#555;">赵云：HP 150 · ATK 60 · DEF 20 · 移动 +3 · 攻击 +1</div>
-        <div style="margin-top:8px;font-size:12px;color:#888;">小贴士：HP 一般 150-300，ATK 50-100，DEF 15-30。</div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 数值参考<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>默认武将数值（平衡体验，可自由填写）：</p>
+        <ul>
+          <li>关羽：HP 200 · ATK 90 · DEF 20 · 移动 +2 · 攻击 方1</li>
+          <li>赵云：HP 150 · ATK 60 · DEF 20 · 移动 +3 · 攻击 +1</li>
+        </ul>
+        <p style="font-size: 12px; color: #888;">提示：HP 一般 150–300，ATK 50–100，DEF 15–30。</p>
       </div>
-    </details>
+    </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- 已注册的 DIY 武将列表 -->
-  <!-- ============================================================ -->
+  <!-- ============ 二、已注册的 DIY 武将 ============ -->
   <div class="section">
     <div class="section-title">已注册的 DIY 武将</div>
     <div id="existing-generals" class="existing-list">
-      <span style="color:#999;font-size:12px;">加载中...</span>
+      <span class="empty-state">加载中...</span>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- 武将属性表 -->
-  <!-- ============================================================ -->
+  <!-- ============ 三、武将属性 ============ -->
   <div class="section">
     <div class="section-title">一 · 武将属性</div>
     <table class="tbl">
-      <tr><th>id</th><td><input type="text" id="gid" placeholder="英文标识符，如 zhaoyun"><span class="hint">2-20 位字母/数字/下划线，保存后前缀自动加 diy_</span></td></tr>
-      <tr><th>name</th><td><input type="text" id="gname" placeholder="显示名称，如 赵云"></td></tr>
-      <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000"></td></tr>
-      <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000"></td></tr>
-      <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000"></td></tr>
-      <tr><th>移动范围</th><td>
-        形状 <select id="gmv-shape"><option>+</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X形</option></select>
-        半径 <input type="number" id="gmv-n" value="3" min="1" max="12" style="width:80px">
-      </td></tr>
-      <tr><th>攻击范围</th><td>
-        形状 <select id="gatk-shape"><option>+</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X形</option></select>
-        半径 <input type="number" id="gatk-n" value="1" min="1" max="12" style="width:80px">
-      </td></tr>
+      <tr>
+        <th>id</th>
+        <td>
+          <input type="text" id="gid" placeholder="英文标识符，如 zhaoyun" />
+          <span class="hint">2–20 位字母/数字/下划线，保存后自动加前缀 diy_</span>
+        </td>
+      </tr>
+      <tr>
+        <th>name</th>
+        <td><input type="text" id="gname" placeholder="显示名称，如 赵云" /></td>
+      </tr>
+      <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
+      <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
+      <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
+      <tr>
+        <th>移动范围</th>
+        <td>
+          形状 <select id="gmv-shape"><option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option></select>
+          半径 <input type="number" id="gmv-n" value="3" min="1" max="12" style="width: 72px" />
+        </td>
+      </tr>
+      <tr>
+        <th>攻击范围</th>
+        <td>
+          形状 <select id="gatk-shape"><option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option></select>
+          半径 <input type="number" id="gatk-n" value="1" min="1" max="12" style="width: 72px" />
+        </td>
+      </tr>
     </table>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- 技能列表 -->
-  <!-- ============================================================ -->
+  <!-- ============ 四、技能列表 ============ -->
   <div class="section">
     <div class="section-title">二 · 技能列表（可多个）</div>
-
-    <div style="margin-bottom:10px;">
-      <button class="btn mini" onclick="addSkill()">+ 添加一个技能</button>
+    <div style="margin-bottom: 10px">
+      <button id="btn-add-skill" class="btn mini primary">+ 添加一个技能</button>
+      <span class="hint">默认技能已预填，可直接修改或添加更多</span>
     </div>
-
     <div id="skills-container">
-      <!-- 动态插入的技能卡片 -->
+      <!-- 动态插入的技能卡片（脚本会初始化一个默认技能） -->
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- API 提示 -->
-  <!-- ============================================================ -->
+  <!-- ============ 五、提交 ============ -->
   <div class="section">
-    <div class="section-title">三 · 脚本可用 API（作为参考）</div>
-    <div class="api-list">
-      <div><code>Effect.damage(actor, target, 数值, { ignoreDef?: boolean, mul?: 倍率 })</code> — 造成伤害</div>
-      <div><code>Effect.heal(target, 数值)</code> — 治疗</div>
-      <div><code>Effect.teleport(actor, x, y)</code> — 瞬移</div>
-      <div><code>const target = await Effect.chooseEnemy(actor, { range: {shape:'+', n:4}, hintText:'提示' })</code> — 选敌人</div>
-      <div><code>const cell = await Effect.chooseCell(actor, { range: {shape:'square', n:2}, mustEmpty:true, hintText:'提示' })</code> — 选格子</div>
-      <div><code>Effect.mark(target, '标记key', { display: '显示', modifiers: { atkBuff: 10, defBuff: 5 }, data: {...} })</code> — 加标记</div>
-      <div><code>Effect.unmark(target, '标记key')</code> — 移除标记</div>
-      <div><code>Effect.resetAction(actor)</code> — 恢复行动/攻击</div>
-      <div><code>Effect.push(actor, target, [dx,dy], 距离)</code> — 击退</div>
-      <div><code>Effect.changeTerrain(x, y, 'r'|'m'|'w'|'f'|'plain')</code> — 改变地形</div>
-      <div><code>Effect.getEffectiveAttack(actor)</code> — 获取当前攻击力（含加成）</div>
-      <div><code>Range.cellsInRange(shape, n, x, y, { includeSelf: true })</code> — 获取范围内坐标数组</div>
-      <div><code>global.Game.pieceAt(x, y)</code> — 查询某格棋子</div>
-      <div><code>global.Game.log('文字')</code> — 输出战报</div>
-      <div>被动技能触发时机 <code>trigger</code>：<code>onKill</code>（击杀后）、<code>turnEnd</code>（回合结束）</div>
+    <div class="section-title">三 · 提交（需密码）</div>
+    <div>
+      <span style="font-size: 13px; margin-right: 8px;">密码</span>
+      <input type="password" id="pwd" placeholder="默认 diy123" style="width: 180px" />
+      <button id="btn-submit" class="btn primary" style="margin-left: 8px;">提交到服务器</button>
+      <button id="btn-reset" class="btn" style="margin-left: 4px;">重置</button>
     </div>
+    <div id="submit-info" class="output-msg" style="display: none;"></div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- 提交 -->
-  <!-- ============================================================ -->
-  <div class="section">
-    <div class="section-title">四 · 提交（需密码）</div>
-    <div class="submit-row">
-      <label>密码 <input type="password" id="pwd" placeholder="默认 diy123"></label>
-      <button class="btn primary" onclick="submitDiy()">提交到服务器</button>
-      <button class="btn" onclick="location.reload()">重置</button>
-      <span id="submit-info" class="hint"></span>
-    </div>
-  </div>
-
+  <!-- ============ 页脚导航 ============ -->
   <div class="footer-nav">
     <a href="/">← 返回游戏首页</a>
-    <span>|</span>
-    <span>密码默认 <code>diy123</code>，可用环境变量 <code>DIY_PASSWORD</code> 覆盖</span>
+    <span>·</span>
+    <span>密码默认 <code style="background: #f0ead7; padding: 1px 6px; border-radius: 2px; font-size: 12px;">diy123</code></span>
   </div>
 </div>
 
 <script>
-  // ===================== 简单的代码高亮 =====================
-  function highlightCode(code) {
-    // 1. 先保护字符串和注释
-    const placeholders = [];
-    let safe = code.replace(/\/\/[^\n]*/g, m => {
-      placeholders.push({ type: 'cmt', text: m });
-      return '\x01C' + (placeholders.length - 1) + '\x02';
-    });
-    safe = safe.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g, m => {
-      placeholders.push({ type: 'str', text: m });
-      return '\x01S' + (placeholders.length - 1) + '\x02';
-    });
+  // ============================================================
+  // 工具函数
+  // ============================================================
+  function $(id) { return document.getElementById(id); }
+  function qs(sel, root) { return (root || document).querySelector(sel); }
+  function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
-    // 2. 数字
-    safe = safe.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
-
-    // 3. 关键字
-    const keywords = ['return','if','else','for','while','const','let','var','function','async','await','new','true','false','null','this','in','of'];
-    keywords.forEach(kw => {
-      const re = new RegExp('\\b(' + kw + ')\\b', 'g');
-      safe = safe.replace(re, '<span class="kw">$1</span>');
-    });
-
-    // 4. 常用函数/对象（diy 相关）
-    const funcWords = ['Effect','Range','Game','Math','console','actor','target','cell','pieces','pieceAt'];
-    funcWords.forEach(fw => {
-      const re = new RegExp('\\b(' + fw + ')\\b', 'g');
-      safe = safe.replace(re, '<span class="fn">$1</span>');
-    });
-
-    // 5. 恢复字符串/注释
-    safe = safe.replace(/\x01C(\d+)\x02/g, (_, i) => {
-      const p = placeholders[parseInt(i)];
-      return '<span class="cmt">' + escapeHtml(p.text) + '</span>';
-    });
-    safe = safe.replace(/\x01S(\d+)\x02/g, (_, i) => {
-      const p = placeholders[parseInt(i)];
-      return '<span class="str">' + escapeHtml(p.text) + '</span>';
-    });
-
-    // 其它内容：需要保证文本不被误转义，所以先对最外层原始文本 escape
-    // （但我们前面已在 placeholder 里 escape）；这里主要是保证没有未转义的 <>&
-    // 所以整个高亮流程改为：先全量 escape，再高亮关键字 —— 简化版：
-    return safe;
-  }
-  function escapeHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // 更可靠的简化版：先 escape 全文，再在已 escape 文本上做关键字替换（注意尖括号已是 &lt; 形式）
-  function highlightCodeV2(code) {
-    let html = escapeHtml(code);
-
-    // 注释
-    html = html.replace(/(\/\/[^\n]*)/g, '<span class="cmt">$1</span>');
-
-    // 字符串（注意：已被 escape，所以不会包含 " 之类的原始字符）
-    html = html.replace(/(&quot;[^&]*&quot;|&#39;[^&]*&#39;)/g, '<span class="str">$1</span>');
-
-    // 数字
-    html = html.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
-
-    // 关键字
-    const kws = ['return','if','else','for','while','const','let','var','function','async','await','new','true','false','null','this','in','of'];
-    kws.forEach(kw => {
-      const re = new RegExp('\\b(' + kw + ')\\b', 'g');
-      html = html.replace(re, '<span class="kw">$1</span>');
-    });
-
-    // 常用 API / 变量
-    const fns = ['Effect','Range','Game','Math','console','actor','target','cell','pieces','pieceAt','damage','heal','teleport','chooseEnemy','chooseCell','mark','unmark','resetAction','push','changeTerrain','getEffectiveAttack','cellsInRange','log'];
-    fns.forEach(fn => {
-      const re = new RegExp('\\b(' + fn + ')\\b', 'g');
-      html = html.replace(re, '<span class="fn">$1</span>');
-    });
-
-    return html;
-  }
-
-  // ===================== 技能卡片模板 =====================
-  let skillCounter = 0;
-  function addSkill(preset) {
-    skillCounter++;
-    const id = 'skill-' + skillCounter;
-    const p = preset || {};
-    const html = `
-      <div class="skill-card" id="${id}">
-        <div class="skill-card-header">
-          <span class="skill-title-inline">技能 #${skillCounter}</span>
-          <button class="btn mini danger" onclick="document.getElementById('${id}').remove()">删除此技能</button>
-        </div>
-        <table class="tbl">
-          <tr>
-            <th>id</th><td><input type="text" class="s-id" value="${p.id || ''}" placeholder="skill1"></td>
-            <th>name</th><td><input type="text" class="s-name" value="${p.name || ''}" placeholder="技能名"></td>
-          </tr>
-          <tr>
-            <th>type</th><td>
-              <select class="s-type">
-                <option value="主动" ${p.type==='主动'?'selected':''}>主动</option>
-                <option value="被动" ${p.type==='被动'?'selected':''}>被动</option>
-              </select>
-            </td>
-            <th>cooldown</th><td><input type="number" class="s-cd" value="${p.cooldown ?? 2}" min="0" max="20"></td>
-          </tr>
-          <tr>
-            <th>trigger</th><td>
-              <select class="s-trigger">
-                <option value="">无（主动）</option>
-                <option value="onKill" ${p.trigger==='onKill'?'selected':''}>onKill（击杀时）</option>
-                <option value="turnEnd" ${p.trigger==='turnEnd'?'selected':''}>turnEnd（回合结束）</option>
-              </select>
-            </td>
-            <th>desc</th><td><input type="text" class="s-desc" value="${p.desc || ''}" placeholder="技能描述（战报里会显示）"></td>
-          </tr>
-          <tr>
-            <th>预览范围</th><td>
-              形状 <select class="s-pv-shape">
-                <option value="">不预览</option>
-                <option value="+" ${p.previewShape==='+'?'selected':''}>十字 +</option>
-                <option value="square" ${p.previewShape==='square'?'selected':''}>方形</option>
-                <option value="r" ${p.previewShape==='r'?'selected':''}>圆形</option>
-                <option value="x" ${p.previewShape==='x'?'selected':''}>X形</option>
-              </select>
-              半径 <input type="number" class="s-pv-n" value="${p.previewN ?? 3}" min="1" max="12" style="width:70px">
-            </td>
-          </tr>
-        </table>
-
-        <div style="margin-top:12px;">
-          <label style="font-size:12px;letter-spacing:2px;color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>
-          <div class="code-editor">
-            <span class="code-label">filter</span>
-            <pre class="code-highlight" id="${id}-f-hl"></pre>
-            <textarea class="s-filter" spellcheck="false" oninput="syncHighlight('${id}','-f-hl',this)">${p.filter || 'return actor && actor.alive && !actor.skilled;'}</textarea>
-          </div>
-        </div>
-
-        <div style="margin-top:12px;">
-          <label style="font-size:12px;letter-spacing:2px;color:#666;">async content(actor) — 技能主逻辑</label>
-          <div class="code-editor">
-            <span class="code-label">content</span>
-            <pre class="code-highlight" id="${id}-c-hl"></pre>
-            <textarea class="s-content" spellcheck="false" oninput="syncHighlight('${id}','-c-hl',this)">${p.content ||
-`// 示例：对 +3 范围内一名敌人造成 1.5 倍攻击伤害
-const target = await Effect.chooseEnemy(actor, {
-  range: { shape: '+', n: 3 },
-  hintText: '请选择一名敌人'
-});
-if (!target) return false;
-actor.skilled = true;
-Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });
-global.Game.log(actor.name + ' 发动技能！');
-return true;`}</textarea>
-          </div>
-        </div>
-      </div>
-    `;
-    const container = document.getElementById('skills-container');
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    container.appendChild(div.firstElementChild);
-
-    // 首次同步高亮
-    const card = document.getElementById(id);
-    syncHighlight(id, '-f-hl', card.querySelector('.s-filter'));
-    syncHighlight(id, '-c-hl', card.querySelector('.s-content'));
-  }
-
-  function syncHighlight(id, suffix, ta) {
-    const hl = document.getElementById(id + suffix);
-    hl.innerHTML = highlightCodeV2(ta.value);
-  }
-
-  // 默认添加一个技能
-  addSkill();
-
-  // ===================== 提交 =====================
-  async function submitDiy() {
-    const info = document.getElementById('submit-info');
-    info.textContent = '';
-    info.className = '';
-
-    const general = {
-      id: document.getElementById('gid').value.trim(),
-      name: document.getElementById('gname').value.trim(),
-      hp: parseInt(document.getElementById('ghp').value),
-      atk: parseInt(document.getElementById('gatk').value),
-      def: parseInt(document.getElementById('gdef').value),
-      moveRange: {
-        shape: document.getElementById('gmv-shape').value,
-        n: parseInt(document.getElementById('gmv-n').value)
-      },
-      attackRange: {
-        shape: document.getElementById('gatk-shape').value,
-        n: parseInt(document.getElementById('gatk-n').value)
-      }
-    };
-
-    const skills = [];
-    document.querySelectorAll('.skill-card').forEach(card => {
-      const pvShape = card.querySelector('.s-pv-shape').value;
-      const pvN = parseInt(card.querySelector('.s-pv-n').value);
-      const skill = {
-        id: card.querySelector('.s-id').value.trim(),
-        name: card.querySelector('.s-name').value.trim(),
-        type: card.querySelector('.s-type').value,
-        cooldown: parseInt(card.querySelector('.s-cd').value) || 0,
-        trigger: card.querySelector('.s-trigger').value || null,
-        desc: card.querySelector('.s-desc').value.trim(),
-        preview: pvShape ? { shape: pvShape, n: pvN } : null,
-        filterCode: card.querySelector('.s-filter').value,
-        contentCode: card.querySelector('.s-content').value
-      };
-      skills.push(skill);
-    });
-
-    const password = document.getElementById('pwd').value;
-
-    // 基本校验
-    if (!general.id || !general.name) {
-      info.textContent = '武将 id 和 name 必填';
-      info.className = 'output error';
-      return;
+  // ============================================================
+  // 折叠面板交互（事件委托，新增的面板也能工作）
+  // ============================================================
+  document.addEventListener('click', function (e) {
+    var head = e.target.closest('.collapsible-head');
+    if (head) {
+      var panel = head.closest('.collapsible');
+      if (panel) panel.classList.toggle('open');
     }
+  });
 
-    try {
-      const res = await fetch('/api/diy/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ general, skills, password })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        info.textContent = '✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已注册，返回首页刷新即可使用。';
-        info.className = 'output success';
-        loadExisting();
-      } else {
-        info.textContent = '✗ ' + (data.error || '提交失败');
-        info.className = 'output error';
-      }
-    } catch (e) {
-      info.textContent = '✗ 网络错误：' + e.message;
-      info.className = 'output error';
-    }
-  }
-
-  // ===================== 加载已注册列表 =====================
-  async function loadExisting() {
-    try {
-      const res = await fetch('/api/diy/list');
-      const data = await res.json();
-      const box = document.getElementById('existing-generals');
-      if (!data.ok || !data.generals || data.generals.length === 0) {
-        box.innerHTML = '<span style="color:#999;font-size:12px;">（暂无）</span>';
-        return;
-      }
-      box.innerHTML = '';
-      data.generals.forEach(g => {
-        const el = document.createElement('span');
-        el.className = 'existing-item';
-        el.innerHTML = `<span>${g.name}</span><span style="color:#999;">${g.id}</span><span class="x" onclick="delDiy('${g.id}')">×</span>`;
-        box.appendChild(el);
-      });
-    } catch (e) {
-      document.getElementById('existing-generals').innerHTML = '<span style="color:#b23a3a;font-size:12px;">加载失败</span>';
-    }
-  }
-
-  async function delDiy(fullId) {
-    const pwd = prompt('请输入密码以删除 ' + fullId);
-    if (!pwd) return;
-    try {
-      const res = await fetch('/api/diy/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: fullId, password: pwd })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        alert('已删除');
-        loadExisting();
-      } else {
-        alert(data.error || '删除失败');
-      }
-    } catch (e) {
-      alert('网络错误: ' + e.message);
-    }
-  }
-
-  // ========== 一键全屏切换 ==========
-  (function () {
-    const btn = document.getElementById('fs-btn');
+  // ============================================================
+  // 一键全屏切换（跨浏览器兼容）
+  // ============================================================
+  (function initFullscreen() {
+    var btn = $('fs-toggle');
     if (!btn) return;
     function update() {
-      const isFs = document.fullscreenElement || document.webkitFullscreenElement
+      var isFs = document.fullscreenElement || document.webkitFullscreenElement
         || document.mozFullScreenElement || document.msFullscreenElement;
-      if (isFs) { btn.textContent = '⛷'; btn.style.background = '#e6f0ff'; }
-      else { btn.textContent = '⛶'; btn.style.background = 'rgba(255,255,255,.95)'; }
+      btn.textContent = isFs ? '⛷' : '⛶';
+      btn.title = isFs ? '退出全屏' : '进入全屏';
     }
     function toggle() {
-      const doc = document;
-      const el = doc.documentElement;
-      const req = el.requestFullscreen || el.webkitRequestFullscreen
+      var doc = document;
+      var el = doc.documentElement;
+      var req = el.requestFullscreen || el.webkitRequestFullscreen
         || el.mozRequestFullScreen || el.msRequestFullscreen;
-      const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+      var exit = doc.exitFullscreen || doc.webkitExitFullscreen
         || doc.mozCancelFullScreen || doc.msExitFullscreen;
-      const cur = doc.fullscreenElement || doc.webkitFullscreenElement
+      var cur = doc.fullscreenElement || doc.webkitFullscreenElement
         || doc.mozFullScreenElement || doc.msFullscreenElement;
       if (cur) {
         if (exit) exit.call(doc);
@@ -883,7 +639,272 @@ return true;`}</textarea>
     update();
   })();
 
-  loadExisting();
+  // ============================================================
+  // 技能卡片：动态添加/删除
+  // ============================================================
+  var skillIdx = 0;
+  var FILTER_DEFAULT = 'return actor && actor.alive && !actor.skilled;';
+  var CONTENT_DEFAULT = [
+    '// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害',
+    'const target = await Effect.chooseEnemy(actor, {',
+    '  range: { shape: "+", n: 3 },',
+    '  hintText: "请选择敌人"',
+    '});',
+    'if (!target) return false;',
+    'actor.skilled = true;',
+    'Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });',
+    'global.Game.log(actor.name + " 发动技能！");',
+    'return true;'
+  ].join('\n');
+
+  function addSkillCard(preset) {
+    skillIdx += 1;
+    var id = 'sk-' + skillIdx;
+    var p = preset || {};
+    var div = document.createElement('div');
+    div.className = 'skill-card';
+    div.id = id;
+    div.innerHTML =
+      '<div class="skill-card-head">' +
+        '<span class="skill-title">技能 #' + skillIdx + '</span>' +
+        '<button class="btn mini danger" data-action="delete">删除此技能</button>' +
+      '</div>' +
+      '<table class="tbl">' +
+        '<tr><th>id</th><td><input type="text" class="s-id" value="' + (p.id || '') + '" placeholder="skill1" /></td>' +
+            '<th>name</th><td><input type="text" class="s-name" value="' + (p.name || '') + '" placeholder="技能名" /></td></tr>' +
+        '<tr><th>type</th><td>' +
+            '<select class="s-type">' +
+              '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
+              '<option value="被动"' + ((p.type === '被动') ? ' selected' : '') + '>被动</option>' +
+            '</select></td>' +
+            '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 2) + '" min="0" max="20" /></td></tr>' +
+        '<tr><th>trigger</th><td>' +
+            '<select class="s-trigger">' +
+              '<option value="">无（主动）</option>' +
+              '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
+              '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
+            '</select></td>' +
+            '<th>desc</th><td><input type="text" class="s-desc" value="' + (p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td></tr>' +
+        '<tr><th>预览范围</th><td colspan="3">' +
+            '形状 <select class="s-pv-shape">' +
+              '<option value="">不预览</option>' +
+              '<option value="+"' + (p.previewShape === '+' ? ' selected' : '') + '>十字 +</option>' +
+              '<option value="square"' + (p.previewShape === 'square' ? ' selected' : '') + '>方形</option>' +
+              '<option value="r"' + (p.previewShape === 'r' ? ' selected' : '') + '>圆形</option>' +
+              '<option value="x"' + (p.previewShape === 'x' ? ' selected' : '') + '>X 形</option>' +
+            '</select>' +
+            ' 半径 <input type="number" class="s-pv-n" value="' + ((p.previewN !== undefined && p.previewN !== null) ? p.previewN : 3) + '" min="1" max="12" style="width:72px" />' +
+        '</td></tr>' +
+      '</table>' +
+      '<div style="margin-top: 12px;">' +
+        '<label style="font-size:12px; letter-spacing:2px; color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>' +
+        '<div class="code-editor">' +
+          '<span class="code-label">filter</span>' +
+          '<textarea class="s-filter" spellcheck="false" style="min-height: 100px;">' + (p.filter !== undefined ? p.filter : FILTER_DEFAULT) + '</textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-top: 12px;">' +
+        '<label style="font-size:12px; letter-spacing:2px; color:#666;">async content(actor) — 技能主逻辑</label>' +
+        '<div class="code-editor">' +
+          '<span class="code-label">content</span>' +
+          '<textarea class="s-content" spellcheck="false" style="min-height: 220px;">' + (p.content !== undefined ? p.content : CONTENT_DEFAULT) + '</textarea>' +
+        '</div>' +
+      '</div>';
+
+    // 删除按钮（事件在元素内部，避免 onclick 字符串拼接）
+    div.querySelector('[data-action="delete"]').addEventListener('click', function () {
+      if (confirm('确定删除这个技能？')) div.remove();
+    });
+
+    $('skills-container').appendChild(div);
+    return div;
+  }
+
+  // 按钮绑定（事件绑定，替代 onclick=... 字符串）
+  // 注意：脚本放在 </body> 前，DOM 已就绪，直接绑定（不再等待 DOMContentLoaded，避免事件已触发导致不执行）
+  function initDiyPage() {
+    var addBtn = $('btn-add-skill');
+    if (addBtn) {
+      addBtn.addEventListener('click', function (e) {
+        addSkillCard();
+      });
+    }
+
+    // 重置按钮
+    var resetBtn = $('btn-reset');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        if (!confirm('确定要重置所有内容？')) return;
+        $('gid').value = '';
+        $('gname').value = '';
+        $('ghp').value = 200;
+        $('gatk').value = 50;
+        $('gdef').value = 20;
+        $('gmv-n').value = 3;
+        $('gatk-n').value = 1;
+        $('pwd').value = '';
+        $('skills-container').innerHTML = '';
+        addSkillCard();
+        hideMsg();
+      });
+    }
+
+    // 提交按钮
+    var submitBtn = $('btn-submit');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', submitGeneral);
+    }
+
+    // 默认创建一个技能卡片
+    addSkillCard();
+
+    // 加载已注册的武将
+    loadExistingGenerals();
+  }
+
+  // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDiyPage);
+  } else {
+    initDiyPage();
+  }
+
+  // ============================================================
+  // 状态提示
+  // ============================================================
+  function showMsg(text, kind) {
+    var el = $('submit-info');
+    el.textContent = text;
+    el.className = 'output-msg ' + (kind || 'info');
+    el.style.display = 'block';
+  }
+  function hideMsg() {
+    var el = $('submit-info');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  // ============================================================
+  // 提交武将
+  // ============================================================
+  function submitGeneral() {
+    var gid = $('gid').value.trim();
+    var gname = $('gname').value.trim();
+    if (!gid || !gname) {
+      showMsg('✗ 请填写武将 id 和 name', 'error');
+      return;
+    }
+
+    var general = {
+      id: gid,
+      name: gname,
+      hp: parseInt($('ghp').value, 10) || 200,
+      atk: parseInt($('gatk').value, 10) || 50,
+      def: parseInt($('gdef').value, 10) || 20,
+      moveRange: {
+        shape: $('gmv-shape').value,
+        n: parseInt($('gmv-n').value, 10) || 3
+      },
+      attackRange: {
+        shape: $('gatk-shape').value,
+        n: parseInt($('gatk-n').value, 10) || 1
+      }
+    };
+
+    var skills = [];
+    var cards = qsa('.skill-card');
+    for (var i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      var pvShape = c.querySelector('.s-pv-shape').value;
+      skills.push({
+        id: c.querySelector('.s-id').value.trim() || ('skill' + (i + 1)),
+        name: c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
+        type: c.querySelector('.s-type').value,
+        cooldown: parseInt(c.querySelector('.s-cd').value, 10) || 0,
+        trigger: c.querySelector('.s-trigger').value || null,
+        desc: c.querySelector('.s-desc').value.trim() || '',
+        preview: pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
+        filterCode: c.querySelector('.s-filter').value,
+        contentCode: c.querySelector('.s-content').value
+      });
+    }
+
+    var password = $('pwd').value;
+    if (!password) {
+      showMsg('✗ 请输入提交密码（默认 diy123）', 'error');
+      return;
+    }
+
+    showMsg('提交中...', 'info');
+
+    fetch('/api/diy/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ general: general, skills: skills, password: password })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok) {
+          showMsg('✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已注册。返回游戏首页可在选将中看到新武将。', 'success');
+          loadExistingGenerals();
+        } else {
+          showMsg('✗ ' + (data && data.error ? data.error : '提交失败'), 'error');
+        }
+      })
+      .catch(function (err) {
+        showMsg('✗ 网络错误：' + err.message, 'error');
+      });
+  }
+
+  // ============================================================
+  // 加载已注册武将
+  // ============================================================
+  function loadExistingGenerals() {
+    var container = $('existing-generals');
+    fetch('/api/diy/list')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok || !data.generals || data.generals.length === 0) {
+          container.innerHTML = '<span class="empty-state">（暂无。在下方创建你的第一个 DIY 武将吧！）</span>';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < data.generals.length; i++) {
+          var g = data.generals[i];
+          html += '<div class="existing-item">' +
+            '<span style="font-weight:700;">' + g.name + '</span>' +
+            '<span style="color:#777; font-size:12px;">' + g.id + ' · HP ' + g.hp + ' · 技能 ' + ((g.skillIds && g.skillIds.length) || 0) + '</span>' +
+            '<span class="del" data-id="' + g.id + '">×</span>' +
+          '</div>';
+        }
+        container.innerHTML = html;
+      })
+      .catch(function () {
+        container.innerHTML = '<span class="empty-state">加载失败（需要启动 diy 后端服务）</span>';
+      });
+  }
+
+  // 已注册武将的删除（事件委托）
+  document.addEventListener('click', function (e) {
+    var del = e.target.closest('.del');
+    if (del) {
+      var id = del.getAttribute('data-id');
+      if (!id) return;
+      var pwd = prompt('请输入密码以删除武将 ' + id);
+      if (!pwd) return;
+      fetch('/api/diy/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, password: pwd })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) { alert('已删除'); loadExistingGenerals(); }
+          else alert(data.error || '删除失败');
+        })
+        .catch(function (err) { alert('网络错误：' + err.message); });
+    }
+  });
 </script>
 
 </body>
