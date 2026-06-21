@@ -385,7 +385,223 @@
     border: 0;
   }
 
-  /* ========= 按钮 ========= */
+  /* 代码编辑器右上角的全屏按钮 */
+  .fullscreen-btn {
+    position: absolute;
+    top: 4px;
+    right: 10px;
+    z-index: 4;
+    background: rgba(88, 166, 255, 0.18);
+    color: #79c0ff;
+    border: 1px solid rgba(88, 166, 255, 0.4);
+    padding: 4px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    user-select: none;
+    transition: all 0.15s;
+  }
+  .fullscreen-btn:hover {
+    background: rgba(88, 166, 255, 0.35);
+    color: #fff;
+  }
+  .fullscreen-btn:active {
+    transform: translateY(1px);
+  }
+  /* 全屏编辑器的标签隐藏自己的按钮，避免文字重叠 */
+  .code-editor .code-label {
+    right: 80px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ========= 全屏编辑器弹窗 ========= */
+  .fs-editor-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(13, 17, 23, 0.96);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    padding: 20px 24px;
+    box-sizing: border-box;
+  }
+  .fs-editor-mask.open {
+    display: flex;
+  }
+  .fs-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    color: #c9d1d9;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .fs-editor-title {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #e6edf3;
+    font-weight: 700;
+  }
+  .fs-editor-title small {
+    color: #7d8590;
+    font-size: 12px;
+    font-weight: normal;
+    margin-left: 10px;
+    letter-spacing: 1px;
+  }
+  .fs-editor-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .fs-editor-actions .btn {
+    min-height: 34px;
+    padding: 6px 14px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .fs-editor-actions .btn:hover {
+    background: #30363d;
+  }
+  .fs-editor-actions .btn.primary {
+    background: #238636;
+    border-color: #2ea043;
+    color: #fff;
+  }
+  .fs-editor-actions .btn.primary:hover {
+    background: #2ea043;
+  }
+  .fs-editor-actions .btn.danger {
+    background: #21262d;
+    border-color: #f85149;
+    color: #ff7b72;
+  }
+  .fs-editor-actions .btn.danger:hover {
+    background: rgba(248, 81, 73, 0.2);
+  }
+  .fs-editor-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    border: 1px solid #30363d;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* 全屏下的 .code-editor 适配容器大小 */
+  .fs-editor-body .code-editor {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  .fs-editor-body .code-editor textarea {
+    min-height: 100%;
+    height: 100%;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .fs-editor-body .code-editor .hl-layer {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .fs-editor-body .code-editor .fullscreen-btn {
+    display: none; /* 全屏模式下隐藏"全屏"按钮自身 */
+  }
+
+  /* ========= 武将表格 ========= */
+  .gen-table-wrap {
+    overflow-x: auto;
+    margin-top: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.gen-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 640px;
+  }
+  table.gen-table th, table.gen-table td {
+    padding: 8px 12px;
+    border: 1px solid #e0d8c3;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table.gen-table th {
+    background: #f4eedd;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #333;
+  }
+  table.gen-table tr:hover td {
+    background: #fff8e8;
+  }
+  table.gen-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.gen-table td.name-col {
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  table.gen-table td.id-col {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    color: #555;
+    font-size: 12px;
+  }
+  table.gen-table td.actions {
+    text-align: center;
+    white-space: nowrap;
+  }
+  table.gen-table .btn-mini {
+    padding: 3px 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #c9bf9e;
+    cursor: pointer;
+    border-radius: 2px;
+    margin: 0 2px;
+    min-height: 26px;
+  }
+  table.gen-table .btn-mini:hover { background: #fff3c4; }
+  table.gen-table .btn-mini.danger {
+    color: var(--red, #a00);
+    border-color: var(--red, #a00);
+  }
+  table.gen-table .btn-mini.danger:hover { background: #ffeeee; }
+  .range-cell {
+    font-size: 12px;
+    color: #555;
+    letter-spacing: 0.5px;
+  }
+  .range-cell .shape {
+    background: #f4eedd;
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-right: 4px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    .fs-editor-mask { padding: 12px 12px; }
+    .fs-editor-title { font-size: 13px; }
+    .fs-editor-title small { display: block; margin: 4px 0 0; font-size: 11px; }
+    .fs-editor-actions .btn { font-size: 11px; padding: 6px 10px; }
+  }
   .btn {
     padding: 8px 18px;
     border: 1px solid #3a3a3a;
@@ -609,11 +825,28 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     </div>
   </div>
 
-  <!-- ============ 二、已注册的 DIY 武将 ============ -->
+  <!-- ============ 二、已注册的 DIY 武将（表格视图） ============ -->
   <div class="section">
     <div class="section-title">已注册的 DIY 武将</div>
-    <div id="existing-generals" class="existing-list">
+    <div id="existing-generals">
       <span class="empty-state">加载中...</span>
+    </div>
+  </div>
+
+  <!-- ============ 全屏编辑器弹窗 ============ -->
+  <div id="fs-editor" class="fs-editor-mask" aria-hidden="true">
+    <div class="fs-editor-head">
+      <div class="fs-editor-title">
+        <span id="fs-editor-label">代码编辑</span>
+        <small id="fs-editor-hint">ESC 关闭 · 内容自动保存</small>
+      </div>
+      <div class="fs-editor-actions">
+        <button id="fs-editor-save" class="btn primary">✓ 保存关闭</button>
+        <button id="fs-editor-cancel" class="btn danger">✕ 放弃更改</button>
+      </div>
+    </div>
+    <div class="fs-editor-body" id="fs-editor-body">
+      <!-- 动态插入 .code-editor 克隆 -->
     </div>
   </div>
 
@@ -761,10 +994,150 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       }
     });
 
+    // 全屏编辑按钮
+    var fsBtn = editorEl.querySelector('.fullscreen-btn');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openFullscreenEditor(editorEl);
+      });
+    }
+
     // 初始渲染
     sync();
     editorEl.dataset.inited = '1';
   }
+
+  // ============================================================
+  // 全屏编辑器
+  // ============================================================
+  var fsEditorState = {
+    originalEditor: null,   // 被编辑的原始 .code-editor 元素
+    originalTextarea: null, // 原始 textarea
+    cloneTextarea: null,    // 克隆出来的 textarea（用于输入）
+    onKeydown: null,        // ESC 键处理函数引用（用于移除监听）
+  };
+
+  function openFullscreenEditor(editorEl) {
+    if (!editorEl) return;
+    var ta = editorEl.querySelector('textarea');
+    if (!ta) return;
+    var label = editorEl.querySelector('.code-label');
+    var labelText = label ? label.textContent.trim() : '代码';
+
+    // 记录对原编辑器的引用
+    fsEditorState.originalEditor = editorEl;
+    fsEditorState.originalTextarea = ta;
+
+    // 克隆编辑器容器到全屏弹窗中
+    var body = $('fs-editor-body');
+    body.innerHTML = '';
+    var clone = document.createElement('div');
+    clone.className = 'code-editor';
+    clone.innerHTML =
+      '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+      '<textarea spellcheck="false">' + escapeHtml(ta.value) + '</textarea>';
+    body.appendChild(clone);
+
+    // 初始化克隆编辑器的高亮同步
+    var cloneTa = clone.querySelector('textarea');
+    var clonePre = clone.querySelector('.hl-layer');
+    var cloneCode = clone.querySelector('.hl-layer code');
+    fsEditorState.cloneTextarea = cloneTa;
+
+    function cloneSync() {
+      var val = cloneTa.value;
+      var display = val;
+      if (display.charAt(display.length - 1) === '\n') display = display + ' ';
+      cloneCode.innerHTML = highlightText(display);
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
+    }
+    var cloneTimer = null;
+    cloneTa.addEventListener('input', function () {
+      if (cloneTimer) clearTimeout(cloneTimer);
+      cloneTimer = setTimeout(cloneSync, 40);
+    });
+    cloneTa.addEventListener('scroll', function () {
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
+    });
+    cloneTa.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var s = cloneTa.selectionStart, end = cloneTa.selectionEnd;
+        cloneTa.value = cloneTa.value.substring(0, s) + '  ' + cloneTa.value.substring(end);
+        cloneTa.selectionStart = cloneTa.selectionEnd = s + 2;
+        cloneSync();
+      }
+    });
+    cloneSync();
+
+    // 更新标题
+    $('fs-editor-label').textContent = '编辑 ' + labelText + ' 代码';
+
+    // 打开
+    var mask = $('fs-editor');
+    mask.classList.add('open');
+    mask.setAttribute('aria-hidden', 'false');
+
+    // 自动聚焦 textarea，光标在末尾
+    setTimeout(function () {
+      cloneTa.focus();
+      try { cloneTa.selectionStart = cloneTa.selectionEnd = cloneTa.value.length; } catch (e) {}
+    }, 50);
+
+    // ESC 键 = 保存并关闭
+    if (fsEditorState.onKeydown) document.removeEventListener('keydown', fsEditorState.onKeydown);
+    fsEditorState.onKeydown = function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        saveAndCloseFullscreenEditor();
+      }
+    };
+    document.addEventListener('keydown', fsEditorState.onKeydown);
+  }
+
+  function saveAndCloseFullscreenEditor() {
+    // 将克隆 textarea 的内容写回原 textarea，并触发其同步
+    if (fsEditorState.originalTextarea && fsEditorState.cloneTextarea) {
+      fsEditorState.originalTextarea.value = fsEditorState.cloneTextarea.value;
+      // 触发 input 事件以让原编辑器的高亮同步刷新
+      var ev = document.createEvent('HTMLEvents');
+      ev.initEvent('input', true, true);
+      fsEditorState.originalTextarea.dispatchEvent(ev);
+    }
+    closeFullscreenEditor();
+  }
+
+  function closeFullscreenEditor() {
+    var mask = $('fs-editor');
+    if (mask) {
+      mask.classList.remove('open');
+      mask.setAttribute('aria-hidden', 'true');
+    }
+    if (fsEditorState.onKeydown) {
+      document.removeEventListener('keydown', fsEditorState.onKeydown);
+      fsEditorState.onKeydown = null;
+    }
+    fsEditorState.originalEditor = null;
+    fsEditorState.originalTextarea = null;
+    fsEditorState.cloneTextarea = null;
+  }
+
+  // 绑定全屏编辑器弹窗按钮（在 initDiyPage 之前只绑定一次）
+  document.addEventListener('DOMContentLoaded', function () {
+    var saveBtn = $('fs-editor-save');
+    var cancelBtn = $('fs-editor-cancel');
+    if (saveBtn) saveBtn.addEventListener('click', saveAndCloseFullscreenEditor);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeFullscreenEditor);
+    // 点击遮罩空白区关闭
+    var mask = $('fs-editor');
+    if (mask) mask.addEventListener('click', function (e) {
+      if (e.target === mask) saveAndCloseFullscreenEditor();
+    });
+  });
 
   // ============================================================
   // 折叠面板交互（事件委托）
@@ -837,6 +1210,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   function buildEditorBlock(label, cssClass, defaultValue, minHeight) {
     return '<div class="code-editor" style="min-height:' + (minHeight || 140) + 'px;">' +
         '<span class="code-label">' + label + '</span>' +
+        '<button class="fullscreen-btn" type="button">⤢ 全屏编辑</button>' +
         '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
         '<textarea class="' + cssClass + '" spellcheck="false" style="min-height:' + (minHeight || 140) + 'px;">' +
         escapeHtml(defaultValue) +
@@ -1073,8 +1447,19 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // ============================================================
-  // 加载已注册武将
+  // 加载已注册武将（表格视图）
   // ============================================================
+  function formatRange(r) {
+    if (!r) return '—';
+    var shapeName = {
+      '+': '十字',
+      'square': '方形',
+      'r': '圆形',
+      'x': 'X 形'
+    }[r.shape] || (r.shape || '—');
+    return '<span class="shape">' + shapeName + '</span> 半径 ' + (r.n !== undefined ? r.n : '—');
+  }
+
   function loadExistingGenerals() {
     var container = $('existing-generals');
     fetch('/api/diy/list')
@@ -1084,15 +1469,33 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           container.innerHTML = '<span class="empty-state">（暂无。在下方创建你的第一个 DIY 武将吧！）</span>';
           return;
         }
-        var html = '';
+        // 表格：id · name · HP · ATK · DEF · 移动范围 · 攻击范围 · 技能数 · 操作
+        var html = '<div class="gen-table-wrap">' +
+          '<table class="gen-table">' +
+          '<thead><tr>' +
+          '<th>ID</th><th>武将名</th>' +
+          '<th>HP</th><th>ATK</th><th>DEF</th>' +
+          '<th>移动范围</th><th>攻击范围</th>' +
+          '<th>技能</th><th>操作</th>' +
+          '</tr></thead><tbody>';
         for (var i = 0; i < data.generals.length; i++) {
           var g = data.generals[i];
-          html += '<div class="existing-item">' +
-            '<span style="font-weight:700;">' + g.name + '</span>' +
-            '<span style="color:#777; font-size:12px;">' + g.id + ' · HP ' + g.hp + ' · 技能 ' + ((g.skillIds && g.skillIds.length) || 0) + '</span>' +
-            '<span class="del" data-id="' + g.id + '">×</span>' +
-          '</div>';
+          var skillCount = (g.skills && g.skills.length) || ((g.skillIds && g.skillIds.length) || 0);
+          html += '<tr>' +
+            '<td class="id-col">' + g.id + '</td>' +
+            '<td class="name-col">' + g.name + '</td>' +
+            '<td class="num">' + g.hp + '</td>' +
+            '<td class="num">' + g.atk + '</td>' +
+            '<td class="num">' + g.def + '</td>' +
+            '<td class="range-cell">' + formatRange(g.moveRange) + '</td>' +
+            '<td class="range-cell">' + formatRange(g.attackRange) + '</td>' +
+            '<td class="num">' + skillCount + '</td>' +
+            '<td class="actions">' +
+              '<button class="btn-mini gen-del" data-id="' + g.id + '">删除</button>' +
+            '</td>' +
+          '</tr>';
         }
+        html += '</tbody></table></div>';
         container.innerHTML = html;
       })
       .catch(function () {
@@ -1102,7 +1505,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
   // 已注册武将的删除（事件委托）
   document.addEventListener('click', function (e) {
-    var del = e.target.closest('.del');
+    var del = e.target.closest('.gen-del');
     if (del) {
       var id = del.getAttribute('data-id');
       if (!id) return;
