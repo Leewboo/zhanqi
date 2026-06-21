@@ -2,17 +2,29 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
 <title>DIY 武将 · 三国战棋</title>
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="css/style.css">
 <style>
+  /* DIY页面：覆盖 index.css 的 body overflow:hidden，确保手机端可上下滑动 */
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: auto;
+  }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #f4f1ea;
-    color: #1a1a1a;
+    background: var(--bg);
+    color: var(--fg);
     margin: 0;
-    padding: 20px;
+    padding: 0 0 60px;
     line-height: 1.6;
+    /* 让纵向滑动可自由触发 */
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
   .diy-wrap {
     max-width: 1100px;
@@ -73,17 +85,22 @@
     width: 120px;
   }
   input[type="text"], input[type="number"], input[type="password"], select {
-    padding: 6px 8px;
+    padding: 8px 10px;
     border: 1px solid #c9bf9e;
     background: #fff;
+    color: var(--fg);
     font-family: inherit;
     font-size: 13px;
     width: 180px;
+    border-radius: 2px;
+    min-height: 38px;
+    touch-action: manipulation;
+    box-sizing: border-box;
   }
   input:focus, select:focus, textarea:focus {
-    outline: 2px solid #3a6bb2;
-    outline-offset: -1px;
+    outline: none;
     border-color: #3a6bb2;
+    box-shadow: 0 0 0 2px rgba(58, 107, 178, 0.18);
   }
   .hint {
     color: #888;
@@ -142,6 +159,9 @@
     caret-color: #fff;
     position: relative;
     z-index: 2;
+    /* 手机端：允许双指缩放，水平滑动也不被吞 */
+    touch-action: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .code-editor .code-highlight {
     position: absolute;
@@ -186,6 +206,9 @@
     font-family: inherit;
     font-size: 13px;
     letter-spacing: 2px;
+    min-height: 40px;
+    border-radius: 2px;
+    touch-action: manipulation;
   }
   .btn:hover { background: #fff3c4; }
   .btn.primary {
@@ -195,9 +218,10 @@
   }
   .btn.primary:hover { background: #902020; }
   .btn.mini {
-    padding: 4px 10px;
+    padding: 6px 12px;
     font-size: 12px;
     letter-spacing: 1px;
+    min-height: 32px;
   }
   .btn.danger {
     background: #fff;
@@ -260,26 +284,186 @@
     align-items: center;
     font-size: 13px;
     color: #777;
+    flex-wrap: wrap;
   }
   .footer-nav a {
     color: #3a6bb2;
     text-decoration: none;
   }
-  .footer-nav a:hover { text-decoration: underline; }
-  .submit-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 18px;
-    flex-wrap: wrap;
+
+  /* ========== 手机端适配（DIY 页面） ========== */
+  @media (max-width: 768px) {
+    body { padding: 10px 0 60px; }
+    .diy-wrap {
+      padding: 14px 12px;
+      margin: 0;
+      max-width: 100%;
+      border-left: 0;
+      border-right: 0;
+    }
+    .diy-title { font-size: 20px; letter-spacing: 2px; }
+    .diy-sub { font-size: 12px; }
+    .section {
+      padding: 12px 12px;
+      margin: 14px 0;
+    }
+    .section-title { font-size: 14px; letter-spacing: 2px; }
+    table.tbl {
+      font-size: 12px;
+    }
+    table.tbl th {
+      width: 80px;
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+    table.tbl td {
+      padding: 6px 8px;
+    }
+    input[type="text"], input[type="number"], input[type="password"], select {
+      width: 100%;
+      max-width: 240px;
+      font-size: 14px;
+      min-height: 38px;
+    }
+    .hint { display: block; margin: 4px 0 0; }
+    .code-editor textarea {
+      font-size: 12px;
+      line-height: 1.7;
+      min-height: 120px;
+    }
+    .row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .btn {
+      font-size: 12px;
+      padding: 8px 14px;
+      min-height: 40px;
+    }
+    .submit-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .diy-title { font-size: 18px; }
+    .section-title { font-size: 13px; }
+    table.tbl th { width: 72px; }
   }
 </style>
 </head>
 <body>
 
+<!-- 一键全屏按钮（右上角悬浮） -->
+<button id="fs-btn" style="position:fixed;top:12px;right:14px;width:40px;height:40px;border-radius:50%;border:1px solid #cfc8ba;background:rgba(255,255,255,.95);color:#1a1a1a;font-size:18px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:999;touch-action:manipulation;user-select:none;">⛶</button>
+
 <div class="diy-wrap">
   <h1 class="diy-title">DIY 武将</h1>
   <p class="diy-sub">通过武将属性表 + 技能脚本，创造属于你的武将 · 全局通用</p>
+
+  <!-- ========== 教程与速查（可折叠） ========== -->
+  <div class="section">
+    <div class="section-title">教程 · 速查</div>
+
+    <!-- 30秒上手 -->
+    <details open style="margin:6px 0 14px;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 30 秒上手（点击展开/收起）</summary>
+      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
+        <ol style="margin:4px 0 8px 22px;">
+          <li>填武将属性（id / name / hp / atk / def / 移动范围 / 攻击范围）</li>
+          <li>点「+ 添加一个技能」，写 filter（判断能否施放）和 content（技能主逻辑）</li>
+          <li>输入密码（默认 diy123），点「提交到服务器」</li>
+          <li>回到首页开一把，DIY 武将会出现在选将池中</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- 完整示例 -->
+    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 完整示例：技能「强袭」（十字3格 · 1.5倍伤害）</summary>
+      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.8;color:#333;">
+        <div style="color:#777;font-size:12px;margin-bottom:6px;letter-spacing:1px;">filter(actor) — 返回 true 表示当前可以施放</div>
+        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">return actor && actor.alive && !actor.skilled;</pre>
+        <div style="color:#777;font-size:12px;margin:10px 0 6px;letter-spacing:1px;">content(actor) — 技能主逻辑</div>
+        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">// 让玩家选一个敌人
+const target = await Effect.chooseEnemy(actor, {
+  range: { shape: "+", n: 3 },
+  hintText: "【强袭】请选择敌人"
+});
+if (!target) return false;
+
+// 标记本回合已施放
+actor.skilled = true;
+
+// 造成 1.5 倍攻击力伤害
+Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });
+global.Game.log(actor.name + " 发动【强袭】！");
+return true;</pre>
+      </div>
+    </details>
+
+    <!-- 被动技能示例 -->
+    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 被动技能示例：常胜（击杀后重置行动）</summary>
+      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.8;color:#333;">
+        <div style="margin:4px 0 8px;color:#555;">type：<b>被动</b> &nbsp; trigger：<b>onKill</b>（击杀时触发）</div>
+        <div style="color:#777;font-size:12px;margin-bottom:6px;letter-spacing:1px;">filter</div>
+        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">return actor && actor.alive;</pre>
+        <div style="color:#777;font-size:12px;margin:10px 0 6px;letter-spacing:1px;">content</div>
+        <pre style="background:#1e1e1e;color:#d4d4d4;padding:10px 12px;border-radius:3px;font-size:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre;line-height:1.7;margin:4px 0;">Effect.resetAction(actor);
+global.Game.log(actor.name + "【常胜】气势如虹！");</pre>
+      </div>
+    </details>
+
+    <!-- 范围形状 -->
+    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 范围形状参数</summary>
+      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
+        <div>移动范围 / 攻击范围 / 技能范围均使用 <code>{shape, n}</code> 描述：</div>
+        <ul style="margin:4px 0 8px 22px;">
+          <li><code>shape: "+"</code> 十字形（上下左右），<code>n</code> = 距离</li>
+          <li><code>shape: "square"</code> 正方形，<code>n</code> = 半径</li>
+          <li><code>shape: "r"</code> 圆形，<code>n</code> = 半径</li>
+          <li><code>shape: "x"</code> X 形（斜向），<code>n</code> = 距离</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- API 速查 -->
+    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ API 速查（内容中可直接使用）</summary>
+      <div style="padding:10px 14px 14px;font-size:12.5px;line-height:1.9;color:#333;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.chooseEnemy(actor, { range, hintText })</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.chooseCell(actor, { range, mustEmpty, hintText })</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.damage(actor, target, num, { ignoreDef?, mul? })</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.heal(target, num)</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.teleport(actor, x, y)</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.push(actor, target, [dx,dy], dist)</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.mark(target, 'key', { display, modifiers, data })</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.unmark(target, 'key')</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.resetAction(actor)</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.changeTerrain(x, y, 'r'|'m'|'w'|'f'|'plain')</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Effect.getEffectiveAttack(actor)</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">Range.cellsInRange(shape, n, x, y, { includeSelf })</div>
+          <div style="background:#fff;border:1px solid #e6e0cf;padding:6px 10px;border-radius:2px;">global.Game.pieceAt(x, y) · global.Game.pieces · global.Game.log(text)</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- 数值参考 -->
+    <details style="margin:14px 0;border:1px solid #e6e0cf;background:#fffdf7;border-radius:2px;">
+      <summary style="padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:2px;font-size:14px;touch-action:manipulation;user-select:none;list-style:none;">▶ 数值参考</summary>
+      <div style="padding:10px 14px 14px;font-size:13px;line-height:1.9;color:#333;">
+        <div>默认武将参考（平衡体验，可自由填写）：</div>
+        <div style="margin-top:6px;color:#555;">关羽：HP 200 · ATK 90 · DEF 20 · 移动 +2 · 攻击 方1</div>
+        <div style="color:#555;">赵云：HP 150 · ATK 60 · DEF 20 · 移动 +3 · 攻击 +1</div>
+        <div style="margin-top:8px;font-size:12px;color:#888;">小贴士：HP 一般 150-300，ATK 50-100，DEF 15-30。</div>
+      </div>
+    </details>
+  </div>
 
   <!-- ============================================================ -->
   <!-- 已注册的 DIY 武将列表 -->
@@ -662,6 +846,42 @@ return true;`}</textarea>
       alert('网络错误: ' + e.message);
     }
   }
+
+  // ========== 一键全屏切换 ==========
+  (function () {
+    const btn = document.getElementById('fs-btn');
+    if (!btn) return;
+    function update() {
+      const isFs = document.fullscreenElement || document.webkitFullscreenElement
+        || document.mozFullScreenElement || document.msFullscreenElement;
+      if (isFs) { btn.textContent = '⛷'; btn.style.background = '#e6f0ff'; }
+      else { btn.textContent = '⛶'; btn.style.background = 'rgba(255,255,255,.95)'; }
+    }
+    function toggle() {
+      const doc = document;
+      const el = doc.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen
+        || el.mozRequestFullScreen || el.msRequestFullscreen;
+      const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+        || doc.mozCancelFullScreen || doc.msExitFullscreen;
+      const cur = doc.fullscreenElement || doc.webkitFullscreenElement
+        || doc.mozFullScreenElement || doc.msFullscreenElement;
+      if (cur) {
+        if (exit) exit.call(doc);
+      } else if (req) {
+        req.call(el).catch(function () {
+          alert('当前浏览器未开放全屏权限，可在浏览器菜单中选择全屏。');
+        });
+      } else {
+        alert('当前浏览器不支持全屏 API。');
+      }
+    }
+    btn.addEventListener('click', toggle);
+    document.addEventListener('fullscreenchange', update);
+    document.addEventListener('webkitfullscreenchange', update);
+    document.addEventListener('mozfullscreenchange', update);
+    update();
+  })();
 
   loadExisting();
 </script>

@@ -86,6 +86,115 @@ html, body {
   50% { transform: scale(1.08); }
 }
 
+/* ============================================================
+   一键全屏按钮（在音乐按钮左侧）
+   ============================================================ */
+.fullscreen-btn {
+  position: fixed;
+  top: 12px;
+  right: 68px;
+  left: auto;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--fg);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+  opacity: 0.55;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  line-height: 1;
+}
+.fullscreen-btn:hover {
+  opacity: 1;
+  background: #fff3c4;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+.fullscreen-btn.active {
+  color: #3a6bb2;
+  background: #e6f0ff;
+  opacity: 0.95;
+}
+
+/* ============================================================
+   手机端适配：高度、滚动、按钮尺寸
+   ============================================================ */
+@media (max-width: 768px) {
+  :root {
+    --cell-size: 40px;
+  }
+  html, body {
+    height: 100vh;
+    height: 100dvh;
+    font-size: 13px;
+  }
+  .music-btn,
+  .fullscreen-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    top: 10px;
+  }
+  .fullscreen-btn { right: 58px; }
+  .music-btn { right: 12px; }
+
+  .home-btn {
+    min-height: 48px;
+    font-size: 14px;
+  }
+  .home-title { font-size: 36px; letter-spacing: 10px; }
+
+  .act-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+    min-height: 38px;
+  }
+
+  .top-bar { padding: 6px 8px; }
+  .bottom-bar { padding: 6px 8px 10px; }
+
+  .board-wrap {
+    padding: 0;
+  }
+  .board-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --cell-size: 36px;
+  }
+  .home-title { font-size: 30px; letter-spacing: 8px; }
+  .home-subtitle { font-size: 11px; letter-spacing: 4px; }
+}
+
+/* 横屏手机：棋盘更多空间，按钮更小 */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --cell-size: 34px;
+  }
+  .top-bar { padding: 4px 10px; }
+  .bottom-bar { padding: 4px 10px 6px; }
+  .music-btn, .fullscreen-btn {
+    width: 36px;
+    height: 36px;
+    top: 6px;
+    font-size: 16px;
+  }
+  .fullscreen-btn { right: 52px; }
+}
+
 .music-menu {
   position: fixed;
   z-index: 1001;

@@ -1972,6 +1972,56 @@
     if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('ai'); });
     if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
+
+    // ========== 一键全屏切换（支持桌面与手机）==========
+    const fsBtn = document.getElementById('btn-fullscreen');
+    function updateFsBtn() {
+      if (!fsBtn) return;
+      const isFs = document.fullscreenElement || document.webkitFullscreenElement
+        || document.mozFullScreenElement || document.msFullscreenElement
+        || (window.innerHeight === screen.height && window.innerWidth === screen.width);
+      if (isFs) {
+        fsBtn.classList.add('active');
+        fsBtn.textContent = '⛷';
+        fsBtn.title = '退出全屏';
+      } else {
+        fsBtn.classList.remove('active');
+        fsBtn.textContent = '⛶';
+        fsBtn.title = '进入全屏';
+      }
+    }
+    function toggleFullscreen() {
+      const doc = document;
+      const el = doc.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen
+        || el.mozRequestFullScreen || el.msRequestFullscreen;
+      const exit = doc.exitFullscreen || doc.webkitExitFullscreen
+        || doc.mozCancelFullScreen || doc.msExitFullscreen;
+      const cur = doc.fullscreenElement || doc.webkitFullscreenElement
+        || doc.mozFullScreenElement || doc.msFullscreenElement;
+      if (cur) {
+        if (exit) exit.call(doc);
+      } else {
+        if (req) {
+          req.call(el).catch(() => {
+            // 浏览器不支持全屏 API（例如 iOS Safari 非 PWA）——退化方案：
+            // 将 body 改为 fixed 占满视口，提示用户手动放大
+            if (document.body.requestFullscreen) return;
+            alert('当前浏览器未开放全屏权限，可尝试双指放大或在浏览器菜单中选择「添加到主屏幕」。');
+          });
+        } else {
+          alert('当前浏览器不支持全屏 API。');
+        }
+      }
+      setTimeout(updateFsBtn, 250);
+    }
+    if (fsBtn) {
+      fsBtn.addEventListener('click', toggleFullscreen);
+      document.addEventListener('fullscreenchange', updateFsBtn);
+      document.addEventListener('webkitfullscreenchange', updateFsBtn);
+      window.addEventListener('resize', updateFsBtn);
+      updateFsBtn();
+    }
   });
 
   global.Game = Game;
