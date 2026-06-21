@@ -245,29 +245,31 @@
   }
 
   /* ========= 代码编辑器（双层：高亮底层 + 透明输入上层） ========= */
+  /* GitHub Dark 配色变量 */
   .code-editor {
     position: relative;
-    border: 1px solid #c9bf9e;
-    background: #0d1117;  /* GitHub Dark 背景 */
+    border: 1px solid #30363d;
+    background: #0d1117;  /* 深色背景，确保 hl-layer 的彩色文字有可见底色 */
     margin-top: 8px;
     border-radius: 3px;
     overflow: hidden;
+    /* 同时作为 .hl-layer 的绝对定位参照 */
   }
   .code-label {
     position: absolute;
     top: 4px;
     right: 10px;
-    color: #888;
+    color: #8b949e;
     font-size: 11px;
     letter-spacing: 2px;
     pointer-events: none;
     z-index: 5;
-    background: rgba(13, 17, 23, 0.8);
+    background: rgba(13, 17, 23, 0.9);
     padding: 2px 8px;
     border-radius: 2px;
   }
 
-  /* 高亮底层：与 textarea 完全对齐的 <pre><code> */
+  /* 高亮底层：<pre><code>，与 textarea 完全对齐，承接 hljs 彩色文字 */
   .code-editor .hl-layer {
     position: absolute;
     top: 0;
@@ -278,7 +280,7 @@
     padding: 28px 14px 14px;
     pointer-events: none;
     overflow: hidden;
-    background: transparent;
+    background: #0d1117;   /* 与 .code-editor 背景一致，确保彩色文字可见 */
     z-index: 1;
     font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
     font-size: 12px;
@@ -295,9 +297,50 @@
     white-space: pre;
     overflow-wrap: normal;
     tab-size: 2;
-    background: transparent !important;
+    background: #0d1117 !important; /* 与外层一致，防止覆盖 hljs token 颜色 */
     padding: 0 !important;
     display: block;
+    border-radius: 0;
+  }
+  /* 确保 hljs 生成的 token 颜色不被意外覆盖 */
+  .code-editor .hl-layer code .hljs-keyword,
+  .code-editor .hl-layer code .hljs-string,
+  .code-editor .hl-layer code .hljs-number,
+  .code-editor .hl-layer code .hljs-comment,
+  .code-editor .hl-layer code .hljs-function,
+  .code-editor .hl-layer code .hljs-title,
+  .code-editor .hl-layer code .hljs-params,
+  .code-editor .hl-layer code .hljs-built_in,
+  .code-editor .hl-layer code .hljs-literal,
+  .code-editor .hl-layer code .hljs-attr,
+  .code-editor .hl-layer code .hljs-attribute,
+  .code-editor .hl-layer code .hljs-selector-class,
+  .code-editor .hl-layer code .hljs-selector-id,
+  .code-editor .hl-layer code .hljs-variable,
+  .code-editor .hl-layer code .hljs-operator,
+  .code-editor .hl-layer code .hljs-punctuation,
+  .code-editor .hl-layer code .hljs-property,
+  .code-editor .hl-layer code .hljs-tag,
+  .code-editor .hl-layer code .hljs-name,
+  .code-editor .hl-layer code .hljs-selector-tag,
+  .code-editor .hl-layer code .hljs-deletion,
+  .code-editor .hl-layer code .hljs-addition,
+  .code-editor .hl-layer code .hljs-symbol,
+  .code-editor .hl-layer code .hljs-meta,
+  .code-editor .hl-layer code .hljs-section,
+  .code-editor .hl-layer code .hljs-bullet,
+  .code-editor .hl-layer code .hljs-link,
+  .code-editor .hl-layer code .hljs-emphasis,
+  .code-editor .hl-layer code .hljs-strong,
+  .code-editor .hl-layer code .hljssubst,
+  .code-editor .hl-layer code .hljs-quote,
+  .code-editor .hl-layer code .hljs-doctag,
+  .code-editor .hl-layer code .hljs-type,
+  .code-editor .hl-layer code .hljs-formula,
+  .code-editor .hl-layer code .hljs-template-tag,
+  .code-editor .hl-layer code .hljs-template-variable,
+  .code-editor .hl-layer code .hljs-char {
+    background: transparent !important;
   }
 
   /* 输入上层：透明文字 / 可见光标 */
@@ -307,7 +350,7 @@
     min-height: 140px;
     padding: 28px 14px 14px;
     border: 0;
-    background: transparent;
+    background: #0d1117;   /* textarea 自己也用深色背景，与 hl-layer 一致 */
     color: transparent;
     caret-color: #fff;
     font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
@@ -323,7 +366,6 @@
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
     overflow: auto;
-    /* 与 <pre> 完全对齐：确保滚动时两层一致 */
   }
   .code-editor textarea::selection {
     background: rgba(88, 166, 255, 0.35);
