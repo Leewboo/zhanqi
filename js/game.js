@@ -147,6 +147,46 @@
       }
       this.log('红方先选。', 'turn');
       this._maybeAiAct();
+
+      // 启动时异步加载 DIY 武将（如已在 startGame 预加载则此调用只是获取最新）
+      this._loadDiy(true);
+    },
+
+    // 异步加载 DIY 武将和技能，注入全局系统
+    async _loadDiy(silent) {
+      try {
+        const res = await fetch('/api/diy/list');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok) return;
+
+        let changed = false;
+
+        // 1) 先注册技能（保证武将用到时已就绪）
+        if (global.SkillsAPI && data.skills && data.skills.length) {
+          const compiled = global.SkillsAPI.registerSkills(data.skills);
+          if (compiled.some(Boolean)) changed = true;
+          if (!silent) this.log('已加载 DIY 技能 ' + compiled.filter(Boolean).length + ' 个。');
+        }
+
+        // 2) 再注册武将（武将的 skills 字段是 skillIds 字符串数组，buildPiece 会解析）
+        if (data.generals && data.generals.length && global.Generals) {
+          data.generals.forEach(g => {
+            const existed = Generals.list.find(x => x.id === g.id);
+            if (!existed) changed = true;
+            global.Generals.registerGeneral(g);
+          });
+          if (!silent) this.log('已加载 DIY 武将 ' + data.generals.length + ' 个。');
+        }
+
+        // 3) 如果 draft 阶段，刷新卡片让 DIY 武将出现在选将池中
+        if (changed && this.phase === 'draft') {
+          this._refreshUi();
+        }
+      } catch (e) {
+        // 静默失败：静态文件服务器没实现 DIY 接口不影响游戏
+        console.info('[DIY 加载] 未连接到 DIY 后端（或接口不可用），跳过：', e.message);
+      }
     },
 
     goHome() {
@@ -1926,9 +1966,11 @@
     // 主页按钮
     const localBtn = document.getElementById('btn-local');
     const aiBtn = document.getElementById('btn-ai');
+    const diyBtn = document.getElementById('btn-diy');
     const homeBtn = document.getElementById('btn-home');
     if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('local'); });
     if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('ai'); });
+    if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
   });
 

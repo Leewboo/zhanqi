@@ -1,0 +1,38 @@
+{
+  "generals": [
+    {
+      "id": "diy_test_wujiang",
+      "name": "测试武将",
+      "hp": 250,
+      "atk": 80,
+      "def": 25,
+      "moveRange": {
+        "shape": "+",
+        "n": 3
+      },
+      "attackRange": {
+        "shape": "square",
+        "n": 2
+      },
+      "skillIds": [
+        "diy_test_wujiang_power_strike"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "diy_test_wujiang_power_strike",
+      "name": "强袭",
+      "type": "主动",
+      "cooldown": 2,
+      "trigger": null,
+      "desc": "对十字3格内敌人造成1.5倍攻击伤害",
+      "preview": {
+        "shape": "+",
+        "n": 3
+      },
+      "filterCode": "return actor && actor.alive && !actor.skilled;",
+      "contentCode": "const target = await Effect.chooseEnemy(actor, { range: {shape: +, n: 3}, hintText: 请选择敌人});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });\nglobal.Game.log(actor.name + 发动【强袭】！);\nreturn true;"
+    }
+  ]
+}
