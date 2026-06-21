@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes" />
 <title>DIY 武将 · 三国战棋</title>
 <link rel="stylesheet" href="css/style.css" />
+
+<!-- highlight.js（GitHub Dark 配色 + JavaScript 语言） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/javascript.min.js"></script>
+
 <style>
   /* ========= 页面级 CSS（独立于游戏） ========= */
   html, body {
@@ -140,18 +146,18 @@
     color: #7a5a00;
   }
   .collapsible-body pre {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    padding: 12px 14px;
+    margin: 8px 0;
     border-radius: 3px;
-    font-size: 12px;
-    line-height: 1.7;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    white-space: pre;
-    margin: 8px 0;
   }
-  .collapsible-body pre code { background: transparent; color: inherit; padding: 0; font-size: 12px; }
+  .collapsible-body pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.7;
+  }
   .api-tag-row {
     display: flex;
     flex-wrap: wrap;
@@ -238,11 +244,11 @@
     font-size: 13px;
   }
 
-  /* ========= 代码编辑器 ========= */
+  /* ========= 代码编辑器（双层：高亮底层 + 透明输入上层） ========= */
   .code-editor {
     position: relative;
     border: 1px solid #c9bf9e;
-    background: #1e1e1e;
+    background: #0d1117;  /* GitHub Dark 背景 */
     margin-top: 8px;
     border-radius: 3px;
     overflow: hidden;
@@ -255,18 +261,55 @@
     font-size: 11px;
     letter-spacing: 2px;
     pointer-events: none;
-    z-index: 3;
-    background: rgba(30, 30, 30, 0.6);
+    z-index: 5;
+    background: rgba(13, 17, 23, 0.8);
     padding: 2px 8px;
     border-radius: 2px;
   }
+
+  /* 高亮底层：与 textarea 完全对齐的 <pre><code> */
+  .code-editor .hl-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 28px 14px 14px;
+    pointer-events: none;
+    overflow: hidden;
+    background: transparent;
+    z-index: 1;
+    font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-wrap: normal;
+    tab-size: 2;
+    border-radius: 0;
+  }
+  .code-editor .hl-layer code {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: pre;
+    overflow-wrap: normal;
+    tab-size: 2;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block;
+  }
+
+  /* 输入上层：透明文字 / 可见光标 */
   .code-editor textarea {
+    position: relative;
     width: 100%;
     min-height: 140px;
     padding: 28px 14px 14px;
     border: 0;
     background: transparent;
-    color: #d4d4d4;
+    color: transparent;
+    caret-color: #fff;
     font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
     font-size: 12px;
     line-height: 1.7;
@@ -274,15 +317,33 @@
     white-space: pre;
     overflow-wrap: normal;
     tab-size: 2;
-    caret-color: #fff;
-    position: relative;
     z-index: 2;
     display: block;
     touch-action: auto;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
+    overflow: auto;
+    /* 与 <pre> 完全对齐：确保滚动时两层一致 */
   }
-  .code-editor textarea:focus { outline: none; box-shadow: inset 0 0 0 1px rgba(86, 156, 214, 0.5); border: 0; }
+  .code-editor textarea::selection {
+    background: rgba(88, 166, 255, 0.35);
+    color: transparent;
+  }
+  .code-editor textarea:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 1px rgba(86, 156, 214, 0.5);
+    border: 0;
+  }
+
+  /* 让高亮层随 textarea 滚动 —— 通过 JS 同步，这里只保证尺寸一致 */
+  .code-editor textarea,
+  .code-editor .hl-layer {
+    width: 100%;
+    height: 100%;
+  }
+  .code-editor {
+    min-height: 140px;
+  }
 
   /* ========= 按钮 ========= */
   .btn {
@@ -379,7 +440,8 @@
       font-size: 14px;
     }
     .hint { display: block; margin: 4px 0 0; font-size: 11px; }
-    .code-editor textarea { font-size: 12px; line-height: 1.8; }
+    .code-editor textarea,
+    .code-editor .hl-layer { font-size: 12px; line-height: 1.8; }
     .btn { font-size: 12px; padding: 8px 14px; }
     .fs-btn { top: 10px; right: 10px; width: 40px; height: 40px; font-size: 16px; }
     .skill-card { padding: 12px; }
@@ -423,9 +485,9 @@
       <div class="collapsible-head">▶ 完整示例：技能「强袭」（十字3格 · 1.5倍伤害）<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <p>filter（主动技能，判断是否可施放）：</p>
-<pre><code>return actor && actor.alive && !actor.skilled;</code></pre>
+<pre><code class="language-javascript">return actor && actor.alive && !actor.skilled;</code></pre>
         <p>content（技能主逻辑，可使用 await）：</p>
-<pre><code>// 让玩家选择一个敌人
+<pre><code class="language-javascript">// 让玩家选择一个敌人
 const target = await Effect.chooseEnemy(actor, {
   range: { shape: "+", n: 3 },
   hintText: "【强袭】请选择敌人"
@@ -449,9 +511,9 @@ return true;</code></pre>
       <div class="collapsible-body">
         <p>type：<b>被动</b> · trigger：<b>onKill</b></p>
         <p>filter：</p>
-<pre><code>return actor && actor.alive;</code></pre>
+<pre><code class="language-javascript">return actor && actor.alive;</code></pre>
         <p>content：</p>
-<pre><code>Effect.resetAction(actor);
+<pre><code class="language-javascript">Effect.resetAction(actor);
 global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
@@ -591,7 +653,81 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
   // ============================================================
-  // 折叠面板交互（事件委托，新增的面板也能工作）
+  // 语法高亮：双层编辑器（textarea 透明输入 + <pre><code> 高亮显示）
+  // ============================================================
+  function highlightText(text) {
+    // 使用 highlight.js 的纯文本 API；失败则回退到原文本
+    try {
+      if (window.hljs && typeof hljs.highlight === 'function') {
+        var result = hljs.highlight(text || '', { language: 'javascript', ignoreIllegals: true });
+        return result.value;
+      }
+    } catch (e) {}
+    // 回退：转义 HTML
+    return escapeHtml(text || '');
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // 为一个 .code-editor 绑定：输入 → 同步高亮层 & 滚动
+  function setupCodeEditor(editorEl) {
+    if (!editorEl || editorEl.dataset.inited === '1') return;
+    var ta = editorEl.querySelector('textarea');
+    var preLayer = editorEl.querySelector('.hl-layer');
+    var codeEl = editorEl.querySelector('.hl-layer code');
+    if (!ta || !preLayer || !codeEl) return;
+
+    // 确保 textarea 与 pre 层等宽：在 textarea 内容末尾添加一个空格保持换行一致
+    function sync() {
+      var content = ta.value;
+      // 为高亮层补齐结尾换行，否则最后一行空行会被压缩
+      var displayText = content;
+      if (displayText.charAt(displayText.length - 1) === '\n') {
+        displayText = displayText + ' ';
+      }
+      // 使用 highlight.js
+      codeEl.innerHTML = highlightText(displayText);
+      // 同步滚动
+      preLayer.scrollTop = ta.scrollTop;
+      preLayer.scrollLeft = ta.scrollLeft;
+    }
+
+    // 防抖
+    var timer = null;
+    function debouncedSync() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(sync, 40);
+    }
+
+    ta.addEventListener('input', debouncedSync);
+    ta.addEventListener('scroll', function () {
+      preLayer.scrollTop = ta.scrollTop;
+      preLayer.scrollLeft = ta.scrollLeft;
+    });
+    // Tab 键插入两个空格而不是切换焦点
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var start = ta.selectionStart;
+        var end = ta.selectionEnd;
+        ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(end);
+        ta.selectionStart = ta.selectionEnd = start + 2;
+        debouncedSync();
+      }
+    });
+
+    // 初始渲染
+    sync();
+    editorEl.dataset.inited = '1';
+  }
+
+  // ============================================================
+  // 折叠面板交互（事件委托）
   // ============================================================
   document.addEventListener('click', function (e) {
     var head = e.target.closest('.collapsible-head');
@@ -657,6 +793,17 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     'return true;'
   ].join('\n');
 
+  // 构造一个编辑器片段（textarea + 高亮层）
+  function buildEditorBlock(label, cssClass, defaultValue, minHeight) {
+    return '<div class="code-editor" style="min-height:' + (minHeight || 140) + 'px;">' +
+        '<span class="code-label">' + label + '</span>' +
+        '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+        '<textarea class="' + cssClass + '" spellcheck="false" style="min-height:' + (minHeight || 140) + 'px;">' +
+        escapeHtml(defaultValue) +
+        '</textarea>' +
+      '</div>';
+  }
+
   function addSkillCard(preset) {
     skillIdx += 1;
     var id = 'sk-' + skillIdx;
@@ -670,8 +817,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '<button class="btn mini danger" data-action="delete">删除此技能</button>' +
       '</div>' +
       '<table class="tbl">' +
-        '<tr><th>id</th><td><input type="text" class="s-id" value="' + (p.id || '') + '" placeholder="skill1" /></td>' +
-            '<th>name</th><td><input type="text" class="s-name" value="' + (p.name || '') + '" placeholder="技能名" /></td></tr>' +
+        '<tr><th>id</th><td><input type="text" class="s-id" value="' + escapeHtmlAttr(p.id || '') + '" placeholder="skill1" /></td>' +
+            '<th>name</th><td><input type="text" class="s-name" value="' + escapeHtmlAttr(p.name || '') + '" placeholder="技能名" /></td></tr>' +
         '<tr><th>type</th><td>' +
             '<select class="s-type">' +
               '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
@@ -684,7 +831,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
               '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
             '</select></td>' +
-            '<th>desc</th><td><input type="text" class="s-desc" value="' + (p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td></tr>' +
+            '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td></tr>' +
         '<tr><th>预览范围</th><td colspan="3">' +
             '形状 <select class="s-pv-shape">' +
               '<option value="">不预览</option>' +
@@ -698,34 +845,43 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       '</table>' +
       '<div style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>' +
-        '<div class="code-editor">' +
-          '<span class="code-label">filter</span>' +
-          '<textarea class="s-filter" spellcheck="false" style="min-height: 100px;">' + (p.filter !== undefined ? p.filter : FILTER_DEFAULT) + '</textarea>' +
-        '</div>' +
+        buildEditorBlock('filter', 's-filter', (p.filter !== undefined ? p.filter : FILTER_DEFAULT), 100) +
       '</div>' +
       '<div style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">async content(actor) — 技能主逻辑</label>' +
-        '<div class="code-editor">' +
-          '<span class="code-label">content</span>' +
-          '<textarea class="s-content" spellcheck="false" style="min-height: 220px;">' + (p.content !== undefined ? p.content : CONTENT_DEFAULT) + '</textarea>' +
-        '</div>' +
+        buildEditorBlock('content', 's-content', (p.content !== undefined ? p.content : CONTENT_DEFAULT), 260) +
       '</div>';
 
-    // 删除按钮（事件在元素内部，避免 onclick 字符串拼接）
+    // 删除按钮
     div.querySelector('[data-action="delete"]').addEventListener('click', function () {
       if (confirm('确定删除这个技能？')) div.remove();
     });
 
     $('skills-container').appendChild(div);
+
+    // 初始化两个代码编辑器的高亮同步
+    qsa('.code-editor', div).forEach(function (ed) {
+      setupCodeEditor(ed);
+    });
+
     return div;
   }
 
-  // 按钮绑定（事件绑定，替代 onclick=... 字符串）
-  // 注意：脚本放在 </body> 前，DOM 已就绪，直接绑定（不再等待 DOMContentLoaded，避免事件已触发导致不执行）
+  function escapeHtmlAttr(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // ============================================================
+  // 初始化：按钮绑定 + 默认技能卡片 + 教程区高亮
+  // ============================================================
   function initDiyPage() {
     var addBtn = $('btn-add-skill');
     if (addBtn) {
-      addBtn.addEventListener('click', function (e) {
+      addBtn.addEventListener('click', function () {
         addSkillCard();
       });
     }
@@ -739,6 +895,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('gname').value = '';
         $('ghp').value = 200;
         $('gatk').value = 50;
+        $('gdef').value = 200;
         $('gdef').value = 20;
         $('gmv-n').value = 3;
         $('gatk-n').value = 1;
@@ -755,6 +912,17 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       submitBtn.addEventListener('click', submitGeneral);
     }
 
+    // 教程区 <pre><code> 应用高亮（若 hljs 已就绪）
+    try {
+      if (window.hljs && typeof hljs.highlightAll === 'function') {
+        hljs.highlightAll();
+      } else {
+        qsa('.collapsible-body pre code').forEach(function (el) {
+          el.textContent = el.textContent;
+        });
+      }
+    } catch (e) {}
+
     // 默认创建一个技能卡片
     addSkillCard();
 
@@ -763,10 +931,18 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
+  // highlight.js 若还没加载好，再等一下
+  function tryInit() {
+    if (window.hljs) {
+      initDiyPage();
+    } else {
+      setTimeout(tryInit, 80);
+    }
+  }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDiyPage);
+    document.addEventListener('DOMContentLoaded', tryInit);
   } else {
-    initDiyPage();
+    tryInit();
   }
 
   // ============================================================
