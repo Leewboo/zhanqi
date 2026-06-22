@@ -20,8 +20,8 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: auto;
-    background: var(--bg);
-    color: var(--fg);
+    background: #f2f0eb;
+    color: #1a1a1a;
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -53,76 +53,299 @@
   }
   .fs-btn:hover { background: var(--sel-hover, #fff3c4); }
 
+  /* ========= 新布局：整体框架 ========= */
   .diy-wrap {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 28px 24px 60px;
+    padding: 20px 20px 100px;
   }
 
-  .diy-title {
-    margin: 0 0 8px;
-    font-size: 26px;
-    letter-spacing: 6px;
-    font-weight: 700;
-  }
-  .diy-sub {
-    color: #666;
-    font-size: 13px;
-    margin: 0 0 24px;
-    letter-spacing: 2px;
-  }
-
-  /* ========= section 通用 ========= */
-  .section {
-    margin: 18px 0;
-    padding: 16px 20px;
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    box-sizing: border-box;
-  }
-  .section-title {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    margin: 0 0 12px;
-    color: var(--fg);
+  /* 顶部标题栏 */
+  .diy-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 14px 20px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    flex-wrap: wrap;
+  }
+  .diy-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .diy-logo {
+    font-size: 24px;
+    letter-spacing: 4px;
+    font-weight: 800;
+    color: #1a1a1a;
+    white-space: nowrap;
+  }
+  .diy-logo-sub {
+    font-size: 12px;
+    color: #888;
+    letter-spacing: 1px;
+    font-weight: normal;
+    margin-left: 10px;
+  }
+  /* 三步骤指示器 */
+  .diy-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .diy-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #aaa;
+    font-weight: 600;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .diy-step.active {
+    color: #c0392b;
+    background: #fdf0ef;
+    border-radius: 20px;
+  }
+  .diy-step.done {
+    color: #27ae60;
+  }
+  .diy-step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .diy-step.active .diy-step-num {
+    background: #c0392b;
+    color: #fff;
+    border-color: #c0392b;
+  }
+  .diy-step.done .diy-step-num {
+    background: #27ae60;
+    color: #fff;
+    border-color: #27ae60;
+  }
+  .diy-step-sep {
+    color: #ddd;
+    font-size: 16px;
+    padding: 0 4px;
+  }
+
+  /* 悬浮教程按钮 */
+  .diy-hint-btn {
+    position: fixed;
+    left: 16px;
+    bottom: 90px;
+    z-index: 900;
+    background: #fff;
+    border: 1.5px solid #c0392b;
+    color: #c0392b;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(192, 57, 43, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    touch-action: manipulation;
+    transition: all 0.2s;
+  }
+  .diy-hint-btn:hover {
+    background: #c0392b;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(192, 57, 43, 0.35);
+    transform: translateY(-1px);
+  }
+  .diy-hint-btn .badge {
+    background: #c0392b;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+  .diy-hint-btn:hover .badge {
+    background: #fff;
+    color: #c0392b;
+  }
+
+  /* 悬浮教程面板 */
+  .diy-tutorial-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 950;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .diy-tutorial-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .diy-tutorial-panel {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 90vw;
+    background: #fffdf7;
+    z-index: 960;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+  }
+  .diy-tutorial-panel.open {
+    transform: translateX(0);
+  }
+  .diy-tutorial-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: #c0392b;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 3px;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .diy-tutorial-head-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .diy-tutorial-head-close:hover { background: rgba(255,255,255,0.35); }
+  .diy-tutorial-body {
+    padding: 14px 18px 24px;
+  }
+
+  /* 两栏主布局 */
+  .diy-main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* ========= 左侧：武将属性卡片 ========= */
+  .card {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title-num {
+    background: #c0392b;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+  .card-body {
+    padding: 14px 16px;
+  }
+
+  /* ========= section / section-title（保留用于表格） ========= */
+  .section {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin: 0 0 10px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .section-title::before {
     content: "";
     width: 3px;
-    height: 16px;
-    background: var(--red);
+    height: 14px;
+    background: #c0392b;
     flex-shrink: 0;
   }
 
-  /* ========= 折叠面板（教程） ========= */
+  /* ========= 折叠面板（教程内） ========= */
   .collapsible {
-    border: 1px solid #e0d8c3;
+    border: 1px solid #e8e0c8;
     margin-bottom: 8px;
-    background: #fffdf7;
-    border-radius: 2px;
+    background: #fff;
+    border-radius: 4px;
   }
   .collapsible-head {
     padding: 10px 14px;
     cursor: pointer;
     user-select: none;
-    font-weight: 700;
-    letter-spacing: 2px;
-    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     touch-action: manipulation;
+    color: #555;
   }
-  .collapsible-head:hover { background: #fff6e6; }
+  .collapsible-head:hover { background: #f9f6f0; color: #c0392b; }
   .collapsible-head .arrow {
-    font-size: 16px;
-    color: var(--red);
+    font-size: 14px;
+    color: #c0392b;
     line-height: 1;
     transition: transform 0.2s;
     flex-shrink: 0;
@@ -133,16 +356,16 @@
     padding: 6px 14px 14px;
     font-size: 13px;
     line-height: 1.9;
-    color: #333;
+    color: #444;
   }
   .collapsible.open .collapsible-body { display: block; }
-  .collapsible-body ol, .collapsible-body ul { margin: 8px 0; padding-left: 24px; }
+  .collapsible-body ol, .collapsible-body ul { margin: 8px 0; padding-left: 20px; }
   .collapsible-body code {
     background: #f0ead7;
     padding: 1px 6px;
     border-radius: 2px;
     font-family: "SF Mono", Consolas, monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: #7a5a00;
   }
   .collapsible-body pre {
@@ -155,22 +378,22 @@
     background: transparent;
     color: inherit;
     padding: 0;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.7;
   }
   .api-tag-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
     margin: 8px 0;
   }
   .api-tag {
     background: #fff;
     border: 1px solid #e0d8c3;
-    padding: 4px 10px;
-    font-size: 12px;
-    border-radius: 2px;
-    color: #333;
+    padding: 3px 9px;
+    font-size: 11px;
+    border-radius: 3px;
+    color: #444;
     line-height: 1.6;
   }
 
@@ -181,67 +404,73 @@
     font-size: 13px;
   }
   table.tbl th, table.tbl td {
-    padding: 8px 12px;
-    border: 1px solid #e0d8c3;
+    padding: 7px 8px;
+    border: none;
+    border-bottom: 1px solid #f0ece0;
     text-align: left;
     vertical-align: middle;
     box-sizing: border-box;
   }
+  table.tbl tr:last-child th,
+  table.tbl tr:last-child td { border-bottom: none; }
   table.tbl th {
-    background: #f4eedd;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1px;
     white-space: nowrap;
-    width: 90px;
-    color: var(--fg);
+    width: 60px;
+    color: #666;
+    font-size: 12px;
+    padding-right: 4px;
   }
 
-  input[type="text"], input[type="number"], input[type="password"], select, textarea {
-    padding: 8px 10px;
-    border: 1px solid #c9bf9e;
+  input[type="text"], input[type="number"], input[type="password"], select {
+    padding: 7px 9px;
+    border: 1px solid #d4cebc;
     background: #fff;
-    color: var(--fg);
+    color: #1a1a1a;
     font-family: inherit;
     font-size: 13px;
-    border-radius: 2px;
-    width: 180px;
-    min-height: 38px;
+    border-radius: 3px;
+    min-height: 34px;
     touch-action: manipulation;
     box-sizing: border-box;
+    width: 100%;
   }
-  input:focus, select:focus, textarea:focus {
+  input:focus, select:focus {
     outline: none;
-    border-color: var(--blue);
-    box-shadow: 0 0 0 2px rgba(58, 107, 178, 0.18);
+    border-color: #c0392b;
+    box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.15);
   }
   .hint {
-    color: #777;
-    font-size: 12px;
-    margin-left: 8px;
+    color: #999;
+    font-size: 11px;
+    margin-top: 3px;
+    display: block;
+    letter-spacing: 0.5px;
   }
 
   /* ========= 技能卡片 ========= */
   .skill-card {
-    margin: 14px 0;
-    padding: 14px 16px;
+    margin: 10px 0;
+    padding: 12px 14px;
     background: #fff;
-    border: 1px dashed #c9bf9e;
-    border-radius: 2px;
+    border: 1.5px dashed #d4cebc;
+    border-radius: 5px;
     position: relative;
   }
   .skill-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     gap: 10px;
     flex-wrap: wrap;
   }
   .skill-title {
     font-weight: 700;
-    color: var(--blue);
+    color: #c0392b;
     letter-spacing: 2px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   /* ========= 代码编辑器（双层：高亮底层 + 透明输入上层） ========= */
@@ -596,326 +825,369 @@
     font-weight: 700;
   }
 
+  /* ========= 手机端适配 ========= */
   @media (max-width: 768px) {
-    .fs-editor-mask { padding: 12px 12px; }
+    .diy-wrap { padding: 12px 12px 100px; }
+    .diy-header { padding: 12px 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .diy-logo { font-size: 20px; }
+    .diy-steps { flex-wrap: wrap; gap: 4px; }
+    .diy-step { padding: 4px 10px; font-size: 11px; }
+    .diy-main { grid-template-columns: 1fr; }
+    .diy-hint-btn { left: 10px; bottom: 80px; }
+    .diy-tutorial-panel { width: 88vw; }
+    .fs-editor-mask { padding: 12px; }
     .fs-editor-title { font-size: 13px; }
     .fs-editor-title small { display: block; margin: 4px 0 0; font-size: 11px; }
     .fs-editor-actions .btn { font-size: 11px; padding: 6px 10px; }
+    .card-body { padding: 12px; }
+    table.tbl th { width: 50px; }
+    input[type="text"], input[type="number"], input[type="password"], select { width: 100%; }
+    .hint { display: block; margin-top: 3px; }
+  }
+  @media (max-width: 480px) {
+    .diy-steps { display: none; }
+    .diy-logo-sub { display: none; }
   }
   .btn {
-    padding: 8px 18px;
-    border: 1px solid #3a3a3a;
+    padding: 7px 16px;
+    border: 1px solid #d4cebc;
     background: #fff;
     color: #1a1a1a;
     cursor: pointer;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 12px;
     letter-spacing: 2px;
-    min-height: 40px;
-    border-radius: 2px;
+    min-height: 36px;
+    border-radius: 4px;
     touch-action: manipulation;
     user-select: none;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
-  .btn:hover { background: #fff3c4; }
-  .btn:active { background: #ffe9a8; transform: translateY(1px); }
-  .btn.primary { background: var(--red); color: #fff; border-color: var(--red); }
-  .btn.primary:hover { background: #902020; }
-  .btn.mini { padding: 6px 12px; font-size: 12px; letter-spacing: 1px; min-height: 32px; }
-  .btn.danger { background: #fff; color: var(--red); border-color: var(--red); }
-  .btn.danger:hover { background: #ffeeee; }
+  .btn:hover { background: #f5f0e4; }
+  .btn:active { background: #ece5d6; transform: translateY(1px); }
+  .btn.primary { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .btn.primary:hover { background: #a93226; }
+  .btn.mini { padding: 5px 11px; font-size: 11px; letter-spacing: 1px; min-height: 28px; }
+  .btn.danger { background: #fff; color: #c0392b; border-color: #c0392b; }
+  .btn.danger:hover { background: #fdf0ef; }
 
   /* ========= 状态提示 ========= */
   .output-msg {
-    margin-top: 14px;
+    margin-top: 10px;
     padding: 10px 14px;
-    border: 1px solid var(--line);
+    border: 1px solid #e0d8c3;
     font-size: 13px;
     line-height: 1.6;
     background: #fffdf7;
-    border-radius: 2px;
+    border-radius: 4px;
+    color: #333;
   }
-  .output-msg.success { color: #155724; border-color: #c3e6cb; background: #d4edda; }
+  .output-msg.success { color: #155724; border-color: #a8d5b5; background: #d4edda; }
   .output-msg.error   { color: #721c24; border-color: #f5c6cb; background: #f8d7da; }
   .output-msg.info    { color: #0c5460; border-color: #bee5eb; background: #d1ecf1; }
 
-  /* ========= 武将列表 ========= */
-  .existing-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
-  }
-  .existing-item {
-    padding: 6px 12px;
-    background: #fff;
-    border: 1px solid var(--line);
-    font-size: 12px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    border-radius: 2px;
-  }
-  .existing-item .del {
-    cursor: pointer;
-    color: var(--red);
-    font-weight: 700;
-    font-size: 14px;
-    user-select: none;
-    padding: 0 4px;
-    touch-action: manipulation;
-  }
-  .existing-item .del:hover { background: #ffeeee; }
-  .empty-state { color: #777; font-size: 12px; padding: 4px 0; }
+  .empty-state { color: #999; font-size: 12px; padding: 8px 0; }
 
   .footer-nav {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid var(--line);
+    margin-top: 16px;
+    padding: 14px 0 0;
+    border-top: 1px solid #eee;
     display: flex;
     gap: 14px;
     align-items: center;
-    font-size: 13px;
-    color: #777;
+    font-size: 12px;
+    color: #999;
     flex-wrap: wrap;
   }
-  .footer-nav a { color: var(--blue); text-decoration: none; font-weight: 600; }
+  .footer-nav a { color: #c0392b; text-decoration: none; font-weight: 600; }
   .footer-nav a:hover { text-decoration: underline; }
 
+  /* ========= 技能卡片内部表格 ========= */
+  .skill-card table.tbl {
+    margin: 0;
+  }
+  .skill-card table.tbl th,
+  .skill-card table.tbl td {
+    padding: 5px 6px;
+    border: none;
+    border-bottom: 1px solid #f5f0e4;
+    font-size: 12px;
+  }
+  .skill-card table.tbl th {
+    width: 52px;
+    font-size: 11px;
+    color: #888;
+  }
+  .skill-card table.tbl td:first-child { padding-left: 0; }
+  .skill-card input,
+  .skill-card select {
+    font-size: 12px;
+    padding: 5px 8px;
+    min-height: 30px;
+  }
+
+  /* ========= 提交区域 ========= */
+  .submit-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .submit-row label {
+    font-size: 12px;
+    color: #666;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .submit-row input {
+    width: 140px;
   /* ========= 手机端适配 ========= */
   @media (max-width: 768px) {
-    .diy-wrap { padding: 14px 10px 80px; }
-    .diy-title { font-size: 22px; letter-spacing: 4px; }
-    .section { padding: 12px 12px; }
-    .section-title { font-size: 13px; letter-spacing: 2px; }
-    table.tbl { font-size: 12px; }
-    table.tbl th { width: 70px; padding: 6px 8px; font-size: 12px; }
-    table.tbl td { padding: 6px 8px; }
-    input[type="text"], input[type="number"], input[type="password"], select {
-      width: 100%;
-      max-width: 260px;
-      font-size: 14px;
-    }
-    .hint { display: block; margin: 4px 0 0; font-size: 11px; }
-    .code-editor textarea,
-    .code-editor .hl-layer { font-size: 12px; line-height: 1.8; }
-    .btn { font-size: 12px; padding: 8px 14px; }
+    .diy-wrap { padding: 12px 12px 100px; }
+    .diy-header { padding: 12px 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .diy-logo { font-size: 20px; }
+    .diy-steps { flex-wrap: wrap; gap: 4px; }
+    .diy-step { padding: 4px 10px; font-size: 11px; }
+    .diy-main { grid-template-columns: 1fr; }
+    .diy-hint-btn { left: 10px; bottom: 80px; }
+    .diy-tutorial-panel { width: 88vw; }
+    .fs-editor-mask { padding: 12px; }
+    .fs-editor-title { font-size: 13px; }
+    .fs-editor-title small { display: block; margin: 4px 0 0; font-size: 11px; }
+    .fs-editor-actions .btn { font-size: 11px; padding: 6px 10px; }
+    .card-body { padding: 12px; }
+    table.tbl th { width: 50px; }
+    input[type="text"], input[type="number"], input[type="password"], select { width: 100%; }
+    .hint { display: block; margin-top: 3px; }
+    .code-editor textarea, .code-editor .hl-layer { font-size: 11px; }
     .fs-btn { top: 10px; right: 10px; width: 40px; height: 40px; font-size: 16px; }
-    .skill-card { padding: 12px; }
   }
-
   @media (max-width: 480px) {
-    .diy-title { font-size: 20px; letter-spacing: 2px; }
-    table.tbl th { width: 64px; }
-    input[type="text"], input[type="number"], input[type="password"], select {
-      max-width: 100%;
-    }
+    .diy-steps { display: none; }
+    .diy-logo-sub { display: none; }
   }
 </style>
-</head>
-<body>
 
-<!-- 顶部：一键全屏切换 -->
+  <!-- 顶部：一键全屏切换 -->
 <button id="fs-toggle" class="fs-btn" aria-label="全屏切换">⛶</button>
 
-<div class="diy-wrap">
-  <h1 class="diy-title">DIY 武将</h1>
-  <p class="diy-sub">填武将属性 · 写技能代码 · 提交密码 · 全局通用</p>
+<!-- 悬浮教程按钮 -->
+<button class="diy-hint-btn" id="tutorial-toggle">
+  📖 教程 <span class="badge">6</span>
+</button>
 
-  <!-- ============ 一、教程（可折叠） ============ -->
-  <div class="section">
-    <div class="section-title">教程 · 速查</div>
+<!-- 悬浮教程面板遮罩 -->
+<div class="diy-tutorial-overlay" id="tutorial-overlay"></div>
 
+<!-- 悬浮教程面板 -->
+<div class="diy-tutorial-panel" id="tutorial-panel">
+  <div class="diy-tutorial-head">
+    <span>📖 教程 · 速查</span>
+    <button class="diy-tutorial-head-close" id="tutorial-close">✕</button>
+  </div>
+  <div class="diy-tutorial-body">
     <div class="collapsible open">
       <div class="collapsible-head">▶ 30 秒上手<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <ol>
-          <li>在下方「武将属性」填 id（英文）、name（中文）、hp、atk、def、移动范围、攻击范围。</li>
-          <li>点「<b>+ 添加一个技能</b>」，每个技能写 filter（是否可施放）和 content（技能主逻辑）。</li>
-          <li>在「提交」处输入密码 <code>diy123</code>，点「提交到服务器」。</li>
-          <li>回到游戏首页开一把，DIY 武将会出现在选将池中。</li>
+          <li>在左侧「武将属性」填 id、name、hp、atk、def、移动/攻击范围。</li>
+          <li>在右侧「技能列表」点「+ 添加」，写 filter 与 content 代码。</li>
+          <li>底部输入密码 <code>diy123</code>，点「提交到服务器」。</li>
+          <li>回到游戏首页，DIY 武将会出现在选将池中。</li>
         </ol>
       </div>
     </div>
-
     <div class="collapsible">
-      <div class="collapsible-head">▶ 完整示例：技能「强袭」（十字3格 · 1.5倍伤害）<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ 主动技能示例<span class="arrow">›</span></div>
       <div class="collapsible-body">
-        <p>filter（主动技能，判断是否可施放）：</p>
-<pre><code class="language-javascript">return actor && actor.alive && !actor.skilled;</code></pre>
-        <p>content（技能主逻辑，可使用 await）：</p>
-<pre><code class="language-javascript">// 让玩家选择一个敌人
-const target = await Effect.chooseEnemy(actor, {
+        <p>filter：<code>return actor &amp;&amp; actor.alive &amp;&amp; !actor.skilled;</code></p>
+        <pre><code class="language-javascript">const target = await Effect.chooseEnemy(actor, {
   range: { shape: "+", n: 3 },
-  hintText: "【强袭】请选择敌人"
+  hintText: "请选择敌人"
 });
 if (!target) return false;
-
-// 标记当前回合已使用技能
 actor.skilled = true;
-
-// 造成 1.5 倍攻击力伤害
 Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });
-
-// 写战报
-global.Game.log(actor.name + " 发动【强袭】！");
+global.Game.log(actor.name + " 发动技能！");
 return true;</code></pre>
       </div>
     </div>
-
     <div class="collapsible">
-      <div class="collapsible-head">▶ 被动技能示例：常胜（击杀后重置行动）<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ 被动技能示例（onKill）<span class="arrow">›</span></div>
       <div class="collapsible-body">
-        <p>type：<b>被动</b> · trigger：<b>onKill</b></p>
-        <p>filter：</p>
-<pre><code class="language-javascript">return actor && actor.alive;</code></pre>
-        <p>content：</p>
-<pre><code class="language-javascript">Effect.resetAction(actor);
+        <p>type：被动 · trigger：onKill</p>
+        <pre><code class="language-javascript">Effect.resetAction(actor);
 global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
-
     <div class="collapsible">
-      <div class="collapsible-head">▶ 范围形状参数<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ 范围形状<span class="arrow">›</span></div>
       <div class="collapsible-body">
-        <p>移动范围 / 攻击范围 / 技能范围均使用 <code>{ shape, n }</code> 描述：</p>
-        <ul>
-          <li><code>shape: "+"</code> — 十字形（四向），<code>n</code> = 距离</li>
-          <li><code>shape: "square"</code> — 正方形（八向），<code>n</code> = 半径</li>
-          <li><code>shape: "r"</code> — 圆形（曼哈顿），<code>n</code> = 半径</li>
-          <li><code>shape: "x"</code> — X 形（斜向），<code>n</code> = 距离</li>
-        </ul>
+        <p><code>{ shape: "+", n: 3 }</code> 十字形 · <code>{ shape: "square", n: 2 }</code> 方形 · <code>{ shape: "r", n: 2 }</code> 圆形 · <code>{ shape: "x", n: 2 }</code> X 形</p>
       </div>
     </div>
-
     <div class="collapsible">
-      <div class="collapsible-head">▶ API 速查（content / filter 中可直接使用）<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ API 速查<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <div class="api-tag-row">
-          <div class="api-tag"><b>Effect.chooseEnemy(actor, { range, hintText })</b> — 让玩家选敌人，返回目标或 false</div>
-          <div class="api-tag"><b>Effect.chooseCell(actor, { range, mustEmpty, hintText })</b> — 选格子</div>
-          <div class="api-tag"><b>Effect.damage(actor, target, num, { ignoreDef?, mul? })</b> — 造成伤害</div>
-          <div class="api-tag"><b>Effect.heal(target, num)</b> — 回血</div>
-          <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移</div>
-          <div class="api-tag"><b>Effect.push(actor, target, [dx,dy], dist)</b> — 击退</div>
-          <div class="api-tag"><b>Effect.mark(target, 'key', { display, modifiers, data })</b> — 加标记</div>
-          <div class="api-tag"><b>Effect.unmark(target, 'key')</b> — 移除标记</div>
-          <div class="api-tag"><b>Effect.resetAction(actor)</b> — 重置行动</div>
-          <div class="api-tag"><b>Effect.changeTerrain(x, y, 'r'|'m'|'w'|'f'|'plain')</b> — 改地形</div>
-          <div class="api-tag"><b>Effect.getEffectiveAttack(actor)</b> — 当前攻击力（含加成）</div>
-          <div class="api-tag"><b>Range.cellsInRange(shape, n, x, y, { includeSelf })</b> — 范围格子数组</div>
-          <div class="api-tag"><b>global.Game.pieceAt(x, y)</b> — 查询某格棋子</div>
-          <div class="api-tag"><b>global.Game.pieces</b> — 全部棋子数组</div>
-          <div class="api-tag"><b>global.Game.log(text)</b> — 写战报</div>
-          <div class="api-tag"><b>actor.x / actor.y / actor.hp / actor.side</b> — 武将属性</div>
-          <div class="api-tag"><b>target.hp / target.name / target.alive</b> — 目标属性</div>
+          <div class="api-tag"><b>Effect.chooseEnemy</b></div>
+          <div class="api-tag"><b>Effect.damage</b></div>
+          <div class="api-tag"><b>Effect.heal</b></div>
+          <div class="api-tag"><b>Effect.teleport</b></div>
+          <div class="api-tag"><b>Effect.push</b></div>
+          <div class="api-tag"><b>Effect.mark</b></div>
+          <div class="api-tag"><b>Effect.resetAction</b></div>
+          <div class="api-tag"><b>global.Game.log</b></div>
+          <div class="api-tag"><b>global.Game.pieces</b></div>
+          <div class="api-tag"><b>Range.cellsInRange</b></div>
         </div>
       </div>
     </div>
-
     <div class="collapsible">
       <div class="collapsible-head">▶ 数值参考<span class="arrow">›</span></div>
       <div class="collapsible-body">
-        <p>默认武将数值（平衡体验，可自由填写）：</p>
-        <ul>
-          <li>关羽：HP 200 · ATK 90 · DEF 20 · 移动 +2 · 攻击 方1</li>
-          <li>赵云：HP 150 · ATK 60 · DEF 20 · 移动 +3 · 攻击 +1</li>
-        </ul>
-        <p style="font-size: 12px; color: #888;">提示：HP 一般 150–300，ATK 50–100，DEF 15–30。</p>
+        <p>关羽：HP 200 · ATK 90 · DEF 20 · 移动+2 · 攻击方1</p>
+        <p>赵云：HP 150 · ATK 60 · DEF 20 · 移动+3 · 攻击+1</p>
       </div>
     </div>
-  </div>
-
-  <!-- ============ 二、已注册的 DIY 武将（表格视图） ============ -->
-  <div class="section">
-    <div class="section-title">已注册的 DIY 武将</div>
-    <div id="existing-generals">
-      <span class="empty-state">加载中...</span>
-    </div>
-  </div>
-
-  <!-- ============ 全屏编辑器弹窗 ============ -->
-  <div id="fs-editor" class="fs-editor-mask" aria-hidden="true">
-    <div class="fs-editor-head">
-      <div class="fs-editor-title">
-        <span id="fs-editor-label">代码编辑</span>
-        <small id="fs-editor-hint">ESC 关闭 · 内容自动保存</small>
-      </div>
-      <div class="fs-editor-actions">
-        <button id="fs-editor-save" class="btn primary">✓ 保存关闭</button>
-        <button id="fs-editor-cancel" class="btn danger">✕ 放弃更改</button>
-      </div>
-    </div>
-    <div class="fs-editor-body" id="fs-editor-body">
-      <!-- 动态插入 .code-editor 克隆 -->
-    </div>
-  </div>
-
-  <!-- ============ 三、武将属性 ============ -->
-  <div class="section">
-    <div class="section-title">一 · 武将属性</div>
-    <table class="tbl">
-      <tr>
-        <th>id</th>
-        <td>
-          <input type="text" id="gid" placeholder="英文标识符，如 zhaoyun" />
-          <span class="hint">2–20 位字母/数字/下划线，保存后自动加前缀 diy_</span>
-        </td>
-      </tr>
-      <tr>
-        <th>name</th>
-        <td><input type="text" id="gname" placeholder="显示名称，如 赵云" /></td>
-      </tr>
-      <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
-      <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
-      <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
-      <tr>
-        <th>移动范围</th>
-        <td>
-          形状 <select id="gmv-shape"><option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option></select>
-          半径 <input type="number" id="gmv-n" value="3" min="1" max="12" style="width: 72px" />
-        </td>
-      </tr>
-      <tr>
-        <th>攻击范围</th>
-        <td>
-          形状 <select id="gatk-shape"><option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option></select>
-          半径 <input type="number" id="gatk-n" value="1" min="1" max="12" style="width: 72px" />
-        </td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- ============ 四、技能列表 ============ -->
-  <div class="section">
-    <div class="section-title">二 · 技能列表（可多个）</div>
-    <div style="margin-bottom: 10px">
-      <button id="btn-add-skill" class="btn mini primary">+ 添加一个技能</button>
-      <span class="hint">默认技能已预填，可直接修改或添加更多</span>
-    </div>
-    <div id="skills-container">
-      <!-- 动态插入的技能卡片（脚本会初始化一个默认技能） -->
-    </div>
-  </div>
-
-  <!-- ============ 五、提交 ============ -->
-  <div class="section">
-    <div class="section-title">三 · 提交（需密码）</div>
-    <div>
-      <span style="font-size: 13px; margin-right: 8px;">密码</span>
-      <input type="password" id="pwd" placeholder="默认 diy123" style="width: 180px" />
-      <button id="btn-submit" class="btn primary" style="margin-left: 8px;">提交到服务器</button>
-      <button id="btn-reset" class="btn" style="margin-left: 4px;">重置</button>
-    </div>
-    <div id="submit-info" class="output-msg" style="display: none;"></div>
-  </div>
-
-  <!-- ============ 页脚导航 ============ -->
-  <div class="footer-nav">
-    <a href="/">← 返回游戏首页</a>
-    <span>·</span>
-    <span>密码默认 <code style="background: #f0ead7; padding: 1px 6px; border-radius: 2px; font-size: 12px;">diy123</code></span>
   </div>
 </div>
+
+<!-- 全屏编辑器弹窗 -->
+<div id="fs-editor" class="fs-editor-mask" aria-hidden="true">
+  <div class="fs-editor-head">
+    <div class="fs-editor-title">
+      <span id="fs-editor-label">代码编辑</span>
+      <small id="fs-editor-hint">ESC 保存关闭 · 点击遮罩保存</small>
+    </div>
+    <div class="fs-editor-actions">
+      <button id="fs-editor-save" class="btn primary">✓ 保存</button>
+      <button id="fs-editor-cancel" class="btn danger">✕ 取消</button>
+    </div>
+  </div>
+  <div class="fs-editor-body" id="fs-editor-body"></div>
+</div>
+
+<div class="diy-wrap">
+  <!-- 顶部标题栏 -->
+  <div class="diy-header">
+    <div class="diy-header-left">
+      <span class="diy-logo">DIY 武将</span>
+      <span class="diy-logo-sub">填属性 · 写技能 · 提交</span>
+    </div>
+    <div class="diy-steps">
+      <div class="diy-step active" data-step="1">
+        <div class="diy-step-num">1</div>
+        <span>填属性</span>
+      </div>
+      <span class="diy-step-sep">›</span>
+      <div class="diy-step" data-step="2">
+        <div class="diy-step-num">2</div>
+        <span>写技能</span>
+      </div>
+      <span class="diy-step-sep">›</span>
+      <div class="diy-step" data-step="3">
+        <div class="diy-step-num">3</div>
+        <span>提交</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 两栏主布局 -->
+  <div class="diy-main">
+    <!-- 左栏：武将属性 + 已注册武将 -->
+    <div class="diy-left">
+      <!-- 已注册武将表格 -->
+      <div class="card" style="margin-bottom: 14px;">
+        <div class="card-head">
+          <div class="card-title">📋 已注册武将</div>
+        </div>
+        <div class="card-body" id="existing-generals">
+          <span class="empty-state">加载中...</span>
+        </div>
+      </div>
+
+      <!-- 武将属性卡片 -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="card-title-num">1</span>
+            武将属性
+          </div>
+        </div>
+        <div class="card-body">
+          <table class="tbl">
+            <tr>
+              <th>id</th>
+              <td>
+                <input type="text" id="gid" placeholder="如 zhaoyun" />
+                <span class="hint">2–20 位字母/数字/下划线，自动加前缀 diy_</span>
+              </td>
+            </tr>
+            <tr><th>name</th><td><input type="text" id="gname" placeholder="如 赵云" /></td></tr>
+            <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
+            <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
+            <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
+            <tr>
+              <th>移动</th>
+              <td>
+                <select id="gmv-shape" style="width:80px;margin-right:6px;">
+                  <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
+                </select>
+                <input type="number" id="gmv-n" value="3" min="1" max="12" style="width:60px" />
+              </td>
+            </tr>
+            <tr>
+              <th>攻击</th>
+              <td>
+                <select id="gatk-shape" style="width:80px;margin-right:6px;">
+                  <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
+                </select>
+                <input type="number" id="gatk-n" value="1" min="1" max="12" style="width:60px" />
+              </td>
+            </tr>
+          </table>
+
+          <!-- 提交区域 -->
+          <div class="submit-row">
+            <label>密码</label>
+            <input type="password" id="pwd" placeholder="diy123" />
+            <button id="btn-submit" class="btn primary">✓ 提交</button>
+            <button id="btn-reset" class="btn">重置</button>
+          </div>
+          <div id="submit-info" class="output-msg" style="display:none;"></div>
+        </div>
+      </div>
+    </div><!-- end .diy-left -->
+
+    <!-- 右栏：技能列表 -->
+    <div class="diy-right">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">
+            <span class="card-title-num">2</span>
+            技能列表
+          </div>
+          <button id="btn-add-skill" class="btn mini primary">+ 添加技能</button>
+        </div>
+        <div class="card-body">
+          <span class="hint" style="margin-bottom:8px;display:block;">每个技能写 filter（判断是否可施放）和 content（主逻辑）。点击右上角「⤢ 全屏编辑」可展开大屏。</span>
+          <div id="skills-container"></div>
+        </div>
+      </div>
+
+      <div class="footer-nav">
+        <a href="/">← 返回游戏首页</a>
+        <span>·</span>
+        <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
+      </div>
+    </div><!-- end .diy-right -->
+  </div><!-- end .diy-main -->
+</div><!-- end .diy-wrap -->
 
 <script>
   // ============================================================
@@ -1293,10 +1565,48 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   // 初始化：按钮绑定 + 默认技能卡片 + 教程区高亮
   // ============================================================
   function initDiyPage() {
+    // 悬浮教程面板 toggle
+    var tutBtn = $('tutorial-toggle');
+    var tutPanel = $('tutorial-panel');
+    var tutOverlay = $('tutorial-overlay');
+    var tutClose = $('tutorial-close');
+
+    function openTutorial() {
+      tutPanel.classList.add('open');
+      tutOverlay.classList.add('open');
+    }
+    function closeTutorial() {
+      tutPanel.classList.remove('open');
+      tutOverlay.classList.remove('open');
+    }
+    if (tutBtn) tutBtn.addEventListener('click', openTutorial);
+    if (tutClose) tutClose.addEventListener('click', closeTutorial);
+    if (tutOverlay) tutOverlay.addEventListener('click', closeTutorial);
+
+    // 步骤指示器：根据用户焦点自动高亮
+    var steps = qsa('.diy-step');
+    var inputs = qsa('input:not(#pwd), select, textarea', $('skills-container'));
+    var stepEls = qsa('.diy-step');
+
+    function updateStep() {
+      var focused = document.activeElement;
+      var inSkill = focused && (focused.tagName === 'TEXTAREA' ||
+        (focused.closest && focused.closest('#skills-container')));
+      var step = inSkill ? 2 : 1;
+      stepEls.forEach(function (el) {
+        var n = parseInt(el.dataset.step, 10);
+        el.classList.remove('active', 'done');
+        if (n === step) el.classList.add('active');
+        else if (n < step) el.classList.add('done');
+      });
+    }
+    document.addEventListener('focusin', updateStep);
+
     var addBtn = $('btn-add-skill');
     if (addBtn) {
       addBtn.addEventListener('click', function () {
         addSkillCard();
+        updateStep();
       });
     }
 
@@ -1309,7 +1619,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('gname').value = '';
         $('ghp').value = 200;
         $('gatk').value = 50;
-        $('gdef').value = 200;
         $('gdef').value = 20;
         $('gmv-n').value = 3;
         $('gatk-n').value = 1;
@@ -1317,23 +1626,28 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('skills-container').innerHTML = '';
         addSkillCard();
         hideMsg();
+        updateStep();
       });
     }
 
     // 提交按钮
     var submitBtn = $('btn-submit');
     if (submitBtn) {
-      submitBtn.addEventListener('click', submitGeneral);
+      submitBtn.addEventListener('click', function () {
+        submitGeneral();
+        // 高亮提交步骤
+        stepEls.forEach(function (el) {
+          el.classList.remove('active', 'done');
+          if (parseInt(el.dataset.step, 10) === 3) el.classList.add('active');
+          else if (parseInt(el.dataset.step, 10) < 3) el.classList.add('done');
+        });
+      });
     }
 
     // 教程区 <pre><code> 应用高亮（若 hljs 已就绪）
     try {
       if (window.hljs && typeof hljs.highlightAll === 'function') {
         hljs.highlightAll();
-      } else {
-        qsa('.collapsible-body pre code').forEach(function (el) {
-          el.textContent = el.textContent;
-        });
       }
     } catch (e) {}
 
@@ -1342,6 +1656,9 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
     // 加载已注册的武将
     loadExistingGenerals();
+
+    // 初始步骤
+    updateStep();
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
