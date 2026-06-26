@@ -460,7 +460,7 @@
         body.appendChild(row);
       };
 
-      addRow('生命', piece.hp + ' / ' + piece.maxHp);
+      addRow('生命', piece.hp + ' / ' + piece.maxHp + (piece.shield ? '（护盾 +' + piece.shield + '）' : ''));
       addRow('攻击', piece.atk + (piece.atkBuff ? ' (+' + piece.atkBuff + ')' : ''));
       addRow('防御', piece.def + (piece.defBuff ? ' (+' + piece.defBuff + ')' : ''));
       function rangeText(r) {
@@ -480,6 +480,46 @@
         if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
         addRow('当前位置', tInfo);
       }
+
+      // 标记状态（护盾、眩晕、魅惑、闪避、荆棘等）
+      const marks = Effect ? Effect.getMarksOn(piece) : [];
+      if (marks.length > 0) {
+        const block = document.createElement('div');
+        block.className = 'block';
+        const t = document.createElement('div');
+        t.className = 'block-title';
+        t.textContent = '状态效果（' + marks.length + '）';
+        block.appendChild(t);
+
+        for (const m of marks) {
+          const row = document.createElement('div');
+          row.className = 'row';
+          const l = document.createElement('span');
+          l.className = 'label';
+          l.textContent = '【' + m.display + '】';
+          const v = document.createElement('span');
+          v.className = 'value';
+
+          // 根据标记类型显示详细信息
+          const mods = m.modifiers || {};
+          const data = m.data || {};
+          const parts = [];
+          if (mods.stunTurns) parts.push('眩晕 ' + (data.turns !== undefined ? data.turns : mods.stunTurns) + ' 回合');
+          if (mods.charmTurns) parts.push('魅惑 ' + (data.turns !== undefined ? data.turns : mods.charmTurns) + ' 回合' + (data.originalSide ? ' → ' + (data.originalSide === 'red' ? '红方' : '蓝方') : ''));
+          if (mods.dodgeChance) parts.push('闪避 ' + Math.floor(mods.dodgeChance * 100) + '%');
+          if (mods.thornsTurns) parts.push('荆棘 ' + mods.thornsAmount + ' 反伤' + (mods.thornsTurns > 1 ? '（' + (data.turns !== undefined ? data.turns : mods.thornsTurns) + ' 回合）' : ''));
+          if (mods.zeroDef) parts.push('防御归零');
+          if (mods.atkBuff && !mods.stunTurns && !mods.charmTurns && !mods.dodgeChance && !mods.thornsTurns) parts.push('攻击+' + mods.atkBuff);
+          if (mods.moveRangeDelta) parts.push('移动力' + (mods.moveRangeDelta > 0 ? '+' : '') + mods.moveRangeDelta + (mods.moveRangeTurns > 1 ? '（' + (data.turns !== undefined ? data.turns : mods.moveRangeTurns) + ' 回合）' : ''));
+
+          v.textContent = parts.length > 0 ? parts.join(' · ') : m.name;
+          row.appendChild(l);
+          row.appendChild(v);
+          block.appendChild(row);
+        }
+        body.appendChild(block);
+      }
+
       const skillList = piece.skills || (piece.skill ? [piece.skill] : []);
       if (skillList.length) {
         const block = document.createElement('div');
@@ -1140,6 +1180,16 @@
             p.defBuffTurns = 0;
           }
         }
+
+        // 移动力buff回合递减
+        const moveRangeMarks = marks.filter(m => m.modifiers && m.modifiers.moveRangeDelta);
+        for (const m of moveRangeMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.moveRangeTurns = m.data.turns;
+            if (m.data.turns <= 0) Effect.unmark(p, m.name);
+          }
+        }
       }
 
       this._render();
@@ -1325,14 +1375,27 @@
       }
       nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
       const parts = [];
-      parts.push('生命' + a.hp + '/' + a.maxHp);
+      parts.push('生命' + a.hp + '/' + a.maxHp + (a.shield ? ' 盾+' + a.shield : ''));
       parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
       if (a.attacked) stateParts.push('已攻击');
       if (a.skilled) stateParts.push('已技能');
-      parts.push(stateParts.length ? stateParts.join('/') : '可行动');
+      // 关键标记显示
+      const marks = Effect ? Effect.getMarksOn(a) : [];
+      const markLabels = [];
+      for (const m of marks) {
+        const mods = m.modifiers || {};
+        if (mods.stunTurns) markLabels.push('晕');
+        else if (mods.charmTurns) markLabels.push('魅');
+        else if (mods.dodgeChance) markLabels.push('闪');
+        else if (mods.thornsTurns) markLabels.push('荆');
+        else if (mods.zeroDef) markLabels.push('破防');
+        else markLabels.push(m.display);
+      }
+      if (markLabels.length > 0) stateParts.push(markLabels.join('/'));
+      parts.push(stateParts.length ? stateParts.join(' · ') : '可行动');
       statsEl.textContent = parts.join(' · ');
       if (detailBtn) detailBtn.disabled = false;
 

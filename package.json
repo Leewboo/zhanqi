@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "koa": "^2.15.3",
-    "koa-static": "^5.0.0"
+    "koa-static": "^5.0.0",
+    "playwright-core": "^1.61.1"
   }
 }
