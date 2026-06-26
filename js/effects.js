@@ -128,6 +128,24 @@
     damage(actor, target, amount, opts) {
       opts = opts || {};
       if (!target || !target.alive) return 0;
+
+      // 闪避判定
+      const dodgeMarks = this.getMarksOn(target).filter(m => m.modifiers && m.modifiers.dodgeChance);
+      if (dodgeMarks.length > 0) {
+        const maxChance = Math.max(...dodgeMarks.map(m => m.modifiers.dodgeChance));
+        if (Math.random() < maxChance) {
+          // 闪避成功，移除所有闪避标记
+          dodgeMarks.forEach(m => Effect.unmark(target, m.name));
+          if (global.Game) {
+            global.Game._showFloatText(target.x, target.y, '闪避!', 'dodge');
+            global.Game.log(target.name + ' 闪避了攻击！');
+          }
+          return 0;
+        }
+        // 闪避失败，移除闪避标记
+        dodgeMarks.forEach(m => Effect.unmark(target, m.name));
+      }
+
       let atk = amount;
       const marks = this.getMarksOn(target);
       const hasZeroDef = marks.some(m => m.modifiers && m.modifiers.zeroDef);
@@ -137,17 +155,57 @@
         const effDef = hasZeroDef ? 0 : this.getEffectiveDefense(target);
         atk = Math.max(1, amount - effDef);
       }
-      const final = Math.max(1, Math.floor(atk * (opts.mul || 1)));
-      target.hp -= final;
+      let final = Math.max(1, Math.floor(atk * (opts.mul || 1)));
+
+      // 先扣护盾
+      let shieldAbsorbed = 0;
+      if (target.shield && target.shield > 0 && !opts.ignoreShield) {
+        shieldAbsorbed = Math.min(target.shield, final);
+        target.shield -= shieldAbsorbed;
+        final -= shieldAbsorbed;
+        if (global.Game && shieldAbsorbed > 0) {
+          global.Game._showFloatText(target.x, target.y, '护盾-' + shieldAbsorbed, 'shield');
+        }
+      }
+
+      if (final > 0) {
+        target.hp -= final;
+      }
       
       if (global.Game) {
-        // 显示受击特效
         global.Game._showHitEffect(target.x, target.y, final > 50);
-        // 显示伤害飘字
-        global.Game._showFloatText(target.x, target.y, '-' + final, 'damage');
+        if (final > 0) {
+          global.Game._showFloatText(target.x, target.y, '-' + final, 'damage');
+        }
         
         const note = hasZeroDef ? '（' + markNames + '，防御归零）' : '';
-        global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害' + note + '。');
+        const shieldNote = shieldAbsorbed > 0 ? '（护盾吸收 ' + shieldAbsorbed + '）' : '';
+        global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害' + note + shieldNote + '。');
+
+        // 触发被攻击事件
+        Effect.trigger('onAttacked', { actor, target, damage: final });
+
+        // 触发目标的 onAttacked 被动技能
+        if (target.skills) {
+          for (const sk of target.skills) {
+            if (sk.type === '被动' && sk.trigger === 'onAttacked' && sk.filter && sk.filter(target)) {
+              try {
+                sk.content(target, { attacker: actor, damage: final });
+              } catch (e) { console.error(e); }
+            }
+          }
+        }
+
+        // 荆棘反伤
+        const thornMarks = marks.filter(m => m.modifiers && m.modifiers.thornsAmount);
+        if (thornMarks.length > 0 && actor && actor.alive && final > 0) {
+          let totalThorns = thornMarks.reduce((s, m) => s + (m.modifiers.thornsAmount || 0), 0);
+          if (totalThorns > 0) {
+            Effect.damage(target, actor, totalThorns, { ignoreDef: true });
+            global.Game.log('【荆棘】反弹 ' + totalThorns + ' 伤害给 ' + actor.name + '。');
+          }
+        }
+
         if (target.hp <= 0) {
           target.hp = 0;
           target.alive = false;
@@ -274,6 +332,198 @@
 
     drawAoe(shape, n, originX, originY, options) {
       return Range.cellsInRange(shape, n, originX, originY, options);
+    },
+
+    // ========== 进阶效果 API ==========
+
+    // 拉拽：将目标向 actor 方向拉 n 格
+    pull(actor, target, n) {
+      if (!target || !global.Game) return 0;
+      n = n || 1;
+      const g = global.Game;
+      let moved = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = Math.sign(actor.x - target.x);
+        const dy = Math.sign(actor.y - target.y);
+        if (dx === 0 && dy === 0) break;
+        const nx = target.x + dx;
+        const ny = target.y + dy;
+        if (nx < 0 || ny < 0 || nx >= SIZE || ny >= SIZE) break;
+        if (g.pieceAt(nx, ny)) break;
+        target.x = nx;
+        target.y = ny;
+        moved++;
+      }
+      if (moved > 0 && g) g.log(target.name + ' 被拉拽 ' + moved + ' 格。');
+      return moved;
+    },
+
+    // 吸血伤害：造成伤害的同时回复对应比例的生命
+    leech(actor, target, amount, opts) {
+      opts = opts || {};
+      if (!actor || !target) return 0;
+      const dmg = Effect.damage(actor, target, amount, opts);
+      const ratio = opts.leechRatio || 0.5;
+      const healAmt = Math.floor(dmg * ratio);
+      if (healAmt > 0) Effect.heal(actor, healAmt);
+      return dmg;
+    },
+
+    // 范围爆炸：在指定坐标造成 aoe 伤害
+    explode(actor, x, y, range, amount, opts) {
+      opts = opts || {};
+      if (!global.Game) return { hits: 0, cells: 0 };
+      const g = global.Game;
+      const shape = opts.shape || 'r';
+      const n = range || 1;
+      const cells = Range.cellsInRange(shape, n, x, y, { includeSelf: true });
+      let hits = 0;
+      for (const c of cells) {
+        const t = g.pieceAt(c.x, c.y);
+        if (t && t.alive && (opts.includeAllies || t.side !== actor.side)) {
+          Effect.damage(actor, t, amount, opts);
+          hits++;
+        }
+      }
+      return { hits, cells: cells.length };
+    },
+
+    // 护盾：吸收固定伤害，被打破时消失
+    shield(target, amount, opts) {
+      opts = opts || {};
+      if (!target || !target.alive) return 0;
+      target.shield = (target.shield || 0) + amount;
+      if (global.Game) {
+        global.Game.log(target.name + ' 获得 ' + amount + ' 点护盾。');
+        global.Game._showFloatText(target.x, target.y, '+' + amount + '盾', 'shield');
+      }
+      return amount;
+    },
+
+    // 眩晕：目标跳过下一次行动（moved/attacked/skilled 锁定）
+    stun(target, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'stun', {
+        display: '晕',
+        modifiers: { stunTurns: turns },
+        data: { turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 被眩晕 ' + turns + ' 回合！');
+      return true;
+    },
+
+    // 魅惑/控制：目标下回合变为友方（临时换边）
+    charm(actor, target, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'charm', {
+        display: '魅',
+        modifiers: { charmTurns: turns, originalSide: target.side },
+        data: { turns, originalSide: target.side, charmedBy: actor.generalId }
+      });
+      target.side = actor.side;
+      if (global.Game) global.Game.log(target.name + ' 被魅惑，加入 ' + (actor.side === 'red' ? '红方' : '蓝方') + '！');
+      return true;
+    },
+
+    // 反伤盾：受到攻击时反弹部分伤害给攻击者
+    thorns(target, amount, turns) {
+      turns = turns || 2;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'thorns', {
+        display: '棘',
+        modifiers: { thornsTurns: turns, thornsAmount: amount },
+        data: { amount, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 获得荆棘护甲（反伤 ' + amount + '）。');
+      return true;
+    },
+
+    // 闪避标记：下一次受到的伤害有概率闪避
+    dodge(target, chance) {
+      chance = chance || 0.5;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'dodge', {
+        display: '闪',
+        modifiers: { dodgeChance: chance },
+        data: { chance }
+      });
+      if (global.Game) global.Game.log(target.name + ' 获得闪避状态（' + Math.floor(chance * 100) + '%）。');
+      return true;
+    },
+
+    // 移动力增益/减益
+    modifyMoveRange(target, delta, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      const key = 'mov_' + (delta > 0 ? 'up' : 'down');
+      const display = delta > 0 ? ('移+' + delta) : ('移' + delta);
+      Effect.mark(target, key, {
+        display: display,
+        modifiers: { moveRangeDelta: delta, moveRangeTurns: turns },
+        data: { delta, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 移动力 ' + (delta > 0 ? '+' : '') + delta + '。');
+      return true;
+    },
+
+    // 攻击力增益/减益（带持续回合数）
+    modifyAttack(target, delta, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return 0;
+      target.atkBuff = (target.atkBuff || 0) + delta;
+      const key = 'atk_' + (delta > 0 ? 'up' : 'down') + '_' + Math.abs(delta);
+      Effect.mark(target, key, {
+        display: (delta > 0 ? '攻+' : '攻') + delta,
+        modifiers: { atkBuff: 0 },
+        data: { delta, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 攻击力 ' + (delta > 0 ? '+' : '') + delta + '（' + turns + '回合）。');
+      return delta;
+    },
+
+    // 直接对范围内所有友方治疗
+    healArea(actor, shape, n, amount) {
+      if (!global.Game) return 0;
+      const cells = Range.cellsInRange(shape, n, actor.x, actor.y, { includeSelf: true });
+      let count = 0;
+      for (const c of cells) {
+        const t = global.Game.pieceAt(c.x, c.y);
+        if (t && t.alive && t.side === actor.side) {
+          Effect.heal(t, amount);
+          count++;
+        }
+      }
+      return count;
+    },
+
+    // 选择友方单位
+    chooseAlly(actor, options) {
+      return Effect.chooseCell(actor, Object.assign({}, options, { mustAlly: true }))
+        .then(function (cell) {
+          if (!cell) return null;
+          return global.Game.pieceAt(cell.x, cell.y);
+        });
+    },
+
+    // 获取某方所有存活棋子
+    getAllies(actor) {
+      if (!global.Game) return [];
+      return global.Game.pieces.filter(p => p.alive && p.side === actor.side);
+    },
+    getEnemies(actor) {
+      if (!global.Game) return [];
+      return global.Game.pieces.filter(p => p.alive && p.side !== actor.side);
+    },
+
+    // 随机数工具
+    random(min, max) {
+      if (max === undefined) { max = min; min = 0; }
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    },
+    chance(p) {
+      return Math.random() < p;
     }
   };
 

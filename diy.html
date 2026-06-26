@@ -1019,33 +1019,86 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ 被动触发时机一览<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <ul>
+          <li><code>turnEnd</code> — 回合结束时触发（己方回合）</li>
+          <li><code>turnStart</code> — 回合开始时触发（己方回合，可加护盾/buff）</li>
+          <li><code>onKill</code> — 击杀敌人时触发（<code>context.target</code> 为被击杀者）</li>
+          <li><code>onAttacked</code> — 被攻击后触发（<code>context.attacker</code> 为攻击者，<code>context.damage</code> 为受到的伤害）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ 范围形状<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <p><code>{ shape: "+", n: 3 }</code> 十字形 · <code>{ shape: "square", n: 2 }</code> 方形 · <code>{ shape: "r", n: 2 }</code> 圆形 · <code>{ shape: "x", n: 2 }</code> X 形</p>
       </div>
     </div>
     <div class="collapsible">
-      <div class="collapsible-head">▶ API 速查<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ API 速查（战斗类）<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <div class="api-tag-row">
-          <div class="api-tag"><b>Effect.chooseEnemy</b></div>
-          <div class="api-tag"><b>Effect.damage</b></div>
-          <div class="api-tag"><b>Effect.heal</b></div>
-          <div class="api-tag"><b>Effect.teleport</b></div>
-          <div class="api-tag"><b>Effect.push</b></div>
-          <div class="api-tag"><b>Effect.mark</b></div>
-          <div class="api-tag"><b>Effect.resetAction</b></div>
-          <div class="api-tag"><b>global.Game.log</b></div>
-          <div class="api-tag"><b>global.Game.pieces</b></div>
-          <div class="api-tag"><b>Range.cellsInRange</b></div>
+          <div class="api-tag"><b>Effect.damage(actor, target, amt, opts)</b> — 造成伤害，opts: ignoreDef/mul</div>
+          <div class="api-tag"><b>Effect.heal(target, amt)</b> — 恢复生命</div>
+          <div class="api-tag"><b>Effect.leech(actor, target, amt, opts)</b> — 吸血伤害，leechRatio 默认 0.5</div>
+          <div class="api-tag"><b>Effect.explode(actor, x, y, n, amt, opts)</b> — 在(x,y)爆炸造成范围伤害</div>
+          <div class="api-tag"><b>Effect.basicAttack(actor, target)</b> — 普通攻击伤害</div>
+          <div class="api-tag"><b>Effect.getEffectiveAttack(actor)</b> — 当前攻击力（含加成）</div>
+          <div class="api-tag"><b>Effect.getEffectiveDefense(target)</b> — 当前防御力（含地形加成）</div>
+          <div class="api-tag"><b>Effect.modifyAttack(target, delta, turns)</b> — 增减攻击（带持续回合）</div>
         </div>
       </div>
     </div>
     <div class="collapsible">
-      <div class="collapsible-head">▶ 数值参考<span class="arrow">›</span></div>
+      <div class="collapsible-head">▶ API 速查（状态类）<span class="arrow">›</span></div>
       <div class="collapsible-body">
+        <div class="api-tag-row">
+          <div class="api-tag"><b>Effect.shield(target, amt)</b> — 加护盾，先扣盾再扣血</div>
+          <div class="api-tag"><b>Effect.stun(target, turns)</b> — 眩晕，跳过行动</div>
+          <div class="api-tag"><b>Effect.charm(actor, target, turns)</b> — 魅惑，目标临时加入己方</div>
+          <div class="api-tag"><b>Effect.dodge(target, chance)</b> — 获得闪避（0-1概率，下次受击判定）</div>
+          <div class="api-tag"><b>Effect.thorns(target, amt, turns)</b> — 荆棘反伤护甲</div>
+          <div class="api-tag"><b>Effect.mark(target, name, opts)</b> — 加标记（display/modifiers/data）</div>
+          <div class="api-tag"><b>Effect.unmark(target, name)</b> — 移除标记</div>
+          <div class="api-tag"><b>Effect.hasMark(target, name)</b> — 是否有某标记</div>
+          <div class="api-tag"><b>Effect.modifyMoveRange(target, delta, turns)</b> — 增减移动力</div>
+        </div>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ API 速查（位移/选择/工具）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <div class="api-tag-row">
+          <div class="api-tag"><b>Effect.chooseEnemy(actor, opts)</b> — 选择敌人，返回目标或 null</div>
+          <div class="api-tag"><b>Effect.chooseAlly(actor, opts)</b> — 选择友方</div>
+          <div class="api-tag"><b>Effect.chooseCell(actor, opts)</b> — 选择格子，返回 {x,y} 或 null</div>
+          <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移到空格</div>
+          <div class="api-tag"><b>Effect.push(actor, target, dir, n)</b> — 击退 n 格，dir=[dx,dy]</div>
+          <div class="api-tag"><b>Effect.pull(actor, target, n)</b> — 拉拽 n 格向自己</div>
+          <div class="api-tag"><b>Effect.resetAction(actor)</b> — 重置移动/攻击/技能</div>
+          <div class="api-tag"><b>Effect.getAllies(actor)</b> — 获取所有友方存活棋子</div>
+          <div class="api-tag"><b>Effect.getEnemies(actor)</b> — 获取所有敌方存活棋子</div>
+          <div class="api-tag"><b>Effect.healArea(actor, shape, n, amt)</b> — 范围治疗友方</div>
+          <div class="api-tag"><b>Effect.changeTerrain(x, y, type)</b> — 改地形：r(河)/m(山)/f(林)/w(沼)/plain</div>
+          <div class="api-tag"><b>Effect.random(min, max)</b> — 随机整数</div>
+          <div class="api-tag"><b>Effect.chance(p)</b> — 概率判定，返回 true/false</div>
+          <div class="api-tag"><b>global.Game.log(text)</b> — 写战报</div>
+          <div class="api-tag"><b>global.Game.pieceAt(x, y)</b> — 查询某格棋子</div>
+          <div class="api-tag"><b>Range.cellsInRange(shape, n, x, y, opts)</b> — 范围格子数组</div>
+        </div>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 武将数值参考<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>吕布：HP 260 · ATK 100 · DEF 25 · 移动+3 · 攻击方1</p>
         <p>关羽：HP 200 · ATK 90 · DEF 20 · 移动+2 · 攻击方1</p>
+        <p>张飞：HP 230 · ATK 85 · DEF 18 · 移动+2 · 攻击+1</p>
         <p>赵云：HP 150 · ATK 60 · DEF 20 · 移动+3 · 攻击+1</p>
+        <p>周瑜：HP 170 · ATK 55 · DEF 18 · 移动+3 · 攻击+2</p>
+        <p>诸葛亮：HP 140 · ATK 40 · DEF 15 · 移动+2 · 攻击方2</p>
+        <p>貂蝉：HP 130 · ATK 35 · DEF 12 · 移动圆3 · 攻击方1</p>
       </div>
     </div>
   </div>
@@ -1509,6 +1562,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             '<select class="s-trigger">' +
               '<option value="">无（主动）</option>' +
               '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
+              '<option value="onAttacked"' + (p.trigger === 'onAttacked' ? ' selected' : '') + '>onAttacked（被攻击时）</option>' +
+              '<option value="turnStart"' + (p.trigger === 'turnStart' ? ' selected' : '') + '>turnStart（回合开始）</option>' +
               '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
             '</select></td>' +
             '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td></tr>' +

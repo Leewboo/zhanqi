@@ -731,7 +731,10 @@
       
       const rect = cell.getBoundingClientRect();
       const float = document.createElement('div');
-      float.className = type === 'heal' ? 'heal-float' : 'damage-float';
+      if (type === 'heal') float.className = 'heal-float';
+      else if (type === 'shield') float.className = 'shield-float';
+      else if (type === 'dodge') float.className = 'dodge-float';
+      else float.className = 'damage-float';
       float.textContent = text;
       float.style.position = 'fixed';
       float.style.left = (rect.left + rect.width / 2) + 'px';
@@ -1056,12 +1059,90 @@
       }
       this._clearSelection();
       this._refreshUi();
+
+      // 回合开始事件（处理状态递减（在刷新 UI 之后触发 turnStart 事件
+      Effect.trigger('turnStart', { side: this.currentSide, turn: this.turn });
+
+      // 处理眩晕：眩晕
+      this._handleTurnStartBuffs();
+
       if (!this.aiMode) {
         this._turnEnding = false;
         const endBtn2 = document.getElementById('btn-end');
         if (endBtn2) endBtn2.disabled = false;
       }
       this._maybeAiAct();
+    },
+
+    _handleTurnStartBuffs() {
+      const side = this.currentSide;
+      const pieces = this.pieces.filter(p => p.alive && p.side === side);
+
+      for (const p of pieces) {
+        const marks = Effect.getMarksOn(p);
+
+        // 眩晕：跳过本回合行动
+        const stunMarks = marks.filter(m => m.modifiers && m.modifiers.stunTurns);
+        if (stunMarks.length > 0) {
+          p.moved = true;
+          p.attacked = true;
+          p.skilled = true;
+          this.log(p.name + ' 处于眩晕状态，跳过行动。', 'turn');
+          // 眩晕回合数 -1
+          for (const m of stunMarks) {
+            if (m.data && typeof m.data.turns === 'number') {
+              m.data.turns -= 1;
+              m.modifiers.stunTurns = m.data.turns;
+              if (m.data.turns <= 0) Effect.unmark(p, m.name);
+            }
+          }
+        }
+
+        // 魅惑回合数递减
+        const charmMarks = marks.filter(m => m.modifiers && m.modifiers.charmTurns);
+        for (const m of charmMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.charmTurns = m.data.turns;
+            if (m.data.turns <= 0) {
+              // 恢复原始阵营
+              if (m.data.originalSide) p.side = m.data.originalSide;
+              Effect.unmark(p, m.name);
+              this.log(p.name + ' 的魅惑效果结束，恢复原阵营。', 'turn');
+            }
+          }
+        }
+
+        // 荆棘回合数递减
+        const thornMarks = marks.filter(m => m.modifiers && m.modifiers.thornsTurns);
+        for (const m of thornMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.thornsTurns = m.data.turns;
+            if (m.data.turns <= 0) Effect.unmark(p, m.name);
+          }
+        }
+
+        // 攻击 buff 回合递减
+        if (p.atkBuffTurns !== undefined && p.atkBuffTurns > 0) {
+          p.atkBuffTurns -= 1;
+          if (p.atkBuffTurns <= 0) {
+            p.atkBuff = 0;
+            p.atkBuffTurns = 0;
+          }
+        }
+
+        // 防御 buff 回合递减
+        if (p.defBuffTurns !== undefined && p.defBuffTurns > 0) {
+          p.defBuffTurns -= 1;
+          if (p.defBuffTurns <= 0) {
+            p.defBuff = 0;
+            p.defBuffTurns = 0;
+          }
+        }
+      }
+
+      this._render();
     },
 
     cellMoveCost(x, y) {

@@ -351,6 +351,246 @@
         Effect.damage(actor, target, Math.floor(baseAtk * 1.6), { ignoreDef: true });
         return true;
       }
+    },
+
+    // ========== 吕布 ==========
+    wuShuang: {
+      id: 'wuShuang',
+      name: '无双',
+      type: '主动',
+      cooldown: 3,
+      preview: { shape: 'square', n: 1, passThrough: true },
+      desc: '对周围方形1格内所有敌人造成2倍伤害，并击退2格。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        actor.skilled = true;
+        const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false });
+        let hits = 0;
+        for (const c of cells) {
+          const t = global.Game.pieceAt(c.x, c.y);
+          if (t && t.alive && t.side !== actor.side) {
+            Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 2 });
+            const dir = [Math.sign(c.x - actor.x) || 0, Math.sign(c.y - actor.y) || 0];
+            Effect.push(actor, t, dir, 2);
+            hits++;
+          }
+        }
+        global.Game.log(actor.name + ' 发动【无双】，横扫 ' + hits + ' 人！');
+        return hits > 0;
+      }
+    },
+    feiJiang: {
+      id: 'feiJiang',
+      name: '飞将',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnStart',
+      desc: '回合开始时，若周围方形2格内没有友军，则攻击力提升40并获得30护盾，持续1回合。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        if (!global.Game) return;
+        const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false });
+        let hasAlly = false;
+        for (const c of cells) {
+          const p = global.Game.pieceAt(c.x, c.y);
+          if (p && p.alive && p.side === actor.side && p.generalId !== actor.generalId) {
+            hasAlly = true;
+            break;
+          }
+        }
+        if (!hasAlly) {
+          actor.atkBuff = (actor.atkBuff || 0) + 40;
+          actor.atkBuffTurns = 1;
+          Effect.shield(actor, 30);
+          global.Game.log('【飞将】' + actor.name + ' 孤军奋战，攻击+40，获得30护盾！', 'turn');
+        }
+      }
+    },
+
+    // ========== 诸葛亮 ==========
+    huoGong: {
+      id: 'huoGong',
+      name: '火攻',
+      type: '主动',
+      cooldown: 3,
+      preview: { shape: 'square', n: 3, passThrough: true },
+      desc: '选择方形3格内的一个格子，在该位置引爆圆形1范围的火焰，造成60点无视防御伤害。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        const cell = await Effect.chooseCell(actor, {
+          range: { shape: 'square', n: 3 },
+          passThrough: true,
+          hintText: '【火攻】请选择方形3格内的目标位置。'
+        });
+        if (!cell) return false;
+        actor.skilled = true;
+        const result = Effect.explode(actor, cell.x, cell.y, 1, 60, { ignoreDef: true, shape: 'r' });
+        global.Game.log(actor.name + ' 发动【火攻】，命中 ' + result.hits + ' 人！');
+        return true;
+      }
+    },
+    kongCheng: {
+      id: 'kongCheng',
+      name: '空城',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnStart',
+      desc: '回合开始时，获得40%闪避率，持续到本回合结束。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        Effect.dodge(actor, 0.4);
+      }
+    },
+
+    // ========== 张飞 ==========
+    paoXiao: {
+      id: 'paoXiao',
+      name: '咆哮',
+      type: '主动',
+      cooldown: 3,
+      preview: { shape: '+', n: 2, passThrough: true },
+      desc: '对十字2格范围内敌人造成1.5倍伤害，并眩晕1回合。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        actor.skilled = true;
+        const cells = Range.cellsInRange('+', 2, actor.x, actor.y, { includeSelf: false });
+        let hits = 0;
+        for (const c of cells) {
+          const t = global.Game.pieceAt(c.x, c.y);
+          if (t && t.alive && t.side !== actor.side) {
+            Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 });
+            if (t.alive) Effect.stun(t, 1);
+            hits++;
+          }
+        }
+        global.Game.log(actor.name + ' 发动【咆哮】，命中 ' + hits + ' 人！');
+        return hits > 0;
+      }
+    },
+    yanRen: {
+      id: 'yanRen',
+      name: '燕人',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'onAttacked',
+      desc: '被攻击后，若血量低于50%，本回合攻击力提升30（一回合内可叠加）。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor, context) {
+        if (!actor || !actor.maxHp) return;
+        const ratio = actor.hp / actor.maxHp;
+        if (ratio < 0.5) {
+          actor.atkBuff = (actor.atkBuff || 0) + 30;
+          if (actor.atkBuffTurns === undefined || actor.atkBuffTurns < 1) {
+            actor.atkBuffTurns = 1;
+          }
+          if (global.Game) global.Game.log('【燕人】' + actor.name + ' 怒气上升，攻击+30！');
+        }
+      }
+    },
+
+    // ========== 貂蝉 ==========
+    liJian: {
+      id: 'liJian',
+      name: '离间',
+      type: '主动',
+      cooldown: 4,
+      preview: { shape: 'square', n: 2, passThrough: true },
+      desc: '选择方形2格内一名敌人，使其魅惑2回合（临时加入己方）。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        const target = await Effect.chooseEnemy(actor, {
+          range: { shape: 'square', n: 2 },
+          passThrough: true,
+          hintText: '【离间】请选择方形2格内的敌人，使其倒戈。'
+        });
+        if (!target) return false;
+        actor.skilled = true;
+        Effect.charm(actor, target, 2);
+        return true;
+      }
+    },
+    qingGuo: {
+      id: 'qingGuo',
+      name: '倾国',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnEnd',
+      desc: '回合结束时，周围方形1格内所有敌人有35%概率被眩晕1回合。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        if (!global.Game) return;
+        const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false });
+        let stunned = 0;
+        for (const c of cells) {
+          const t = global.Game.pieceAt(c.x, c.y);
+          if (t && t.alive && t.side !== actor.side) {
+            if (Effect.chance(0.35)) {
+              Effect.stun(t, 1);
+              stunned++;
+            }
+          }
+        }
+        if (stunned > 0) {
+          global.Game.log('【倾国】' + actor.name + ' 魅惑了 ' + stunned + ' 名敌人！', 'turn');
+        }
+      }
+    },
+
+    // ========== 周瑜 ==========
+    fengHuo: {
+      id: 'fengHuo',
+      name: '烽火',
+      type: '主动',
+      cooldown: 3,
+      preview: { shape: '+', n: 3, passThrough: true },
+      desc: '选择十字3格内的一名敌人，对其造成80点伤害，并将其拉向自己2格，同时回复40生命。',
+      filter(actor) {
+        return actor.alive && !actor.skilled;
+      },
+      async content(actor) {
+        const target = await Effect.chooseEnemy(actor, {
+          range: { shape: '+', n: 3 },
+          passThrough: true,
+          hintText: '【烽火】请选择十字3格内的敌人。'
+        });
+        if (!target) return false;
+        actor.skilled = true;
+        Effect.leech(actor, target, 80, { ignoreDef: true, leechRatio: 0.5 });
+        if (target.alive) Effect.pull(actor, target, 2);
+        global.Game.log(actor.name + ' 发动【烽火】！');
+        return true;
+      }
+    },
+    yingZi: {
+      id: 'yingZi',
+      name: '英姿',
+      type: '被动',
+      cooldown: 0,
+      trigger: 'turnStart',
+      desc: '回合开始时恢复25生命，并获得20点护盾。',
+      filter(actor) {
+        return actor && actor.alive;
+      },
+      content(actor) {
+        Effect.heal(actor, 25);
+        Effect.shield(actor, 20);
+      }
     }
   };
 

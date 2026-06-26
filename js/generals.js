@@ -24,76 +24,44 @@
       skills: [Skills.changSheng, Skills.danYong]
     },
     {
-      id: 'hz',
-      name: '黄忠',
-      hp: 180, atk: 70, def: 18,
+      id: 'lb',
+      name: '吕布',
+      hp: 260, atk: 100, def: 25,
+      moveRange: { shape: '+', n: 3 },
+      attackRange: { shape: 'square', n: 1 },
+      skills: [Skills.wuShuang, Skills.feiJiang]
+    },
+    {
+      id: 'zg',
+      name: '诸葛亮',
+      hp: 140, atk: 40, def: 15,
       moveRange: { shape: '+', n: 2 },
       attackRange: { shape: 'square', n: 2 },
-      skills: [Skills.laoDangYiZhuang, Skills.baiBuChuanYang]
+      skills: [Skills.huoGong, Skills.kongCheng]
     },
     {
-      id: 't1',
-      name: '甲',
-      hp: 200, atk: 50, def: 20,
-      moveRange: { shape: '+', n: 4 },
+      id: 'zf',
+      name: '张飞',
+      hp: 230, atk: 85, def: 18,
+      moveRange: { shape: '+', n: 2 },
       attackRange: { shape: '+', n: 1 },
-      skills: []
+      skills: [Skills.paoXiao, Skills.yanRen]
     },
     {
-      id: 't2',
-      name: '乙',
-      hp: 240, atk: 60, def: 25,
+      id: 'dc',
+      name: '貂蝉',
+      hp: 130, atk: 35, def: 12,
+      moveRange: { shape: 'r', n: 3 },
+      attackRange: { shape: 'square', n: 1 },
+      skills: [Skills.liJian, Skills.qingGuo]
+    },
+    {
+      id: 'zyu',
+      name: '周瑜',
+      hp: 170, atk: 55, def: 18,
       moveRange: { shape: '+', n: 3 },
       attackRange: { shape: '+', n: 2 },
-      skills: [Skills.rage]
-    },
-    {
-      id: 't3',
-      name: '丙',
-      hp: 180, atk: 70, def: 15,
-      moveRange: { shape: 'r', n: 3 },
-      attackRange: { shape: 'r', n: 3 },
-      skills: [Skills.volley]
-    },
-    {
-      id: 't4',
-      name: '丁',
-      hp: 300, atk: 40, def: 35,
-      moveRange: { shape: 'square', n: 2 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.fortify]
-    },
-    {
-      id: 't5',
-      name: '戊',
-      hp: 220, atk: 55, def: 22,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.feint]
-    },
-    {
-      id: 't6',
-      name: '己',
-      hp: 200, atk: 45, def: 30,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.heal]
-    },
-    {
-      id: 't7',
-      name: '庚',
-      hp: 190, atk: 65, def: 18,
-      moveRange: { shape: '+', n: 4 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.stratagem]
-    },
-    {
-      id: 't8',
-      name: '辛',
-      hp: 210, atk: 60, def: 20,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: 'square', n: 2 },
-      skills: [Skills.charge]
+      skills: [Skills.fengHuo, Skills.yingZi]
     }
   ];
 
