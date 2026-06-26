@@ -186,6 +186,24 @@
     background: #fff;
     color: #c0392b;
   }
+  .diy-hint-btn .tut-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #c0392b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    font-style: italic;
+    line-height: 1;
+  }
+  .diy-hint-btn:hover .tut-icon {
+    background: #fff;
+    color: #c0392b;
+  }
 
   /* 悬浮教程面板 */
   .diy-tutorial-overlay {
@@ -945,30 +963,6 @@
   }
   .submit-row input {
     width: 140px;
-  /* ========= 手机端适配 ========= */
-  @media (max-width: 768px) {
-    .diy-wrap { padding: 12px 12px 100px; }
-    .diy-header { padding: 12px 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
-    .diy-logo { font-size: 20px; }
-    .diy-steps { flex-wrap: wrap; gap: 4px; }
-    .diy-step { padding: 4px 10px; font-size: 11px; }
-    .diy-main { grid-template-columns: 1fr; }
-    .diy-hint-btn { left: 10px; bottom: 80px; }
-    .diy-tutorial-panel { width: 88vw; }
-    .fs-editor-mask { padding: 12px; }
-    .fs-editor-title { font-size: 13px; }
-    .fs-editor-title small { display: block; margin: 4px 0 0; font-size: 11px; }
-    .fs-editor-actions .btn { font-size: 11px; padding: 6px 10px; }
-    .card-body { padding: 12px; }
-    table.tbl th { width: 50px; }
-    input[type="text"], input[type="number"], input[type="password"], select { width: 100%; }
-    .hint { display: block; margin-top: 3px; }
-    .code-editor textarea, .code-editor .hl-layer { font-size: 11px; }
-    .fs-btn { top: 10px; right: 10px; width: 40px; height: 40px; font-size: 16px; }
-  }
-  @media (max-width: 480px) {
-    .diy-steps { display: none; }
-    .diy-logo-sub { display: none; }
   }
 </style>
 
@@ -977,7 +971,7 @@
 
 <!-- 悬浮教程按钮 -->
 <button class="diy-hint-btn" id="tutorial-toggle">
-  📖 教程 <span class="badge">6</span>
+  <span class="tut-icon">?</span> 教程 <span class="badge">6</span>
 </button>
 
 <!-- 悬浮教程面板遮罩 -->
@@ -986,7 +980,7 @@
 <!-- 悬浮教程面板 -->
 <div class="diy-tutorial-panel" id="tutorial-panel">
   <div class="diy-tutorial-head">
-    <span>📖 教程 · 速查</span>
+    <span>教程 · 速查</span>
     <button class="diy-tutorial-head-close" id="tutorial-close">✕</button>
   </div>
   <div class="diy-tutorial-body">
@@ -1104,7 +1098,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       <!-- 已注册武将表格 -->
       <div class="card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <div class="card-title">📋 已注册武将</div>
+          <div class="card-title">已注册武将</div>
         </div>
         <div class="card-body" id="existing-generals">
           <span class="empty-state">加载中...</span>
