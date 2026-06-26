@@ -1892,11 +1892,100 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    // 页面加载时显示主页；点击「本机对战 / 人机对战」后再调用 init
-    const home = document.getElementById('home-screen');
-    const app = document.getElementById('app');
-    if (home) home.classList.remove('hidden');
-    if (app) app.classList.add('hidden');
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingBar = document.getElementById('loading-bar-fill');
+    const loadingStatus = document.getElementById('loading-status');
+    let loaded = 0;
+    let total = 0;
+
+    function updateProgress(delta, status) {
+      loaded += delta;
+      const pct = Math.min(100, Math.floor((loaded / total) * 100));
+      if (loadingBar) loadingBar.style.width = pct + '%';
+      if (loadingStatus && status) loadingStatus.textContent = status;
+    }
+
+    function finishLoading() {
+      updateProgress(999, '加载完成');
+      setTimeout(() => {
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        // 页面加载时显示主页；点击「本机对战 / 人机对战」后再调用 init
+        const home = document.getElementById('home-screen');
+        const app = document.getElementById('app');
+        if (home) home.classList.remove('hidden');
+        if (app) app.classList.add('hidden');
+      }, 200);
+    }
+
+    const assets = [];
+
+    // 字体文件
+    assets.push({ type: 'font', url: 'fonts/xiaozhuan.woff2', name: '小篆字体' });
+    assets.push({ type: 'font', url: 'fonts/xingkai.woff2', name: '行楷字体' });
+
+    // 音频文件
+    assets.push({ type: 'audio', url: 'assets/bgm.mp3', name: '背景音乐' });
+
+    total = assets.length;
+
+    function loadFont(url, name) {
+      return new Promise((resolve) => {
+        const fontName = name.includes('小篆') ? 'XiaoZhuan' : 'XingKai';
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load('16px "' + fontName + '"').then(() => {
+            updateProgress(1, name + ' 已就绪');
+            resolve();
+          }).catch(() => {
+            updateProgress(1, name + ' 已就绪');
+            resolve();
+          });
+        } else {
+          const img = new Image();
+          img.onerror = img.onload = () => {
+            updateProgress(1, name + ' 已就绪');
+            resolve();
+          };
+          img.src = url;
+        }
+      });
+    }
+
+    function loadAudio(url, name) {
+      return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audio.oncanplaythrough = () => {
+          updateProgress(1, name + ' 已就绪');
+          resolve();
+        };
+        audio.onerror = () => {
+          updateProgress(1, name + ' 加载跳过');
+          resolve();
+        };
+        audio.src = url;
+      });
+    }
+
+    function loadAll() {
+      const promises = [];
+      for (const a of assets) {
+        if (a.type === 'font') promises.push(loadFont(a.url, a.name));
+        else if (a.type === 'audio') promises.push(loadAudio(a.url, a.name));
+      }
+      Promise.all(promises).then(finishLoading);
+    }
+
+    // 先显示加载页面，然后开始加载
+    if (loadingScreen) {
+      loadingScreen.classList.remove('hidden');
+      updateProgress(0, '准备资源');
+      // 给一帧让 UI 渲染
+      requestAnimationFrame(() => {
+        setTimeout(loadAll, 50);
+      });
+    } else {
+      finishLoading();
+    }
 
     // ========== 背景音乐控制（拖动 / 长按菜单 / 自动播放） ==========
     const bgm = document.getElementById('bgm');
