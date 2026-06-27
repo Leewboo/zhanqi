@@ -18,12 +18,16 @@
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
   --cell-size: 48px;
-  
+
   --font-title: "XiaoZhuan", "ZCOOL XiaoWei", "PingFang SC", "Microsoft YaHei", serif;
   --font-piece: "XingKai", "Noto Serif SC", "STKaiti", "KaiTi", serif;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html {
+  position: relative;
+}
 
 html, body {
   margin: 0;
@@ -1346,9 +1350,9 @@ html, body {
 }
 
 .loading-screen {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 9999;
+  z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
