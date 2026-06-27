@@ -1869,6 +1869,191 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
     // 初始步骤
     updateStep();
+
+    // ========== 工程管理功能 ==========
+    var currentProjectName = null;
+
+    function showProjectToast(msg, duration) {
+      var toast = $('project-toast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(function () {
+        toast.classList.add('hidden');
+      }, duration || 2000);
+    }
+
+    function openModal(id) {
+      var m = $(id);
+      if (m) m.classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      var m = $(id);
+      if (m) m.classList.add('hidden');
+    }
+
+    // 新建工程
+    var btnNew = $('btn-project-new');
+    if (btnNew) {
+      btnNew.addEventListener('click', function () {
+        $('new-project-name').value = '';
+        $('new-project-password').value = '';
+        openModal('modal-new-project');
+      });
+    }
+
+    // 创建工程
+    var btnCreate = $('btn-create-project');
+    if (btnCreate) {
+      btnCreate.addEventListener('click', function () {
+        var name = $('new-project-name').value.trim() || '未命名工程';
+        var pwd = $('new-project-password').value || 'diy123';
+
+        fetch('/api/project/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectName: name, password: pwd })
+        })
+          .then(function (r) { return r.blob(); })
+          .then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = name + '.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            if (confirm('工程 "' + name + '" 已导出为 ZIP 文件。\n\n点击"确定"将清空当前服务器数据（可重新导入恢复）。')) {
+              var emptyZip = new JSZip();
+              emptyZip.file('project.json', JSON.stringify({ name: name, version: '1.0.0' }));
+              emptyZip.file('generals.json', '[]');
+              emptyZip.file('skills.json', '[]');
+
+              emptyZip.generateAsync({ type: 'base64' }).then(function (base64) {
+                var fd = new FormData();
+                fd.append('zip', base64);
+                fd.append('password', pwd);
+
+                return fetch('/api/project/import', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ password: pwd })
+                });
+              }).catch(function () {});
+            }
+
+            closeModal('modal-new-project');
+            showProjectToast('工程已导出: ' + name + '.zip');
+            currentProjectName = name;
+            var pn = $('project-name');
+            if (pn) {
+              pn.textContent = '📦 ' + name;
+              pn.style.display = 'inline-block';
+            }
+          })
+          .catch(function (err) {
+            alert('导出失败: ' + err.message);
+          });
+      });
+    }
+
+    // 导出工程
+    var btnExport = $('btn-project-export');
+    if (btnExport) {
+      btnExport.addEventListener('click', function () {
+        var name = currentProjectName || prompt('请输入工程名称用于导出文件命名：') || 'my-project';
+        var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+
+        fetch('/api/project/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectName: name, password: pwd })
+        })
+          .then(function (r) { return r.blob(); })
+          .then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = name + '.zip';
+            a.click();
+            URL.revokeObjectURL(url);
+            showProjectToast('工程已导出: ' + name + '.zip');
+          })
+          .catch(function (err) {
+            alert('导出失败: ' + err.message);
+          });
+      });
+    }
+
+    // 导入工程
+    var btnImport = $('btn-project-import');
+    var importInput = $('import-file-input');
+    if (btnImport && importInput) {
+      btnImport.addEventListener('click', function () {
+        importInput.click();
+      });
+
+      importInput.addEventListener('change', function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+
+        var reader = new FileReader();
+        reader.onload = function (evt) {
+          var arrayBuffer = evt.target.result;
+
+          JSZip.loadAsync(arrayBuffer).then(function (zip) {
+            return Promise.all([
+              zip.file('generals.json')?.async('string'),
+              zip.file('skills.json')?.async('string'),
+              zip.file('project.json')?.async('string')
+            ]).then(function (results) {
+              var generalsJson = results[0];
+              var skillsJson = results[1];
+              var projectJson = results[2];
+
+              if (!generalsJson || !skillsJson) {
+                throw new Error('ZIP 内缺少 generals.json 或 skills.json');
+              }
+
+              var generals = JSON.parse(generalsJson);
+              var skills = JSON.parse(skillsJson);
+              var projectMeta = projectJson ? JSON.parse(projectJson) : {};
+              var projectName = projectMeta.name || file.name.replace('.zip', '');
+
+              var formData = new FormData();
+              formData.append('zip', new Blob([arrayBuffer], { type: 'application/zip' }), file.name);
+              formData.append('password', pwd);
+
+              return fetch('/api/project/import', {
+                method: 'POST',
+                body: formData
+              }).then(function (r) { return r.json(); });
+            });
+          }).then(function (result) {
+            if (result && result.ok) {
+              showProjectToast('工程 "' + (result.projectName || '未命名') + '" 导入成功！');
+              currentProjectName = result.projectName;
+              var pn = $('project-name');
+              if (pn) {
+                pn.textContent = '📦 ' + result.projectName;
+                pn.style.display = 'inline-block';
+              }
+              loadExistingGenerals();
+            } else {
+              alert((result && result.error) || '导入失败');
+            }
+          }).catch(function (err) {
+            alert('解析 ZIP 失败: ' + err.message);
+          });
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+      });
+    }
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
@@ -2052,199 +2237,20 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     }
   });
 
-  // ============================================================
-  // 工程管理功能
-  // ============================================================
-  var currentProjectName = null;
-
-  function showProjectToast(msg, duration) {
-    var toast = $('project-toast');
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.remove('hidden');
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(function () {
-      toast.classList.add('hidden');
-    }, duration || 2000);
-  }
-
-  function openModal(id) {
-    var m = $(id);
-    if (m) m.classList.remove('hidden');
-  }
-
-  function closeModal(id) {
-    var m = $(id);
-    if (m) m.classList.add('hidden');
-  }
-
-  // 弹窗关闭按钮和遮罩点击
+  // 弹窗关闭按钮和遮罩点击（document级别，提前绑定）
   document.addEventListener('click', function (e) {
-    var modalClose = e.target.closest('.modal-close');
-    if (modalClose) {
-      var id = modalClose.getAttribute('data-modal');
-      if (id) closeModal(id);
+    var closeTrigger = e.target.closest('[data-modal]');
+    if (closeTrigger) {
+      var id = closeTrigger.getAttribute('data-modal');
+      if (id) {
+        var m = document.getElementById(id);
+        if (m) m.classList.add('hidden');
+      }
     }
     var overlay = e.target.closest('.modal-overlay');
     if (overlay && e.target === overlay) {
       overlay.classList.add('hidden');
     }
-  });
-
-  // 新建工程
-  $('btn-project-new') && $('btn-project-new').addEventListener('click', function () {
-    $('new-project-name').value = '';
-    $('new-project-password').value = '';
-    openModal('modal-new-project');
-  });
-
-  // 创建工程
-  $('btn-create-project') && $('btn-create-project').addEventListener('click', function () {
-    var name = $('new-project-name').value.trim() || '未命名工程';
-    var pwd = $('new-project-password').value || 'diy123';
-
-    fetch('/api/project/export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectName: name, password: pwd })
-    })
-      .then(function (r) { return r.blob(); })
-      .then(function (blob) {
-        // 触发下载
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = name + '.zip';
-        a.click();
-        URL.revokeObjectURL(url);
-
-        // 提示用户文件已导出，现在清空服务器数据
-        if (confirm('工程 \"' + name + '\" 已导出为 ZIP 文件。\n\n点击"确定"将清空当前服务器数据（可重新导入恢复）。')) {
-          // 清空服务器数据（通过导入空工程的方式）
-          var emptyZip = new JSZip();
-          emptyZip.file('project.json', JSON.stringify({ name: name, version: '1.0.0' }));
-          emptyZip.file('generals.json', '[]');
-          emptyZip.file('skills.json', '[]');
-
-          emptyZip.generateAsync({ type: 'base64' }).then(function (base64) {
-            // 用 FormData 上传
-            var fd = new FormData();
-            fd.append('zip', base64);
-            fd.append('password', pwd);
-
-            // 手动构造请求
-            return fetch('/api/project/import', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ password: pwd })
-            });
-          }).catch(function () {});
-        }
-
-        closeModal('modal-new-project');
-        showProjectToast('工程已导出: ' + name + '.zip');
-        currentProjectName = name;
-        var pn = $('project-name');
-        if (pn) {
-          pn.textContent = '📦 ' + name;
-          pn.style.display = 'inline-block';
-        }
-      })
-      .catch(function (err) {
-        alert('导出失败: ' + err.message);
-      });
-  });
-
-  // 导出工程
-  $('btn-project-export') && $('btn-project-export').addEventListener('click', function () {
-    var name = currentProjectName || prompt('请输入工程名称用于导出文件命名：') || 'my-project';
-    var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
-
-    fetch('/api/project/export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectName: name, password: pwd })
-    })
-      .then(function (r) { return r.blob(); })
-      .then(function (blob) {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = name + '.zip';
-        a.click();
-        URL.revokeObjectURL(url);
-        showProjectToast('工程已导出: ' + name + '.zip');
-      })
-      .catch(function (err) {
-        alert('导出失败: ' + err.message);
-      });
-  });
-
-  // 导入工程
-  $('btn-project-import') && $('btn-project-import').addEventListener('click', function () {
-    var input = $('import-file-input');
-    if (input) input.click();
-  });
-
-  $('import-file-input') && $('import-file-input').addEventListener('change', function (e) {
-    var file = e.target.files[0];
-    if (!file) return;
-
-    var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
-
-    var reader = new FileReader();
-    reader.onload = function (evt) {
-      var arrayBuffer = evt.target.result;
-
-      // 客户端解析 ZIP 验证格式
-      JSZip.loadAsync(arrayBuffer).then(function (zip) {
-        return Promise.all([
-          zip.file('generals.json')?.async('string'),
-          zip.file('skills.json')?.async('string'),
-          zip.file('project.json')?.async('string')
-        ]).then(function (results) {
-          var generalsJson = results[0];
-          var skillsJson = results[1];
-          var projectJson = results[2];
-
-          if (!generalsJson || !skillsJson) {
-            throw new Error('ZIP 内缺少 generals.json 或 skills.json');
-          }
-
-          var generals = JSON.parse(generalsJson);
-          var skills = JSON.parse(skillsJson);
-          var projectMeta = projectJson ? JSON.parse(projectJson) : {};
-          var projectName = projectMeta.name || file.name.replace('.zip', '');
-
-          // 发送到服务器
-          var formData = new FormData();
-          formData.append('zip', new Blob([arrayBuffer], { type: 'application/zip' }), file.name);
-          formData.append('password', pwd);
-
-          return fetch('/api/project/import', {
-            method: 'POST',
-            body: formData
-          }).then(function (r) { return r.json(); });
-        });
-      }).then(function (result) {
-        if (result && result.ok) {
-          showProjectToast('工程 \"' + (result.projectName || '未命名') + '\" 导入成功！');
-          currentProjectName = result.projectName;
-          var pn = $('project-name');
-          if (pn) {
-            pn.textContent = '📦 ' + result.projectName;
-            pn.style.display = 'inline-block';
-          }
-          loadExistingGenerals();
-        } else {
-          alert((result && result.error) || '导入失败');
-        }
-      }).catch(function (err) {
-        alert('解析 ZIP 失败: ' + err.message);
-      });
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = '';
   });
 </script>
 
