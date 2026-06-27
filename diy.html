@@ -6,6 +6,9 @@
 <title>DIY 武将 · 三国战棋</title>
 <link rel="stylesheet" href="css/style.css" />
 
+<!-- JSZip for project export/import -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <!-- highlight.js（GitHub Dark 配色 + JavaScript 语言） -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
@@ -964,6 +967,128 @@
   .submit-row input {
     width: 140px;
   }
+
+  /* ========= 工程管理 UI ========= */
+  .diy-project-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .diy-project-btns .btn-mini {
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--line, #cfc8ba);
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .diy-project-btns .btn-mini:hover {
+    background: #f5f5f5;
+    border-color: #aaa;
+  }
+
+  .project-name {
+    font-weight: 600;
+  }
+
+  .project-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 9999;
+    opacity: 0.9;
+    transition: opacity 0.3s;
+  }
+  .project-toast.hidden {
+    display: none;
+  }
+
+  /* 弹窗样式 */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.hidden {
+    display: none;
+  }
+  .modal-inner {
+    background: #fff;
+    border-radius: 8px;
+    width: min(400px, 90vw);
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eee;
+  }
+  .modal-head h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1a1a1a;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    line-height: 1;
+  }
+  .modal-close:hover { color: #333; }
+  .modal-body {
+    padding: 18px;
+  }
+  .modal-foot {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 12px 18px;
+    border-top: 1px solid #eee;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-row label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .form-row input[type="text"],
+  .form-row input[type="password"] {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .form-row input:focus {
+    outline: none;
+    border-color: #c0392b;
+  }
 </style>
 
   <!-- 顶部：一键全屏切换 -->
@@ -1125,6 +1250,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     <div class="diy-header-left">
       <span class="diy-logo">DIY 武将</span>
       <span class="diy-logo-sub">填属性 · 写技能 · 提交</span>
+      <span id="project-name" class="project-name" style="display:none; margin-left: 12px; padding: 3px 10px; background: #e8f5e9; color: #2e7d32; border-radius: 12px; font-size: 12px;"></span>
     </div>
     <div class="diy-steps">
       <div class="diy-step active" data-step="1">
@@ -1140,6 +1266,41 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       <div class="diy-step" data-step="3">
         <div class="diy-step-num">3</div>
         <span>提交</span>
+      </div>
+    </div>
+    <div class="diy-project-btns">
+      <button id="btn-project-new" class="btn-mini" title="新建工程">+ 新建</button>
+      <button id="btn-project-import" class="btn-mini" title="导入 ZIP 工程">📥 导入</button>
+      <button id="btn-project-export" class="btn-mini" title="导出 ZIP 工程">📤 导出</button>
+    </div>
+  </div>
+
+  <!-- 工程操作反馈 -->
+  <div id="project-toast" class="project-toast hidden"></div>
+
+  <!-- 导入文件选择（隐藏） -->
+  <input type="file" id="import-file-input" accept=".zip" style="display:none;" />
+
+  <!-- 工程新建弹窗 -->
+  <div id="modal-new-project" class="modal-overlay hidden">
+    <div class="modal-inner">
+      <div class="modal-head">
+        <h3>新建工程</h3>
+        <button class="modal-close" data-modal="modal-new-project">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>工程名称</label>
+          <input id="new-project-name" type="text" placeholder="例如：我的三国mod" />
+        </div>
+        <div class="form-row">
+          <label>确认密码</label>
+          <input id="new-project-password" type="password" placeholder="默认：diy123" />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-create-project" class="btn primary">创建并清空</button>
+        <button class="btn ghost" data-modal="modal-new-project">取消</button>
       </div>
     </div>
   </div>
@@ -1889,6 +2050,201 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         })
         .catch(function (err) { alert('网络错误：' + err.message); });
     }
+  });
+
+  // ============================================================
+  // 工程管理功能
+  // ============================================================
+  var currentProjectName = null;
+
+  function showProjectToast(msg, duration) {
+    var toast = $('project-toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(function () {
+      toast.classList.add('hidden');
+    }, duration || 2000);
+  }
+
+  function openModal(id) {
+    var m = $(id);
+    if (m) m.classList.remove('hidden');
+  }
+
+  function closeModal(id) {
+    var m = $(id);
+    if (m) m.classList.add('hidden');
+  }
+
+  // 弹窗关闭按钮和遮罩点击
+  document.addEventListener('click', function (e) {
+    var modalClose = e.target.closest('.modal-close');
+    if (modalClose) {
+      var id = modalClose.getAttribute('data-modal');
+      if (id) closeModal(id);
+    }
+    var overlay = e.target.closest('.modal-overlay');
+    if (overlay && e.target === overlay) {
+      overlay.classList.add('hidden');
+    }
+  });
+
+  // 新建工程
+  $('btn-project-new') && $('btn-project-new').addEventListener('click', function () {
+    $('new-project-name').value = '';
+    $('new-project-password').value = '';
+    openModal('modal-new-project');
+  });
+
+  // 创建工程
+  $('btn-create-project') && $('btn-create-project').addEventListener('click', function () {
+    var name = $('new-project-name').value.trim() || '未命名工程';
+    var pwd = $('new-project-password').value || 'diy123';
+
+    fetch('/api/project/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectName: name, password: pwd })
+    })
+      .then(function (r) { return r.blob(); })
+      .then(function (blob) {
+        // 触发下载
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name + '.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // 提示用户文件已导出，现在清空服务器数据
+        if (confirm('工程 \"' + name + '\" 已导出为 ZIP 文件。\n\n点击"确定"将清空当前服务器数据（可重新导入恢复）。')) {
+          // 清空服务器数据（通过导入空工程的方式）
+          var emptyZip = new JSZip();
+          emptyZip.file('project.json', JSON.stringify({ name: name, version: '1.0.0' }));
+          emptyZip.file('generals.json', '[]');
+          emptyZip.file('skills.json', '[]');
+
+          emptyZip.generateAsync({ type: 'base64' }).then(function (base64) {
+            // 用 FormData 上传
+            var fd = new FormData();
+            fd.append('zip', base64);
+            fd.append('password', pwd);
+
+            // 手动构造请求
+            return fetch('/api/project/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: pwd })
+            });
+          }).catch(function () {});
+        }
+
+        closeModal('modal-new-project');
+        showProjectToast('工程已导出: ' + name + '.zip');
+        currentProjectName = name;
+        var pn = $('project-name');
+        if (pn) {
+          pn.textContent = '📦 ' + name;
+          pn.style.display = 'inline-block';
+        }
+      })
+      .catch(function (err) {
+        alert('导出失败: ' + err.message);
+      });
+  });
+
+  // 导出工程
+  $('btn-project-export') && $('btn-project-export').addEventListener('click', function () {
+    var name = currentProjectName || prompt('请输入工程名称用于导出文件命名：') || 'my-project';
+    var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+
+    fetch('/api/project/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectName: name, password: pwd })
+    })
+      .then(function (r) { return r.blob(); })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name + '.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        showProjectToast('工程已导出: ' + name + '.zip');
+      })
+      .catch(function (err) {
+        alert('导出失败: ' + err.message);
+      });
+  });
+
+  // 导入工程
+  $('btn-project-import') && $('btn-project-import').addEventListener('click', function () {
+    var input = $('import-file-input');
+    if (input) input.click();
+  });
+
+  $('import-file-input') && $('import-file-input').addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      var arrayBuffer = evt.target.result;
+
+      // 客户端解析 ZIP 验证格式
+      JSZip.loadAsync(arrayBuffer).then(function (zip) {
+        return Promise.all([
+          zip.file('generals.json')?.async('string'),
+          zip.file('skills.json')?.async('string'),
+          zip.file('project.json')?.async('string')
+        ]).then(function (results) {
+          var generalsJson = results[0];
+          var skillsJson = results[1];
+          var projectJson = results[2];
+
+          if (!generalsJson || !skillsJson) {
+            throw new Error('ZIP 内缺少 generals.json 或 skills.json');
+          }
+
+          var generals = JSON.parse(generalsJson);
+          var skills = JSON.parse(skillsJson);
+          var projectMeta = projectJson ? JSON.parse(projectJson) : {};
+          var projectName = projectMeta.name || file.name.replace('.zip', '');
+
+          // 发送到服务器
+          var formData = new FormData();
+          formData.append('zip', new Blob([arrayBuffer], { type: 'application/zip' }), file.name);
+          formData.append('password', pwd);
+
+          return fetch('/api/project/import', {
+            method: 'POST',
+            body: formData
+          }).then(function (r) { return r.json(); });
+        });
+      }).then(function (result) {
+        if (result && result.ok) {
+          showProjectToast('工程 \"' + (result.projectName || '未命名') + '\" 导入成功！');
+          currentProjectName = result.projectName;
+          var pn = $('project-name');
+          if (pn) {
+            pn.textContent = '📦 ' + result.projectName;
+            pn.style.display = 'inline-block';
+          }
+          loadExistingGenerals();
+        } else {
+          alert((result && result.error) || '导入失败');
+        }
+      }).catch(function (err) {
+        alert('解析 ZIP 失败: ' + err.message);
+      });
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
   });
 </script>
 

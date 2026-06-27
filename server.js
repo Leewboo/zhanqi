@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const Koa = require('koa');
 const serve = require('koa-static');
+const JSZip = require('jszip');
+const koaBody = require('koa-body').koaBody;
 
 const app = new Koa();
 
@@ -53,6 +55,16 @@ async function readJsonBody(ctx) {
 // ============================================================
 // 静态资源
 // ============================================================
+
+// 启用 koa-body 以支持 multipart/form-data（工程导入）
+app.use(koaBody({
+  multipart: true,
+  formidable: {
+    uploadDir: '/tmp',
+    keepExtensions: true
+  }
+}));
+
 app.use(
   serve(ROOT, {
     index: 'index.html',
@@ -205,6 +217,144 @@ app.use(async (ctx, next) => {
 
     ctx.type = 'application/json; charset=utf-8';
     ctx.body = { ok: true };
+    return;
+  }
+
+  await next();
+
+  // ============================================================
+  // 工程导入/导出 API
+  // ============================================================
+
+  // POST /api/project/export  导出工程为 ZIP 文件
+  if (ctx.path === '/api/project/export' && ctx.method === 'POST') {
+    let body;
+    try { body = await readJsonBody(ctx); }
+    catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return; }
+
+    const { projectName, password } = body;
+    if (!password || password !== DIY_PASSWORD) {
+      ctx.status = 403; ctx.body = { ok: false, error: '密码错误' }; return;
+    }
+
+    const all = readDiy();
+    const name = String(projectName || 'my-project').replace(/[^a-zA-Z0-9_\u4e00-\u9fa5-]/g, '_');
+
+    try {
+      const zip = new JSZip();
+      // 工程元数据
+      zip.file('project.json', JSON.stringify({
+        name: name,
+        version: '1.0.0',
+        description: '三国战棋 DIY 工程',
+        createdAt: new Date().toISOString(),
+        gameVersion: '1.0.0'
+      }, null, 2), { encode: false });
+      // 武将数据
+      zip.file('generals.json', JSON.stringify(all.generals, null, 2), { encode: false });
+      // 技能数据
+      zip.file('skills.json', JSON.stringify(all.skills, null, 2), { encode: false });
+
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+      ctx.type = 'application/zip';
+      ctx.set('Content-Disposition', `attachment; filename="${name}.zip"`);
+      ctx.body = zipBuffer;
+    } catch (e) {
+      console.error('[project/export] error:', e.message);
+      ctx.status = 500; ctx.body = { ok: false, error: '导出失败: ' + e.message };
+    }
+    return;
+  }
+
+  // POST /api/project/import  导入 ZIP 工程文件
+  if (ctx.path === '/api/project/import' && ctx.method === 'POST') {
+    // 读取上传的 ZIP 文件（通过 koa-body 解析 FormData）
+    let zipFile = ctx.request.files?.zip;
+    let password = '';
+
+    // 解析普通字段（koa-body 将字段放在 request.body）
+    if (ctx.request.body && ctx.request.body.password) {
+      password = String(ctx.request.body.password);
+    }
+
+    if (!zipFile) {
+      ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return;
+    }
+
+    if (!password || password !== DIY_PASSWORD) {
+      ctx.status = 403; ctx.body = { ok: false, error: '密码错误' }; return;
+    }
+
+    try {
+      // 读取文件内容
+      const filePath = zipFile.filepath;
+      const zipBuffer = fs.readFileSync(filePath);
+
+      if (!zipBuffer || zipBuffer.length === 0) {
+        ctx.status = 400; ctx.body = { ok: false, error: '文件为空' }; return;
+      }
+
+      const zip = await JSZip.loadAsync(zipBuffer);
+
+      // 读取必要文件
+      const projectJson = await zip.file('project.json')?.async('string');
+      const generalsJson = await zip.file('generals.json')?.async('string');
+      const skillsJson = await zip.file('skills.json')?.async('string');
+
+      if (!generalsJson || !skillsJson) {
+        ctx.status = 400; ctx.body = { ok: false, error: 'ZIP 内缺少 generals.json 或 skills.json' }; return;
+      }
+
+      const generals = JSON.parse(generalsJson);
+      const skills = JSON.parse(skillsJson);
+      const projectMeta = projectJson ? JSON.parse(projectJson) : {};
+
+      // 合并到现有数据
+      const all = readDiy();
+
+      // 移除已存在的同 ID DIY 武将和技能
+      const diyIds = new Set([
+        ...all.generals.filter(g => g.id.startsWith('diy_')).map(g => g.id),
+        ...all.skills.filter(s => s.id.startsWith('diy_')).map(s => s.id)
+      ]);
+
+      all.generals = all.generals.filter(g => !diyIds.has(g.id));
+      all.skills = all.skills.filter(s => !diyIds.has(s.id));
+
+      // 添加导入的武将和技能
+      if (Array.isArray(generals)) {
+        for (const g of generals) {
+          if (g && g.id) {
+            g.id = 'diy_' + String(g.id).replace(/^diy_/, '');
+            all.generals.push(g);
+          }
+        }
+      }
+      if (Array.isArray(skills)) {
+        for (const s of skills) {
+          if (s && s.id) {
+            s.id = 'diy_' + String(s.id).replace(/^diy_/, '');
+            all.skills.push(s);
+          }
+        }
+      }
+
+      if (!writeDiy(all)) {
+        ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
+      }
+
+      ctx.type = 'application/json; charset=utf-8';
+      ctx.body = {
+        ok: true,
+        projectName: projectMeta.name || '未命名工程',
+        generalsCount: Array.isArray(generals) ? generals.length : 0,
+        skillsCount: Array.isArray(skills) ? skills.length : 0
+      };
+    } catch (e) {
+      console.error('[project/import] error:', e.message);
+      ctx.status = 400; ctx.body = { ok: false, error: '解析 ZIP 失败: ' + e.message };
+    }
     return;
   }
 
