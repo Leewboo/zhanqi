@@ -1,4 +1,21 @@
 {
-  "generals": [],
+  "generals": [
+    {
+      "id": "diy_test5",
+      "name": "测试5",
+      "hp": 200,
+      "atk": 50,
+      "def": 20,
+      "moveRange": {
+        "shape": "+",
+        "n": 3
+      },
+      "attackRange": {
+        "shape": "+",
+        "n": 1
+      },
+      "skillIds": []
+    }
+  ],
   "skills": []
 }

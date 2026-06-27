@@ -58,11 +58,9 @@ async function readJsonBody(ctx) {
 
 // 启用 koa-body 以支持 multipart/form-data（工程导入）
 app.use(koaBody({
-  multipart: true,
-  formidable: {
-    uploadDir: '/tmp',
-    keepExtensions: true
-  }
+  enableTypes: ['json', 'form', 'multipart'],
+  jsonLimit: '10mb',
+  formLimit: '10mb'
 }));
 
 app.use(
@@ -83,9 +81,10 @@ app.use(async (ctx, next) => {
 
   // POST /api/diy/submit  提交一个 DIY 武将（含其技能）
   if (ctx.path === '/api/diy/submit' && ctx.method === 'POST') {
-    let body;
-    try { body = await readJsonBody(ctx); }
-    catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return; }
+    const body = ctx.request.body;
+    if (!body || typeof body !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
+    }
 
     const { general, skills, password } = body;
 
@@ -198,9 +197,10 @@ app.use(async (ctx, next) => {
 
   // POST /api/diy/delete  删除一个 DIY 武将（连同其技能一起）
   if (ctx.path === '/api/diy/delete' && ctx.method === 'POST') {
-    let body;
-    try { body = await readJsonBody(ctx); }
-    catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return; }
+    const body = ctx.request.body;
+    if (!body || typeof body !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
+    }
 
     const { id, password } = body;
     if (!password || password !== DIY_PASSWORD) {
@@ -221,16 +221,18 @@ app.use(async (ctx, next) => {
   }
 
   await next();
+});
 
-  // ============================================================
-  // 工程导入/导出 API
-  // ============================================================
-
+// ============================================================
+// 工程导入/导出 API（单独一个块）
+// ============================================================
+app.use(async (ctx, next) => {
   // POST /api/project/export  导出工程为 ZIP 文件
   if (ctx.path === '/api/project/export' && ctx.method === 'POST') {
-    let body;
-    try { body = await readJsonBody(ctx); }
-    catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return; }
+    const body = ctx.request.body;
+    if (!body || typeof body !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
+    }
 
     const { projectName, password } = body;
     if (!password || password !== DIY_PASSWORD) {
