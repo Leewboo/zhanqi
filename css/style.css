@@ -1414,3 +1414,21 @@ html, body {
   letter-spacing: 2px;
 }
 
+.skip-loading-btn {
+  margin-top: 20px;
+  padding: 7px 28px;
+  border: 1px solid #c9a56b;
+  border-radius: 20px;
+  background: transparent;
+  color: #a08f6b;
+  font-size: 13px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.skip-loading-btn:hover {
+  background: #c9a56b;
+  color: #fff;
+}
+

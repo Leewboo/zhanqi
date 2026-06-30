@@ -169,12 +169,16 @@
           if (!silent) this.log('已加载 DIY 技能 ' + compiled.filter(Boolean).length + ' 个。');
         }
 
-        // 2) 再注册武将（武将的 skills 字段是 skillIds 字符串数组，buildPiece 会解析）
+        // 2) 再注册武将，将 skillIds 映射到 skills，buildPiece 才能通过字符串 id 解析
         if (data.generals && data.generals.length && global.Generals) {
           data.generals.forEach(g => {
             const existed = Generals.list.find(x => x.id === g.id);
             if (!existed) changed = true;
-            global.Generals.registerGeneral(g);
+            // skillIds 是服务端存储格式；skills 是 buildPiece 读取的字段
+            const gDef = Object.assign({}, g, {
+              skills: g.skillIds || g.skills || []
+            });
+            global.Generals.registerGeneral(gDef);
           });
           if (!silent) this.log('已加载 DIY 武将 ' + data.generals.length + ' 个。');
         }
@@ -889,6 +893,19 @@
           self._renderBottom();
           self._checkWin();
         }
+      }).catch(function (e) {
+        console.error('[技能代码错误]', skill.name, e);
+        // 技能代码抛出异常时，若已标记 skilled 则仍应用冷却并结束行动
+        if (actor.skilled && !beforeSkilled) {
+          self.log(actor.name + ' 发动技能：' + skill.name + '（代码有误，见控制台）');
+          if (cooldown) actor.cdMap[skill.id] = cooldown;
+          self._finishActorAction();
+        } else {
+          self.log('【' + skill.name + '】执行出错，请检查代码。');
+          self.pendingSkillId = null;
+          self._render();
+          self._renderBottom();
+        }
       });
     },
 
@@ -930,7 +947,7 @@
           return;
         }
         // 使用 reachableCells 考虑地形消耗（河流消耗2步）
-        const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
+        const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -1190,6 +1207,60 @@
             if (m.data.turns <= 0) Effect.unmark(p, m.name);
           }
         }
+
+        // 冻结：锁定移动（移动权限不恢复）
+        const freezeMarks = marks.filter(m => m.modifiers && m.modifiers.freezeTurns);
+        if (freezeMarks.length > 0) {
+          p.moved = true;
+          this.log(p.name + ' 处于冻结状态，无法移动。', 'turn');
+          for (const m of freezeMarks) {
+            if (m.data && typeof m.data.turns === 'number') {
+              m.data.turns -= 1;
+              m.modifiers.freezeTurns = m.data.turns;
+              if (m.data.turns <= 0) Effect.unmark(p, m.name);
+            }
+          }
+        }
+
+        // 中毒：每回合受到固定伤害（无视防御）
+        if (p.alive) {
+          const poisonMarks = marks.filter(m => m.modifiers && m.modifiers.poisonTurns);
+          for (const m of poisonMarks) {
+            if (!p.alive) break;
+            const dmg = m.modifiers.poisonDmg || 20;
+            Effect.damage(null, p, dmg, { ignoreDef: true });
+            this.log('【毒】' + p.name + ' 受到 ' + dmg + ' 点中毒伤害。', 'turn');
+            if (m.data && typeof m.data.turns === 'number') {
+              m.data.turns -= 1;
+              m.modifiers.poisonTurns = m.data.turns;
+              if (m.data.turns <= 0) Effect.unmark(p, m.name);
+            }
+          }
+        }
+
+        // 再生：每回合回复生命
+        if (p.alive) {
+          const regenMarks = marks.filter(m => m.modifiers && m.modifiers.regenTurns);
+          for (const m of regenMarks) {
+            const heal = m.modifiers.regenHeal || 20;
+            Effect.heal(p, heal);
+            if (m.data && typeof m.data.turns === 'number') {
+              m.data.turns -= 1;
+              m.modifiers.regenTurns = m.data.turns;
+              if (m.data.turns <= 0) Effect.unmark(p, m.name);
+            }
+          }
+        }
+
+        // 嘲讽回合数递减
+        const tauntMarks = marks.filter(m => m.modifiers && m.modifiers.tauntTurns);
+        for (const m of tauntMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.tauntTurns = m.data.turns;
+            if (m.data.turns <= 0) Effect.unmark(p, m.name);
+          }
+        }
       }
 
       this._render();
@@ -1432,7 +1503,7 @@
         if (sk.cooldown && cdLeft > 0) label += '(' + cdLeft + ')';
         btn.textContent = label;
         btn.disabled = !usable;
-        btn.title = (sk.desc || '') + (sk.cooldown ? '（冷却 ' + sk.cooldown + ' 回合）' : '');
+        btn.title = '【' + sk.name + '】' + (sk.cooldown ? ' 冷却 ' + sk.cooldown + ' 回合' : '') + (sk.desc ? '\n' + sk.desc : '');
         if (this.pendingSkillId === sk.id) btn.classList.add('pending');
         btn.onclick = () => self._onSkillButtonClick(sk);
         actionsEl.appendChild(btn);
@@ -1583,7 +1654,10 @@
           head.textContent = g.name;
           const body = document.createElement('div');
           body.className = 'draft-card-body';
-          const gSkills = g.skills || (g.skill ? [g.skill] : []);
+          const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
+            if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
+            return s;
+          }).filter(Boolean);
           body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
             '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
             (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
@@ -1618,7 +1692,10 @@
           head.textContent = g.name + (this.deploySelected && this.deploySelected.id === g.id ? ' ★' : '');
           const body = document.createElement('div');
           body.className = 'draft-card-body';
-          const gSkills = g.skills || (g.skill ? [g.skill] : []);
+          const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
+            if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
+            return s;
+          }).filter(Boolean);
           body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
             '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
             (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
@@ -1788,7 +1865,7 @@
       }
       // 2) 否则移动：朝最近敌人移动（考虑地形消耗，河流消耗2步）
       if (!actor.moved) {
-        const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
+        const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
         const enemies = this.pieces.filter(p => p.side !== side && p.alive);
         if (!enemies.length) { this._scheduleNext(); return; }
         // 找一个最近的敌人作为目标
@@ -1855,7 +1932,7 @@
       if (actor.side !== this.currentSide || actor.moved) return false;
       if (this.pieceAt(x, y)) return false;
       // 使用 reachableCells 考虑地形消耗（河流消耗2步）
-      const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this);
+      const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
       if (!cells.find(c => c.x === x && c.y === y)) return false;
       actor.x = x;
       actor.y = y;
@@ -1905,7 +1982,10 @@
       if (loadingStatus && status) loadingStatus.textContent = status;
     }
 
+    let _finished = false;
     function finishLoading() {
+      if (_finished) return;
+      _finished = true;
       updateProgress(999, '加载完成');
       setTimeout(() => {
         if (loadingScreen) loadingScreen.classList.add('hidden');
@@ -1915,6 +1995,15 @@
         if (home) home.classList.remove('hidden');
         if (app) app.classList.add('hidden');
       }, 200);
+    }
+
+    // 跳过按钮：隐藏加载页 + 写入持久标记，下次直接跳过
+    const skipBtn = document.getElementById('btn-skip-loading');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        localStorage.setItem(CACHE_FLAG, '1');
+        finishLoading();
+      });
     }
 
     const assets = [];
@@ -1966,23 +2055,36 @@
       });
     }
 
+    // 用 localStorage 持久记住是否已成功加载或用户主动跳过
+    const CACHE_FLAG = 'sgzq_assets_loaded';
+    const alreadyLoaded = localStorage.getItem(CACHE_FLAG) === '1';
+
     function loadAll() {
       const promises = [];
       for (const a of assets) {
         if (a.type === 'font') promises.push(loadFont(a.url, a.name));
         else if (a.type === 'audio') promises.push(loadAudio(a.url, a.name));
       }
-      Promise.all(promises).then(finishLoading);
+      Promise.all(promises).then(() => {
+        localStorage.setItem(CACHE_FLAG, '1');
+        finishLoading();
+      });
     }
 
     // 先显示加载页面，然后开始加载
     if (loadingScreen) {
-      loadingScreen.classList.remove('hidden');
-      updateProgress(0, '准备资源');
-      // 给一帧让 UI 渲染
-      requestAnimationFrame(() => {
-        setTimeout(loadAll, 50);
-      });
+      if (alreadyLoaded) {
+        // 已加载过或主动跳过 → 直接隐藏，不阻塞
+        loadingScreen.classList.add('hidden');
+        finishLoading();
+      } else {
+        loadingScreen.classList.remove('hidden');
+        updateProgress(0, '准备资源');
+        // 给一帧让 UI 渲染
+        requestAnimationFrame(() => {
+          setTimeout(loadAll, 50);
+        });
+      }
     } else {
       finishLoading();
     }

@@ -739,6 +739,13 @@
   .fs-editor-actions .btn.danger:hover {
     background: rgba(248, 81, 73, 0.2);
   }
+  /* 全屏编辑器：左右分栏容器 */
+  .fs-editor-split {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    gap: 12px;
+  }
   .fs-editor-body {
     flex: 1;
     display: flex;
@@ -767,7 +774,184 @@
     line-height: 1.8;
   }
   .fs-editor-body .code-editor .fullscreen-btn {
-    display: none; /* 全屏模式下隐藏"全屏"按钮自身 */
+    display: none;
+  }
+
+  /* ========= API 侧栏 ========= */
+  .fs-api-panel {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #30363d;
+    border-radius: 3px;
+    background: #0d1117;
+    overflow: hidden;
+  }
+  .fs-api-tabs {
+    display: flex;
+    border-bottom: 1px solid #30363d;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .fs-api-tab {
+    padding: 7px 14px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #7d8590;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  .fs-api-tab:hover { color: #c9d1d9; }
+  .fs-api-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+  .fs-api-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .fs-api-page { display: none; }
+  .fs-api-page.active { display: block; }
+
+  /* API 分组标题 */
+  .fs-api-group-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #58a6ff;
+    padding: 8px 12px 3px;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-top: 1px solid #21262d;
+    margin-top: 4px;
+  }
+  .fs-api-group-title:first-child { border-top: none; margin-top: 0; }
+
+  /* API 行：点击插入代码 */
+  .fs-api-item {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 12px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.1s;
+  }
+  .fs-api-item:hover { background: #161b22; }
+  .fs-api-item:active { background: #1f2937; }
+  .fs-api-item-sig {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: #79c0ff;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .fs-api-item-desc {
+    font-size: 10px;
+    color: #7d8590;
+    margin-top: 1px;
+    line-height: 1.4;
+  }
+  .fs-api-item-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 0 4px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+    letter-spacing: 0;
+  }
+  .badge-new { background: #1a4731; color: #56d364; }
+  .badge-async { background: #0d2a4a; color: #58a6ff; }
+
+  /* 代码片段 */
+  .fs-snippet-item {
+    margin: 6px 10px;
+    border: 1px solid #21262d;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fs-snippet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #161b22;
+    cursor: pointer;
+    user-select: none;
+  }
+  .fs-snippet-head:hover { background: #1f2937; }
+  .fs-snippet-name {
+    font-size: 11px;
+    color: #e6edf3;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .fs-snippet-insert {
+    font-size: 10px;
+    color: #56d364;
+    background: #1a4731;
+    border: 1px solid #2ea043;
+    border-radius: 2px;
+    padding: 2px 8px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    font-family: inherit;
+  }
+  .fs-snippet-insert:hover { background: #1f5c3a; }
+  .fs-snippet-code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    color: #a8b1bd;
+    padding: 6px 10px;
+    background: #0d1117;
+    white-space: pre;
+    overflow-x: auto;
+    display: block;
+    line-height: 1.6;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  /* ========= 全屏编辑器 API 侧栏：手机适配 ========= */
+  #fs-api-toggle {
+    display: none;
+    padding: 5px 10px;
+    font-size: 12px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    color: #c9d1d9;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #fs-api-overlay-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 10001;
+  }
+  @media (max-width: 900px) {
+    .fs-editor-split { position: relative; }
+    .fs-api-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 300px;
+      max-width: 90vw;
+      z-index: 10002;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      border-radius: 0;
+      border-left: 1px solid #30363d;
+      border-top: none; border-right: none; border-bottom: none;
+    }
+    .fs-api-panel.open {
+      transform: translateX(0);
+    }
+    #fs-api-toggle { display: inline-block; }
+    #fs-api-overlay-bg.active { display: block; }
   }
 
   /* ========= 武将表格 ========= */
@@ -968,11 +1152,12 @@
     width: 140px;
   }
 
-  /* ========= 工程管理 UI ========= */
+  /* ========= 拓展管理 UI ========= */
   .diy-project-btns {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
   }
   .diy-project-btns .btn-mini {
     padding: 5px 12px;
@@ -989,10 +1174,6 @@
     border-color: #aaa;
   }
 
-  .project-name {
-    font-weight: 600;
-  }
-
   .project-toast {
     position: fixed;
     bottom: 24px;
@@ -1006,10 +1187,75 @@
     z-index: 9999;
     opacity: 0.9;
     transition: opacity 0.3s;
+    white-space: nowrap;
   }
-  .project-toast.hidden {
-    display: none;
+  .project-toast.hidden { display: none; }
+
+  /* 拓展卡片 */
+  .ext-card {
+    border: 1px solid #e0d8c3;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    background: #fffdf7;
+    overflow: hidden;
   }
+  .ext-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+    background: #fafaf5;
+  }
+  .ext-card-head:hover { background: #f5f0e4; }
+  .ext-enabled-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: #27ae60;
+  }
+  .ext-enabled-dot.off { background: #ccc; }
+  .ext-name {
+    font-weight: 700; font-size: 13px; color: #333; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ext-meta { font-size: 11px; color: #999; white-space: nowrap; }
+  .ext-arrow { font-size: 12px; color: #aaa; transition: transform 0.2s; flex-shrink: 0; }
+  .ext-card.open .ext-arrow { transform: rotate(90deg); }
+
+  .ext-card-body { display: none; padding: 10px 12px 12px; border-top: 1px solid #e0d8c3; }
+  .ext-card.open .ext-card-body { display: block; }
+
+  .ext-actions {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .ext-actions .btn-mini {
+    padding: 4px 10px; font-size: 11px; border-radius: 3px;
+    border: 1px solid #c9bf9e; background: #fff; color: #555; cursor: pointer;
+    font-family: inherit;
+  }
+  .ext-actions .btn-mini:hover { background: #f5f0e4; }
+  .ext-actions .btn-mini.danger { color: #a00; border-color: #d9534f; }
+  .ext-actions .btn-mini.danger:hover { background: #ffeeee; }
+  .ext-actions .btn-mini.primary { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .ext-actions .btn-mini.primary:hover { background: #a93226; }
+
+  .ext-generals-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+  .ext-generals-table th, .ext-generals-table td {
+    padding: 5px 8px; border-bottom: 1px solid #f0ead0; text-align: left; white-space: nowrap;
+  }
+  .ext-generals-table th { font-size: 11px; color: #888; font-weight: 600; background: #faf7ef; }
+  .ext-generals-table tr:last-child td { border-bottom: none; }
+  .ext-generals-table td.name { font-weight: 700; color: #333; }
+  .ext-generals-table .del-general { 
+    padding: 2px 6px; font-size: 10px; border: 1px solid #d9534f; 
+    background: #fff; color: #a00; cursor: pointer; border-radius: 2px;
+  }
+  .ext-generals-table .del-general:hover { background: #ffeeee; }
+  .ext-generals-table .edit-general {
+    padding: 2px 6px; font-size: 10px; border: 1px solid #c9bf9e;
+    background: #fff; color: #555; cursor: pointer; border-radius: 2px; margin-right: 3px;
+  }
+  .ext-generals-table .edit-general:hover { background: #f5f0e4; }
 
   /* 弹窗样式 */
   .modal-overlay {
@@ -1234,15 +1480,23 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   <div class="fs-editor-head">
     <div class="fs-editor-title">
       <span id="fs-editor-label">代码编辑</span>
-      <small id="fs-editor-hint">ESC 保存关闭 · 点击遮罩保存</small>
+      <small id="fs-editor-hint">ESC 保存关闭 · 点击遮罩保存 · 右侧 API 点击即插入</small>
     </div>
     <div class="fs-editor-actions">
+      <button id="fs-api-toggle" onclick="window._fsApiToggle()">📖 API</button>
       <button id="fs-editor-save" class="btn primary">✓ 保存</button>
       <button id="fs-editor-cancel" class="btn danger">✕ 取消</button>
     </div>
   </div>
-  <div class="fs-editor-body" id="fs-editor-body"></div>
+  <div class="fs-editor-split">
+    <div class="fs-editor-body" id="fs-editor-body"></div>
+    <div class="fs-api-panel" id="fs-api-panel">
+      <div class="fs-api-tabs" id="fs-api-tabs"></div>
+      <div class="fs-api-content" id="fs-api-content"></div>
+    </div>
+  </div>
 </div>
+<div id="fs-api-overlay-bg" onclick="window._fsApiClose()"></div>
 
 <div class="diy-wrap">
   <!-- 顶部标题栏 -->
@@ -1269,9 +1523,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="diy-project-btns">
-      <button id="btn-project-new" class="btn-mini" title="新建工程">+ 新建</button>
-      <button id="btn-project-import" class="btn-mini" title="导入 ZIP 工程">📥 导入</button>
-      <button id="btn-project-export" class="btn-mini" title="导出 ZIP 工程">📤 导出</button>
+      <button id="btn-ext-new" class="btn-mini" title="新建拓展包">＋ 新建拓展</button>
+      <button id="btn-ext-import" class="btn-mini" title="从 ZIP 导入拓展">📥 导入拓展</button>
     </div>
   </div>
 
@@ -1281,40 +1534,44 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   <!-- 导入文件选择（隐藏） -->
   <input type="file" id="import-file-input" accept=".zip" style="display:none;" />
 
-  <!-- 工程新建弹窗 -->
-  <div id="modal-new-project" class="modal-overlay hidden">
+  <!-- 新建拓展弹窗 -->
+  <div id="modal-new-ext" class="modal-overlay hidden">
     <div class="modal-inner">
       <div class="modal-head">
-        <h3>新建工程</h3>
-        <button class="modal-close" data-modal="modal-new-project">×</button>
+        <h3>新建拓展</h3>
+        <button class="modal-close" data-modal="modal-new-ext">×</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label>工程名称</label>
-          <input id="new-project-name" type="text" placeholder="例如：我的三国mod" />
+          <label>拓展名称</label>
+          <input id="new-ext-name" type="text" placeholder="例如：蜀汉武将包" />
         </div>
         <div class="form-row">
-          <label>确认密码</label>
-          <input id="new-project-password" type="password" placeholder="默认：diy123" />
+          <label>描述（可选）</label>
+          <input id="new-ext-desc" type="text" placeholder="简短描述" />
+        </div>
+        <div class="form-row">
+          <label>密码</label>
+          <input id="new-ext-password" type="password" placeholder="默认：diy123" />
         </div>
       </div>
       <div class="modal-foot">
-        <button id="btn-create-project" class="btn primary">创建并清空</button>
-        <button class="btn ghost" data-modal="modal-new-project">取消</button>
+        <button id="btn-create-ext" class="btn primary">创建</button>
+        <button class="btn" data-modal="modal-new-ext">取消</button>
       </div>
     </div>
   </div>
 
   <!-- 两栏主布局 -->
   <div class="diy-main">
-    <!-- 左栏：武将属性 + 已注册武将 -->
+    <!-- 左栏：拓展管理 + 武将属性 -->
     <div class="diy-left">
-      <!-- 已注册武将表格 -->
+      <!-- 拓展列表 -->
       <div class="card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <div class="card-title">已注册武将</div>
+          <div class="card-title">已有拓展</div>
         </div>
-        <div class="card-body" id="existing-generals">
+        <div class="card-body" id="ext-list-container">
           <span class="empty-state">加载中...</span>
         </div>
       </div>
@@ -1329,6 +1586,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         </div>
         <div class="card-body">
           <table class="tbl">
+            <tr>
+              <th>拓展</th>
+              <td>
+                <select id="g-ext" style="width:100%;"></select>
+                <span class="hint">选择或新建拓展，武将提交到此拓展</span>
+              </td>
+            </tr>
             <tr>
               <th>id</th>
               <td>
@@ -1490,14 +1754,344 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // ============================================================
-  // 全屏编辑器
+  // 全屏编辑器 + API 侧栏
   // ============================================================
   var fsEditorState = {
-    originalEditor: null,   // 被编辑的原始 .code-editor 元素
-    originalTextarea: null, // 原始 textarea
-    cloneTextarea: null,    // 克隆出来的 textarea（用于输入）
-    onKeydown: null,        // ESC 键处理函数引用（用于移除监听）
+    originalEditor: null,
+    originalTextarea: null,
+    cloneTextarea: null,
+    onKeydown: null,
   };
+
+  // 在当前光标位置插入文字（用于 API 点击插入）
+  function insertAtCursor(text) {
+    var ta = fsEditorState.cloneTextarea;
+    if (!ta) return;
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var before = ta.value.substring(0, start);
+    var after = ta.value.substring(end);
+    // 如果光标不在行首，先换行
+    var prefix = (start > 0 && before.charAt(before.length - 1) !== '\n') ? '\n' : '';
+    ta.value = before + prefix + text + '\n' + after;
+    var pos = start + prefix.length + text.length + 1;
+    ta.selectionStart = ta.selectionEnd = pos;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+  }
+
+  // API 侧栏数据
+  var FS_API_TABS = ['战斗', '状态', '位移', '查询', '恢复', '片段'];
+
+  var FS_API_DATA = {
+    '战斗': [
+      { group: '伤害' },
+      { sig: 'Effect.damage(actor, target, amount, opts)', desc: '造成伤害。opts: { ignoreDef, mul, ignoreShield }', insert: 'Effect.damage(actor, target, amount, { ignoreDef: false, mul: 1 });' },
+      { sig: 'Effect.basicAttack(actor, target)', desc: '以当前攻击力进行普通攻击', insert: 'Effect.basicAttack(actor, target);' },
+      { sig: 'Effect.leech(actor, target, amount, opts)', desc: '吸血：造成伤害并回复比例生命（leechRatio 默认 0.5）', insert: 'Effect.leech(actor, target, 60, { ignoreDef: true, leechRatio: 0.5 });' },
+      { sig: 'Effect.explode(actor, x, y, n, amount, opts)', desc: '在 (x,y) 爆炸造成范围 AoE 伤害，shape 默认 r', insert: 'Effect.explode(actor, target.x, target.y, 2, 50, { ignoreDef: true, shape: \'r\' });' },
+      { sig: 'Effect.chain(actor, target, amount, count, opts)', desc: '链式弹射：打完第一个目标后弹射 count 次，每次衰减 decay(默认0.6)', isNew: true, insert: 'Effect.chain(actor, target, 60, 3, { decay: 0.6, ignoreDef: true });' },
+      { group: '治疗' },
+      { sig: 'Effect.heal(target, amount)', desc: '回复生命值（上限 maxHp）', insert: 'Effect.heal(actor, 50);' },
+      { sig: 'Effect.healArea(actor, shape, n, amount)', desc: '范围治疗，对 shape/n 范围内所有友方回复', insert: 'Effect.healArea(actor, \'r\', 2, 40);' },
+      { group: '数值查询' },
+      { sig: 'Effect.getEffectiveAttack(actor)', desc: '当前有效攻击力（含攻击 buff）', insert: 'var atk = Effect.getEffectiveAttack(actor);' },
+      { sig: 'Effect.getEffectiveDefense(target)', desc: '当前有效防御力（含地形、buff）', insert: 'var def = Effect.getEffectiveDefense(target);' },
+    ],
+    '状态': [
+      { group: '护盾 & 削弱' },
+      { sig: 'Effect.shield(target, amount)', desc: '加护盾，先扣盾再扣血', insert: 'Effect.shield(actor, 40);' },
+      { sig: 'Effect.stun(target, turns)', desc: '眩晕：跳过 turns 回合全部行动', insert: 'Effect.stun(target, 1);' },
+      { sig: 'Effect.freeze(target, turns)', desc: '冻结：turns 回合内无法移动', isNew: true, insert: 'Effect.freeze(target, 1);' },
+      { sig: 'Effect.poison(target, dmgPerTurn, turns)', desc: '中毒：每回合受到 dmgPerTurn 伤害（无视防御）', isNew: true, insert: 'Effect.poison(target, 20, 3);' },
+      { sig: 'Effect.charm(actor, target, turns)', desc: '魅惑：目标临时加入己方阵营', insert: 'Effect.charm(actor, target, 2);' },
+      { group: '增益' },
+      { sig: 'Effect.regen(target, healPerTurn, turns)', desc: '再生：每回合回复 healPerTurn 生命', isNew: true, insert: 'Effect.regen(actor, 25, 2);' },
+      { sig: 'Effect.dodge(target, chance)', desc: '闪避：下次受攻击以 chance(0~1) 概率闪避', insert: 'Effect.dodge(actor, 0.5);' },
+      { sig: 'Effect.thorns(target, amount, turns)', desc: '荆棘：受到攻击时反弹 amount 伤害', insert: 'Effect.thorns(actor, 30, 2);' },
+      { sig: 'Effect.taunt(actor, turns)', desc: '嘲讽：标记自身（AI 优先攻击带嘲讽目标）', isNew: true, insert: 'Effect.taunt(actor, 2);' },
+      { sig: 'Effect.modifyAttack(target, delta, turns)', desc: '攻击力 +/- delta，持续 turns 回合', insert: 'Effect.modifyAttack(actor, 30, 2);' },
+      { sig: 'Effect.modifyMoveRange(target, delta, turns)', desc: '移动力 +/- delta，持续 turns 回合', insert: 'Effect.modifyMoveRange(actor, 1, 2);' },
+      { group: '标记系统' },
+      { sig: 'Effect.mark(target, name, opts)', desc: '加自定义标记。opts: { display, modifiers, data }', insert: 'Effect.mark(target, \'mymark\', { display: \'标\', modifiers: {}, data: {} });' },
+      { sig: 'Effect.unmark(target, name)', desc: '移除指定标记', insert: 'Effect.unmark(target, \'mymark\');' },
+      { sig: 'Effect.hasMark(target, name)', desc: '判断目标是否有某标记，返回 true/false', insert: 'if (Effect.hasMark(target, \'mymark\')) { }' },
+      { sig: 'Effect.getMarkData(target, name)', desc: '获取标记的 data 对象', insert: 'var d = Effect.getMarkData(actor, \'mymark\');' },
+    ],
+    '位移': [
+      { group: '主动位移' },
+      { sig: 'Effect.teleport(actor, x, y)', desc: '瞬移到 (x,y) 空格', insert: 'Effect.teleport(actor, target.x, target.y);' },
+      { sig: 'Effect.swap(actor, target)', desc: '与目标交换坐标位置', isNew: true, insert: 'Effect.swap(actor, target);' },
+      { sig: 'Effect.randomTeleport(actor, range)', desc: '在圆形 range 格内随机传送到空格', isNew: true, insert: 'Effect.randomTeleport(actor, 3);' },
+      { sig: 'Effect.summonDecoy(actor, x, y, hp)', desc: '在 (x,y) 召唤幻象（己方假棋子）', isNew: true, insert: 'Effect.summonDecoy(actor, target.x, target.y, 60);' },
+      { group: '推拉' },
+      { sig: 'Effect.push(actor, target, dir, n)', desc: '击退：将 target 沿 dir=[dx,dy] 推 n 格', insert: 'var dir = [Math.sign(target.x-actor.x)||1, Math.sign(target.y-actor.y)||0];\nEffect.push(actor, target, dir, 2);' },
+      { sig: 'Effect.pull(actor, target, n)', desc: '拉拽：将 target 向 actor 方向拉 n 格', insert: 'Effect.pull(actor, target, 2);' },
+    ],
+    '查询': [
+      { group: '选择（异步，需 await）' },
+      { sig: 'await Effect.chooseEnemy(actor, opts)', desc: '让玩家点选范围内敌人，返回棋子或 null', isAsync: true, insert: 'const target = await Effect.chooseEnemy(actor, {\n  range: { shape: \'+\', n: 3 },\n  passThrough: true,\n  hintText: \'请选择敌人\'\n});\nif (!target) return false;' },
+      { sig: 'await Effect.chooseAlly(actor, opts)', desc: '让玩家点选范围内友方，返回棋子或 null', isAsync: true, insert: 'const ally = await Effect.chooseAlly(actor, {\n  range: { shape: \'r\', n: 2 },\n  passThrough: true,\n  hintText: \'请选择友方\'\n});\nif (!ally) return false;' },
+      { sig: 'await Effect.chooseCell(actor, opts)', desc: '让玩家点选格子，返回 {x,y} 或 null', isAsync: true, insert: 'const cell = await Effect.chooseCell(actor, {\n  range: { shape: \'+\', n: 3 },\n  mustEmpty: true,\n  passThrough: true,\n  hintText: \'请选择目标格\'\n});\nif (!cell) return false;' },
+      { group: '棋子 & 格子' },
+      { sig: 'global.Game.pieceAt(x, y)', desc: '查询格子上的棋子，无则返回 null', insert: 'var p = global.Game.pieceAt(cell.x, cell.y);' },
+      { sig: 'Effect.getAllies(actor)', desc: '获取己方所有存活棋子数组', insert: 'var allies = Effect.getAllies(actor);' },
+      { sig: 'Effect.getEnemies(actor)', desc: '获取敌方所有存活棋子数组', insert: 'var enemies = Effect.getEnemies(actor);' },
+      { group: '范围格子' },
+      { sig: 'Range.cellsInRange(shape, n, x, y, opts)', desc: '返回 shape/n 范围内所有格子数组', insert: 'var cells = Range.cellsInRange(\'square\', 2, actor.x, actor.y, { includeSelf: false });' },
+      { sig: 'Range.plus(n, x, y, opts)', desc: '十字形 n 格', insert: 'var cells = Range.plus(2, actor.x, actor.y, { includeSelf: false });' },
+      { sig: 'Range.circle(n, x, y, opts)', desc: '圆形 n 格', insert: 'var cells = Range.circle(2, actor.x, actor.y, { includeSelf: false });' },
+      { group: '工具' },
+      { sig: 'Effect.changeTerrain(x, y, type)', desc: '改变格子地形：r(河)/m(山)/f(林)/w(沼)/plain', insert: 'Effect.changeTerrain(cell.x, cell.y, \'r\');' },
+      { sig: 'Effect.random(min, max)', desc: '随机整数 [min, max]', insert: 'var n = Effect.random(1, 6);' },
+      { sig: 'Effect.chance(p)', desc: '概率判定，p=0~1，返回 true/false', insert: 'if (Effect.chance(0.5)) { }' },
+      { sig: 'global.Game.log(text)', desc: '写入战斗日志', insert: 'global.Game.log(actor.name + \' 发动【技能名】！\');' },
+    ],
+    '恢复': [
+      { group: '单独恢复行动' },
+      { sig: 'Effect.resetAction(actor)', desc: '完整重置：同时恢复移动、攻击、技能权限', insert: 'Effect.resetAction(actor);' },
+      { sig: 'Effect.resetMove(actor)', desc: '仅恢复移动权限', isNew: true, insert: 'Effect.resetMove(actor);' },
+      { sig: 'Effect.resetAttack(actor)', desc: '仅恢复攻击权限', isNew: true, insert: 'Effect.resetAttack(actor);' },
+      { sig: 'Effect.resetSkill(actor, skillId)', desc: '仅恢复技能权限（可选：清除指定技能冷却）', isNew: true, insert: 'Effect.resetSkill(actor);\n// 或 Effect.resetSkill(actor, \'mySkillId\'); // 同时清冷却' },
+      { group: '状态标志' },
+      { sig: 'actor.skilled = true', desc: '标记技能已使用（主动技能必须设置）', insert: 'actor.skilled = true;' },
+      { sig: 'actor.moved = false', desc: '手动恢复移动标志', insert: 'actor.moved = false;' },
+      { sig: 'actor.attacked = false', desc: '手动恢复攻击标志', insert: 'actor.attacked = false;' },
+      { sig: 'actor.cdMap[sk.id] = 0', desc: '手动清除某技能的冷却', insert: 'actor.cdMap[actor.skills[0].id] = 0;' },
+    ],
+    '片段': null  // 片段用单独渲染
+  };
+
+  var FS_SNIPPETS = [
+    {
+      name: '主动：选敌造伤',
+      code: [
+        'const target = await Effect.chooseEnemy(actor, {',
+        '  range: { shape: "+", n: 3 },',
+        '  passThrough: true,',
+        '  hintText: "【技能名】请选择敌人"',
+        '});',
+        'if (!target) return false;',
+        'actor.skilled = true;',
+        'Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });',
+        'global.Game.log(actor.name + " 发动【技能名】！");',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '主动：传送 + 周围爆发',
+      code: [
+        'const cell = await Effect.chooseCell(actor, {',
+        '  range: { shape: "+", n: 4 },',
+        '  mustEmpty: true, passThrough: true,',
+        '  hintText: "【技能名】请选择落点"',
+        '});',
+        'if (!cell) return false;',
+        'actor.skilled = true;',
+        'Effect.teleport(actor, cell.x, cell.y);',
+        'const cells = Range.cellsInRange("r", 1, actor.x, actor.y, { includeSelf: false });',
+        'for (const c of cells) {',
+        '  const t = global.Game.pieceAt(c.x, c.y);',
+        '  if (t && t.alive && t.side !== actor.side)',
+        '    Effect.damage(actor, t, 60, { ignoreDef: true });',
+        '}',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '主动：链式闪电',
+      code: [
+        'const target = await Effect.chooseEnemy(actor, {',
+        '  range: { shape: "r", n: 4 },',
+        '  passThrough: true,',
+        '  hintText: "【链式】请选择初始目标"',
+        '});',
+        'if (!target) return false;',
+        'actor.skilled = true;',
+        '// 弹射 3 次，每次伤害衰减为 60%',
+        'Effect.chain(actor, target, Effect.getEffectiveAttack(actor), 3, { decay: 0.6 });',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '主动：中毒 + 换位',
+      code: [
+        'const target = await Effect.chooseEnemy(actor, {',
+        '  range: { shape: "square", n: 2 },',
+        '  passThrough: true,',
+        '  hintText: "【换位毒】请选择目标"',
+        '});',
+        'if (!target) return false;',
+        'actor.skilled = true;',
+        'Effect.swap(actor, target);',
+        'Effect.poison(target, 25, 3);',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '主动：召唤幻象并击退',
+      code: [
+        'const cell = await Effect.chooseCell(actor, {',
+        '  range: { shape: "r", n: 3 },',
+        '  mustEmpty: true, passThrough: true,',
+        '  hintText: "【召唤】请选择幻象落点"',
+        '});',
+        'if (!cell) return false;',
+        'actor.skilled = true;',
+        'Effect.summonDecoy(actor, cell.x, cell.y, 80);',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '被动（onKill）：击杀后恢复攻击',
+      code: [
+        '// type: 被动  trigger: onKill',
+        '// filter: return actor && actor.alive;',
+        'Effect.resetAttack(actor);',
+        'global.Game.log(actor.name + " 击杀后恢复攻击权限！");'
+      ].join('\n')
+    },
+    {
+      name: '被动（turnStart）：回合开始增益',
+      code: [
+        '// type: 被动  trigger: turnStart',
+        '// filter: return actor && actor.alive;',
+        'Effect.shield(actor, 20);',
+        'Effect.regen(actor, 15, 2);',
+        'global.Game.log("【技能名】" + actor.name + " 获得护盾与再生！", "turn");'
+      ].join('\n')
+    },
+    {
+      name: '被动（turnEnd）：范围群体效果',
+      code: [
+        '// type: 被动  trigger: turnEnd',
+        '// filter: return actor && actor.alive;',
+        'if (!global.Game) return;',
+        'const cells = Range.cellsInRange("square", 1, actor.x, actor.y, { includeSelf: false });',
+        'for (const c of cells) {',
+        '  const t = global.Game.pieceAt(c.x, c.y);',
+        '  if (t && t.alive && t.side !== actor.side) {',
+        '    if (Effect.chance(0.4)) Effect.stun(t, 1);',
+        '  }',
+        '}'
+      ].join('\n')
+    },
+    {
+      name: '被动（onAttacked）：反击 + 冻结',
+      code: [
+        '// type: 被动  trigger: onAttacked',
+        '// filter: return actor && actor.alive;',
+        'if (!context || !context.attacker) return;',
+        'var att = context.attacker;',
+        'if (!att.alive) return;',
+        '// 有 40% 概率反击并冻结攻击者',
+        'if (Effect.chance(0.4)) {',
+        '  Effect.damage(actor, att, 30, { ignoreDef: true });',
+        '  Effect.freeze(att, 1);',
+        '}'
+      ].join('\n')
+    }
+  ];
+
+  function buildApiPanel() {
+    var tabsEl = $('fs-api-tabs');
+    var contentEl = $('fs-api-content');
+    if (!tabsEl || !contentEl) return;
+    tabsEl.innerHTML = '';
+    contentEl.innerHTML = '';
+
+    FS_API_TABS.forEach(function (tabName, i) {
+      // Tab 按钮
+      var tab = document.createElement('div');
+      tab.className = 'fs-api-tab' + (i === 0 ? ' active' : '');
+      tab.textContent = tabName;
+      tab.dataset.tab = tabName;
+      tab.addEventListener('click', function () {
+        qsa('.fs-api-tab', tabsEl).forEach(function (t) { t.classList.remove('active'); });
+        qsa('.fs-api-page', contentEl).forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        var page = contentEl.querySelector('[data-page="' + tabName + '"]');
+        if (page) page.classList.add('active');
+      });
+      tabsEl.appendChild(tab);
+
+      // Page 内容
+      var page = document.createElement('div');
+      page.className = 'fs-api-page' + (i === 0 ? ' active' : '');
+      page.dataset.page = tabName;
+
+      if (tabName === '片段') {
+        // 渲染代码片段
+        FS_SNIPPETS.forEach(function (sn) {
+          var item = document.createElement('div');
+          item.className = 'fs-snippet-item';
+          var head = document.createElement('div');
+          head.className = 'fs-snippet-head';
+          var nameEl = document.createElement('span');
+          nameEl.className = 'fs-snippet-name';
+          nameEl.textContent = sn.name;
+          var btn = document.createElement('button');
+          btn.className = 'fs-snippet-insert';
+          btn.textContent = '插入';
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            insertAtCursor(sn.code);
+          });
+          head.appendChild(nameEl);
+          head.appendChild(btn);
+          var codeEl = document.createElement('pre');
+          codeEl.className = 'fs-snippet-code';
+          codeEl.textContent = sn.code;
+          head.addEventListener('click', function () {
+            codeEl.style.display = codeEl.style.display === 'none' ? 'block' : 'none';
+          });
+          item.appendChild(head);
+          item.appendChild(codeEl);
+          page.appendChild(item);
+        });
+      } else {
+        // 渲染 API 列表
+        var apiList = FS_API_DATA[tabName] || [];
+        apiList.forEach(function (entry) {
+          if (entry.group) {
+            var g = document.createElement('div');
+            g.className = 'fs-api-group-title';
+            g.textContent = entry.group;
+            page.appendChild(g);
+            return;
+          }
+          var item = document.createElement('div');
+          item.className = 'fs-api-item';
+          item.title = '点击在光标处插入';
+          var sig = document.createElement('div');
+          sig.className = 'fs-api-item-sig';
+          if (entry.isNew) {
+            var badge = document.createElement('span');
+            badge.className = 'fs-api-item-badge badge-new';
+            badge.textContent = 'NEW';
+            sig.appendChild(badge);
+          }
+          if (entry.isAsync) {
+            var badge2 = document.createElement('span');
+            badge2.className = 'fs-api-item-badge badge-async';
+            badge2.textContent = 'async';
+            sig.appendChild(badge2);
+          }
+          sig.appendChild(document.createTextNode(entry.sig));
+          var desc = document.createElement('div');
+          desc.className = 'fs-api-item-desc';
+          desc.textContent = entry.desc;
+          item.appendChild(sig);
+          item.appendChild(desc);
+          item.addEventListener('click', function () {
+            insertAtCursor(entry.insert);
+          });
+          page.appendChild(item);
+        });
+      }
+      contentEl.appendChild(page);
+    });
+  }
 
   function openFullscreenEditor(editorEl) {
     if (!editorEl) return;
@@ -1506,11 +2100,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     var label = editorEl.querySelector('.code-label');
     var labelText = label ? label.textContent.trim() : '代码';
 
-    // 记录对原编辑器的引用
     fsEditorState.originalEditor = editorEl;
     fsEditorState.originalTextarea = ta;
 
-    // 克隆编辑器容器到全屏弹窗中
+    // 克隆编辑器到全屏弹窗
     var body = $('fs-editor-body');
     body.innerHTML = '';
     var clone = document.createElement('div');
@@ -1520,7 +2113,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       '<textarea spellcheck="false">' + escapeHtml(ta.value) + '</textarea>';
     body.appendChild(clone);
 
-    // 初始化克隆编辑器的高亮同步
     var cloneTa = clone.querySelector('textarea');
     var clonePre = clone.querySelector('.hl-layer');
     var cloneCode = clone.querySelector('.hl-layer code');
@@ -1554,21 +2146,19 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     });
     cloneSync();
 
-    // 更新标题
-    $('fs-editor-label').textContent = '编辑 ' + labelText + ' 代码';
+    // 构建 API 侧栏
+    buildApiPanel();
 
-    // 打开
+    $('fs-editor-label').textContent = '编辑 ' + labelText + ' 代码';
     var mask = $('fs-editor');
     mask.classList.add('open');
     mask.setAttribute('aria-hidden', 'false');
 
-    // 自动聚焦 textarea，光标在末尾
     setTimeout(function () {
       cloneTa.focus();
       try { cloneTa.selectionStart = cloneTa.selectionEnd = cloneTa.value.length; } catch (e) {}
     }, 50);
 
-    // ESC 键 = 保存并关闭
     if (fsEditorState.onKeydown) document.removeEventListener('keydown', fsEditorState.onKeydown);
     fsEditorState.onKeydown = function (e) {
       if (e.key === 'Escape') {
@@ -1604,7 +2194,24 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     fsEditorState.originalEditor = null;
     fsEditorState.originalTextarea = null;
     fsEditorState.cloneTextarea = null;
+    // 关闭时收起 API 侧栏（手机）
+    window._fsApiClose();
   }
+
+  // 手机 API 侧栏开关
+  window._fsApiToggle = function () {
+    var panel = $('fs-api-panel');
+    var bg = $('fs-api-overlay-bg');
+    if (!panel) return;
+    var open = panel.classList.toggle('open');
+    if (bg) bg.classList.toggle('active', open);
+  };
+  window._fsApiClose = function () {
+    var panel = $('fs-api-panel');
+    var bg = $('fs-api-overlay-bg');
+    if (panel) panel.classList.remove('open');
+    if (bg) bg.classList.remove('active');
+  };
 
   // 绑定全屏编辑器弹窗按钮（在 initDiyPage 之前只绑定一次）
   document.addEventListener('DOMContentLoaded', function () {
@@ -1864,14 +2471,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     // 默认创建一个技能卡片
     addSkillCard();
 
-    // 加载已注册的武将
-    loadExistingGenerals();
+    // 加载拓展列表
+    loadExtensions();
 
     // 初始步骤
     updateStep();
 
-    // ========== 工程管理功能 ==========
-    var currentProjectName = null;
+    // ========== 拓展管理功能 ==========
 
     function showProjectToast(msg, duration) {
       var toast = $('project-toast');
@@ -1879,187 +2485,90 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       toast.textContent = msg;
       toast.classList.remove('hidden');
       clearTimeout(toast._timer);
-      toast._timer = setTimeout(function () {
-        toast.classList.add('hidden');
-      }, duration || 2000);
+      toast._timer = setTimeout(function () { toast.classList.add('hidden'); }, duration || 2500);
     }
 
-    function openModal(id) {
-      var m = $(id);
-      if (m) m.classList.remove('hidden');
-    }
+    function openModal(id) { var m = $(id); if (m) m.classList.remove('hidden'); }
+    function closeModal(id) { var m = $(id); if (m) m.classList.add('hidden'); }
 
-    function closeModal(id) {
-      var m = $(id);
-      if (m) m.classList.add('hidden');
-    }
-
-    // 新建工程
-    var btnNew = $('btn-project-new');
-    if (btnNew) {
-      btnNew.addEventListener('click', function () {
-        $('new-project-name').value = '';
-        $('new-project-password').value = '';
-        openModal('modal-new-project');
+    // 新建拓展按钮
+    var btnExtNew = $('btn-ext-new');
+    if (btnExtNew) {
+      btnExtNew.addEventListener('click', function () {
+        $('new-ext-name').value = '';
+        $('new-ext-desc').value = '';
+        $('new-ext-password').value = '';
+        openModal('modal-new-ext');
       });
     }
 
-    // 创建工程
-    var btnCreate = $('btn-create-project');
-    if (btnCreate) {
-      btnCreate.addEventListener('click', function () {
-        var name = $('new-project-name').value.trim() || '未命名工程';
-        var pwd = $('new-project-password').value || 'diy123';
-
-        fetch('/api/project/export', {
+    // 确认创建拓展
+    var btnCreateExt = $('btn-create-ext');
+    if (btnCreateExt) {
+      btnCreateExt.addEventListener('click', function () {
+        var name = $('new-ext-name').value.trim() || '未命名拓展';
+        var desc = $('new-ext-desc').value.trim();
+        var pwd  = $('new-ext-password').value || 'diy123';
+        fetch('/api/ext/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectName: name, password: pwd })
+          body: JSON.stringify({ name: name, desc: desc, password: pwd })
         })
-          .then(function (r) { return r.blob(); })
-          .then(function (blob) {
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = name + '.zip';
-            a.click();
-            URL.revokeObjectURL(url);
-
-            if (confirm('工程 "' + name + '" 已导出为 ZIP 文件。\n\n点击"确定"将清空当前服务器数据（可重新导入恢复）。')) {
-              var emptyZip = new JSZip();
-              emptyZip.file('project.json', JSON.stringify({ name: name, version: '1.0.0' }));
-              emptyZip.file('generals.json', '[]');
-              emptyZip.file('skills.json', '[]');
-
-              emptyZip.generateAsync({ type: 'base64' }).then(function (base64) {
-                var fd = new FormData();
-                fd.append('zip', base64);
-                fd.append('password', pwd);
-
-                return fetch('/api/project/import', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ password: pwd })
-                });
-              }).catch(function () {});
-            }
-
-            closeModal('modal-new-project');
-            showProjectToast('工程已导出: ' + name + '.zip');
-            currentProjectName = name;
-            var pn = $('project-name');
-            if (pn) {
-              pn.textContent = '📦 ' + name;
-              pn.style.display = 'inline-block';
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              closeModal('modal-new-ext');
+              showProjectToast('拓展「' + name + '」已创建');
+              loadExtensions();
+              // 将新拓展设为当前选择
+              setTimeout(function () {
+                var sel = $('g-ext');
+                if (sel && data.ext) {
+                  sel.value = data.ext.id;
+                }
+              }, 300);
+            } else {
+              alert(data.error || '创建失败');
             }
           })
-          .catch(function (err) {
-            alert('导出失败: ' + err.message);
-          });
+          .catch(function (e) { alert('网络错误: ' + e.message); });
       });
     }
 
-    // 导出工程
-    var btnExport = $('btn-project-export');
-    if (btnExport) {
-      btnExport.addEventListener('click', function () {
-        var name = currentProjectName || prompt('请输入工程名称用于导出文件命名：') || 'my-project';
-        var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
-
-        fetch('/api/project/export', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectName: name, password: pwd })
-        })
-          .then(function (r) { return r.blob(); })
-          .then(function (blob) {
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = name + '.zip';
-            a.click();
-            URL.revokeObjectURL(url);
-            showProjectToast('工程已导出: ' + name + '.zip');
-          })
-          .catch(function (err) {
-            alert('导出失败: ' + err.message);
-          });
-      });
-    }
-
-    // 导入工程
-    var btnImport = $('btn-project-import');
-    var importInput = $('import-file-input');
-    if (btnImport && importInput) {
-      btnImport.addEventListener('click', function () {
-        importInput.click();
-      });
-
+    // 导入拓展（ZIP）
+    var btnExtImport = $('btn-ext-import');
+    var importInput  = $('import-file-input');
+    if (btnExtImport && importInput) {
+      btnExtImport.addEventListener('click', function () { importInput.click(); });
       importInput.addEventListener('change', function (e) {
         var file = e.target.files[0];
         if (!file) return;
-
         var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
-
-        var reader = new FileReader();
-        reader.onload = function (evt) {
-          var arrayBuffer = evt.target.result;
-
-          JSZip.loadAsync(arrayBuffer).then(function (zip) {
-            return Promise.all([
-              zip.file('generals.json')?.async('string'),
-              zip.file('skills.json')?.async('string'),
-              zip.file('project.json')?.async('string')
-            ]).then(function (results) {
-              var generalsJson = results[0];
-              var skillsJson = results[1];
-              var projectJson = results[2];
-
-              if (!generalsJson || !skillsJson) {
-                throw new Error('ZIP 内缺少 generals.json 或 skills.json');
-              }
-
-              var generals = JSON.parse(generalsJson);
-              var skills = JSON.parse(skillsJson);
-              var projectMeta = projectJson ? JSON.parse(projectJson) : {};
-              var projectName = projectMeta.name || file.name.replace('.zip', '');
-
-              var formData = new FormData();
-              formData.append('zip', new Blob([arrayBuffer], { type: 'application/zip' }), file.name);
-              formData.append('password', pwd);
-
-              return fetch('/api/project/import', {
-                method: 'POST',
-                body: formData
-              }).then(function (r) { return r.json(); });
-            });
-          }).then(function (result) {
-            if (result && result.ok) {
-              showProjectToast('工程 "' + (result.projectName || '未命名') + '" 导入成功！');
-              currentProjectName = result.projectName;
-              var pn = $('project-name');
-              if (pn) {
-                pn.textContent = '📦 ' + result.projectName;
-                pn.style.display = 'inline-block';
-              }
-              loadExistingGenerals();
+        var fd = new FormData();
+        fd.append('zip', file, file.name);
+        fd.append('password', pwd);
+        fetch('/api/project/import', { method: 'POST', body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              showProjectToast('拓展「' + data.projectName + '」导入成功（' + data.generalsCount + ' 位武将）');
+              loadExtensions();
             } else {
-              alert((result && result.error) || '导入失败');
+              alert(data.error || '导入失败');
             }
-          }).catch(function (err) {
-            alert('解析 ZIP 失败: ' + err.message);
-          });
-        };
-        reader.readAsArrayBuffer(file);
+          })
+          .catch(function (e) { alert('导入失败: ' + e.message); });
         e.target.value = '';
       });
     }
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
-  // highlight.js 若还没加载好，再等一下
+  // highlight.js 若还没加载好再等一下，最多等 3 秒，超时也强制初始化
+  var _tryInitCount = 0;
   function tryInit() {
-    if (window.hljs) {
+    _tryInitCount++;
+    if (window.hljs || _tryInitCount > 37) {
       initDiyPage();
     } else {
       setTimeout(tryInit, 80);
@@ -2087,30 +2596,24 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // ============================================================
-  // 提交武将
+  // 提交武将（含拓展 id）
   // ============================================================
   function submitGeneral() {
-    var gid = $('gid').value.trim();
+    var gid   = $('gid').value.trim();
     var gname = $('gname').value.trim();
-    if (!gid || !gname) {
-      showMsg('✗ 请填写武将 id 和 name', 'error');
-      return;
-    }
+    if (!gid || !gname) { showMsg('✗ 请填写武将 id 和 name', 'error'); return; }
+
+    var extSel  = $('g-ext');
+    var extId   = extSel ? extSel.value : '';
+    var extName = extSel ? (extSel.options[extSel.selectedIndex] && extSel.options[extSel.selectedIndex].text) : '';
 
     var general = {
-      id: gid,
-      name: gname,
-      hp: parseInt($('ghp').value, 10) || 200,
+      id: gid, name: gname,
+      hp:  parseInt($('ghp').value,  10) || 200,
       atk: parseInt($('gatk').value, 10) || 50,
       def: parseInt($('gdef').value, 10) || 20,
-      moveRange: {
-        shape: $('gmv-shape').value,
-        n: parseInt($('gmv-n').value, 10) || 3
-      },
-      attackRange: {
-        shape: $('gatk-shape').value,
-        n: parseInt($('gatk-n').value, 10) || 1
-      }
+      moveRange:   { shape: $('gmv-shape').value,  n: parseInt($('gmv-n').value,   10) || 3 },
+      attackRange: { shape: $('gatk-shape').value, n: parseInt($('gatk-n').value,  10) || 1 }
     };
 
     var skills = [];
@@ -2119,138 +2622,316 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       var c = cards[i];
       var pvShape = c.querySelector('.s-pv-shape').value;
       skills.push({
-        id: c.querySelector('.s-id').value.trim() || ('skill' + (i + 1)),
-        name: c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
-        type: c.querySelector('.s-type').value,
-        cooldown: parseInt(c.querySelector('.s-cd').value, 10) || 0,
-        trigger: c.querySelector('.s-trigger').value || null,
-        desc: c.querySelector('.s-desc').value.trim() || '',
-        preview: pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
-        filterCode: c.querySelector('.s-filter').value,
+        id:          c.querySelector('.s-id').value.trim()   || ('skill' + (i + 1)),
+        name:        c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
+        type:        c.querySelector('.s-type').value,
+        cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
+        trigger:     c.querySelector('.s-trigger').value || null,
+        desc:        c.querySelector('.s-desc').value.trim() || '',
+        preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
+        filterCode:  c.querySelector('.s-filter').value,
         contentCode: c.querySelector('.s-content').value
       });
     }
 
     var password = $('pwd').value;
-    if (!password) {
-      showMsg('✗ 请输入提交密码（默认 diy123）', 'error');
-      return;
-    }
+    if (!password) { showMsg('✗ 请输入提交密码（默认 diy123）', 'error'); return; }
 
     showMsg('提交中...', 'info');
 
     fetch('/api/diy/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ general: general, skills: skills, password: password })
+      body: JSON.stringify({ general: general, skills: skills, password: password, extId: extId || undefined, extName: extName || '默认拓展' })
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data && data.ok) {
-          showMsg('✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已注册。返回游戏首页可在选将中看到新武将。', 'success');
-          loadExistingGenerals();
+          showMsg('✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已加入拓展「' + (data.extName || '默认拓展') + '」。', 'success');
+          resetSubmitBtn();
+          loadExtensions();
         } else {
           showMsg('✗ ' + (data && data.error ? data.error : '提交失败'), 'error');
         }
       })
-      .catch(function (err) {
-        showMsg('✗ 网络错误：' + err.message, 'error');
-      });
+      .catch(function (err) { showMsg('✗ 网络错误：' + err.message, 'error'); });
   }
 
   // ============================================================
-  // 加载已注册武将（表格视图）
+  // 加载拓展列表（左侧面板 + 拓展选择下拉）
   // ============================================================
-  function formatRange(r) {
-    if (!r) return '—';
-    var shapeName = {
-      '+': '十字',
-      'square': '方形',
-      'r': '圆形',
-      'x': 'X 形'
-    }[r.shape] || (r.shape || '—');
-    return '<span class="shape">' + shapeName + '</span> 半径 ' + (r.n !== undefined ? r.n : '—');
-  }
+  function loadExtensions() {
+    var container = $('ext-list-container');
+    var extSel    = $('g-ext');
+    var prevVal   = extSel ? extSel.value : '';
 
-  function loadExistingGenerals() {
-    var container = $('existing-generals');
-    fetch('/api/diy/list')
+    fetch('/api/ext/list')
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data.ok || !data.generals || data.generals.length === 0) {
-          container.innerHTML = '<span class="empty-state">（暂无。在下方创建你的第一个 DIY 武将吧！）</span>';
+        // 更新下拉选择框
+        if (extSel) {
+          extSel.innerHTML = '';
+          if (!data.ok || !data.extensions || !data.extensions.length) {
+            var opt = document.createElement('option');
+            opt.value = ''; opt.textContent = '（先新建一个拓展）';
+            extSel.appendChild(opt);
+          } else {
+            data.extensions.forEach(function (ext) {
+              var opt = document.createElement('option');
+              opt.value = ext.id;
+              opt.textContent = ext.name + (ext.enabled ? '' : ' [已禁用]');
+              extSel.appendChild(opt);
+            });
+            // 尽量保持之前的选择
+            if (prevVal) extSel.value = prevVal;
+          }
+        }
+
+        // 渲染拓展卡片
+        if (!data.ok || !data.extensions || !data.extensions.length) {
+          container.innerHTML = '<span class="empty-state">（暂无拓展。点击右上角「＋ 新建拓展」创建。）</span>';
           return;
         }
-        // 表格：id · name · HP · ATK · DEF · 移动范围 · 攻击范围 · 技能数 · 操作
-        var html = '<div class="gen-table-wrap">' +
-          '<table class="gen-table">' +
-          '<thead><tr>' +
-          '<th>ID</th><th>武将名</th>' +
-          '<th>HP</th><th>ATK</th><th>DEF</th>' +
-          '<th>移动范围</th><th>攻击范围</th>' +
-          '<th>技能</th><th>操作</th>' +
-          '</tr></thead><tbody>';
-        for (var i = 0; i < data.generals.length; i++) {
-          var g = data.generals[i];
-          var skillCount = (g.skills && g.skills.length) || ((g.skillIds && g.skillIds.length) || 0);
-          html += '<tr>' +
-            '<td class="id-col">' + g.id + '</td>' +
-            '<td class="name-col">' + g.name + '</td>' +
-            '<td class="num">' + g.hp + '</td>' +
-            '<td class="num">' + g.atk + '</td>' +
-            '<td class="num">' + g.def + '</td>' +
-            '<td class="range-cell">' + formatRange(g.moveRange) + '</td>' +
-            '<td class="range-cell">' + formatRange(g.attackRange) + '</td>' +
-            '<td class="num">' + skillCount + '</td>' +
-            '<td class="actions">' +
-              '<button class="btn-mini gen-del" data-id="' + g.id + '">删除</button>' +
-            '</td>' +
-          '</tr>';
-        }
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        container.innerHTML = '';
+        data.extensions.forEach(function (ext) {
+          container.appendChild(buildExtCard(ext));
+        });
       })
       .catch(function () {
-        container.innerHTML = '<span class="empty-state">加载失败（需要启动 diy 后端服务）</span>';
+        container.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
       });
   }
 
-  // 已注册武将的删除（事件委托）
+  function buildExtCard(ext) {
+    var card = document.createElement('div');
+    card.className = 'ext-card';
+    card.dataset.extId = ext.id;
+
+    // 武将行
+    var gRows = '';
+    if (ext.generals && ext.generals.length) {
+      gRows = '<table class="ext-generals-table"><thead><tr><th>武将名</th><th>HP</th><th>ATK</th><th>操作</th></tr></thead><tbody>';
+      ext.generals.forEach(function (g) {
+        gRows +=
+          '<tr>' +
+          '<td class="name">' + escapeHtml(g.name) + '</td>' +
+          '<td>' + g.hp + '</td><td>' + g.atk + '</td>' +
+          '<td>' +
+            '<button class="edit-general" data-gid="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(ext.id) + '">编辑</button>' +
+            '<button class="del-general"  data-gid="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(ext.id) + '">删除</button>' +
+          '</td>' +
+          '</tr>';
+      });
+      gRows += '</tbody></table>';
+    } else {
+      gRows = '<span class="empty-state" style="font-size:11px;">（此拓展暂无武将）</span>';
+    }
+
+    card.innerHTML =
+      '<div class="ext-card-head">' +
+        '<span class="ext-enabled-dot' + (ext.enabled ? '' : ' off') + '"></span>' +
+        '<span class="ext-name">' + escapeHtml(ext.name) + '</span>' +
+        '<span class="ext-meta">' + ext.generalsCount + ' 位武将</span>' +
+        '<span class="ext-arrow">›</span>' +
+      '</div>' +
+      '<div class="ext-card-body">' +
+        (ext.desc ? '<p style="font-size:11px;color:#888;margin:0 0 8px;">' + escapeHtml(ext.desc) + '</p>' : '') +
+        '<div class="ext-actions">' +
+          '<button class="btn-mini ext-toggle" data-ext-id="' + escapeHtmlAttr(ext.id) + '" data-enabled="' + (ext.enabled ? '1' : '0') + '">' +
+            (ext.enabled ? '⏸ 禁用' : '▶ 启用') +
+          '</button>' +
+          '<button class="btn-mini ext-export" data-ext-id="' + escapeHtmlAttr(ext.id) + '" data-ext-name="' + escapeHtmlAttr(ext.name) + '">📤 导出</button>' +
+          '<button class="btn-mini danger ext-delete" data-ext-id="' + escapeHtmlAttr(ext.id) + '" data-ext-name="' + escapeHtmlAttr(ext.name) + '">🗑 删除拓展</button>' +
+        '</div>' +
+        gRows +
+      '</div>';
+
+    // 折叠
+    card.querySelector('.ext-card-head').addEventListener('click', function () {
+      card.classList.toggle('open');
+    });
+
+    return card;
+  }
+
+  // ============================================================
+  // 拓展操作事件委托（启用/禁用/导出/删除拓展 + 删除/编辑武将）
+  // ============================================================
   document.addEventListener('click', function (e) {
-    var del = e.target.closest('.gen-del');
-    if (del) {
-      var id = del.getAttribute('data-id');
-      if (!id) return;
-      var pwd = prompt('请输入密码以删除武将 ' + id);
+    var pwd;
+
+    // 启用/禁用拓展
+    var toggleBtn = e.target.closest('.ext-toggle');
+    if (toggleBtn) {
+      pwd = prompt('请输入密码：') || '';
+      if (!pwd) return;
+      var extId   = toggleBtn.dataset.extId;
+      var enabled = toggleBtn.dataset.enabled !== '1';
+      fetch('/api/ext/toggle', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extId: extId, enabled: enabled, password: pwd })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) loadExtensions(); else alert(d.error || '操作失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
+    }
+
+    // 导出拓展
+    var exportBtn = e.target.closest('.ext-export');
+    if (exportBtn) {
+      pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+      var extId   = exportBtn.dataset.extId;
+      var extName = exportBtn.dataset.extName || 'extension';
+      fetch('/api/project/export', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extId: extId, password: pwd })
+      }).then(function (r) {
+        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || '导出失败'); });
+        return r.blob();
+      }).then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = extName + '.zip'; a.click();
+        URL.revokeObjectURL(url);
+      }).catch(function (e) { alert('导出失败: ' + e.message); });
+      return;
+    }
+
+    // 删除整个拓展
+    var deleteExtBtn = e.target.closest('.ext-delete');
+    if (deleteExtBtn) {
+      var extName = deleteExtBtn.dataset.extName;
+      if (!confirm('确定删除整个拓展「' + extName + '」及其所有武将？此操作不可撤销。')) return;
+      pwd = prompt('请输入密码确认：') || '';
+      if (!pwd) return;
+      fetch('/api/ext/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extId: deleteExtBtn.dataset.extId, password: pwd })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { loadExtensions(); } else alert(d.error || '删除失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
+    }
+
+    // 编辑单个武将 → 回填表单
+    var editGenBtn = e.target.closest('.edit-general');
+    if (editGenBtn) {
+      var gid = editGenBtn.dataset.gid;
+      var extId = editGenBtn.dataset.extId;
+      loadGeneralForEdit(gid, extId);
+      return;
+    }
+
+    // 删除单个武将
+    var delGenBtn = e.target.closest('.del-general');
+    if (delGenBtn) {
+      var gid = delGenBtn.dataset.gid;
+      if (!confirm('确定删除武将 ' + gid + '？')) return;
+      pwd = prompt('请输入密码：') || '';
       if (!pwd) return;
       fetch('/api/diy/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id, password: pwd })
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.ok) { alert('已删除'); loadExistingGenerals(); }
-          else alert(data.error || '删除失败');
-        })
-        .catch(function (err) { alert('网络错误：' + err.message); });
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gid, password: pwd })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) loadExtensions(); else alert(d.error || '删除失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
     }
   });
 
-  // 弹窗关闭按钮和遮罩点击（document级别，提前绑定）
+  // ============================================================
+  // 编辑武将：从服务器拉取数据，回填表单 + 技能列表
+  // ============================================================
+  function loadGeneralForEdit(gid, extId) {
+    fetch('/api/diy/detail?id=' + encodeURIComponent(gid))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) { alert('无法加载武将数据：' + (data.error || '未知错误')); return; }
+        var g = data.general;
+
+        // 回填武将基本属性
+        // id 去掉前缀 "diy_"
+        $('gid').value = g.id.replace(/^diy_/, '');
+        $('gname').value = g.name;
+        $('ghp').value = g.hp;
+        $('gatk').value = g.atk;
+        $('gdef').value = g.def;
+        if (g.moveRange) {
+          $('gmv-shape').value = g.moveRange.shape || '+';
+          $('gmv-n').value = g.moveRange.n !== undefined ? g.moveRange.n : 3;
+        }
+        if (g.attackRange) {
+          $('gatk-shape').value = g.attackRange.shape || '+';
+          $('gatk-n').value = g.attackRange.n !== undefined ? g.attackRange.n : 1;
+        }
+
+        // 切换拓展下拉
+        var extSel = $('g-ext');
+        if (extSel && extId) extSel.value = extId;
+
+        // 重建技能列表
+        $('skills-container').innerHTML = '';
+        skillIdx = 0;
+        var skills = Array.isArray(data.skills) ? data.skills : [];
+        if (skills.length === 0) {
+          addSkillCard();
+        } else {
+          skills.forEach(function (s) {
+            // skill id 去掉 武将id_ 前缀，如 "diy_zhaoyun_jieying" → "jieying"
+            var shortId = s.id.replace(new RegExp('^' + gid + '_'), '');
+            addSkillCard({
+              id:           shortId,
+              name:         s.name || '',
+              type:         s.type || '主动',
+              cooldown:     s.cooldown !== undefined ? s.cooldown : 2,
+              trigger:      s.trigger || '',
+              desc:         s.desc || '',
+              previewShape: s.preview ? s.preview.shape : '',
+              previewN:     s.preview ? s.preview.n : 3,
+              filter:       s.filterCode  || '',
+              content:      s.contentCode || ''
+            });
+          });
+        }
+
+        // 标记为"编辑模式"
+        var submitBtn = $('btn-submit');
+        if (submitBtn) {
+          submitBtn.textContent = '✓ 更新武将';
+          submitBtn.style.background = '#2980b9';
+        }
+        var submitInfo = $('submit-info');
+        if (submitInfo) {
+          submitInfo.textContent = '正在编辑武将：' + g.name + '（' + g.id + '），修改后点击"更新武将"提交。';
+          submitInfo.className = 'output-msg info';
+          submitInfo.style.display = 'block';
+        }
+
+        // 滚动到表单区域
+        var formCard = $('gid');
+        if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      })
+      .catch(function (e) { alert('加载武将失败：' + e.message); });
+  }
+
+  // 提交成功后恢复"提交武将"按钮文字
+  function resetSubmitBtn() {
+    var submitBtn = $('btn-submit');
+    if (submitBtn) {
+      submitBtn.textContent = '✓ 提交';
+      submitBtn.style.background = '';
+    }
+  }
+
+  // 弹窗关闭按钮和遮罩点击
   document.addEventListener('click', function (e) {
     var closeTrigger = e.target.closest('[data-modal]');
     if (closeTrigger) {
       var id = closeTrigger.getAttribute('data-modal');
-      if (id) {
-        var m = document.getElementById(id);
-        if (m) m.classList.add('hidden');
-      }
+      if (id) { var m = document.getElementById(id); if (m) m.classList.add('hidden'); }
     }
     var overlay = e.target.closest('.modal-overlay');
-    if (overlay && e.target === overlay) {
-      overlay.classList.add('hidden');
-    }
+    if (overlay && e.target === overlay) { overlay.classList.add('hidden'); }
   });
 </script>
 

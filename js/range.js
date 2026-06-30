@@ -60,14 +60,20 @@
     return list;
   }
 
-  function reachableCells(originX, originY, maxSteps, game) {
+  // shape: '+' 十字（4向BFS）| 'square' 方形（8向BFS）| 'r' 圆形（8向BFS）| 'x' 斜角（8向BFS）
+  function reachableCells(originX, originY, maxSteps, game, shape) {
+    shape = shape || '+';
+    // 方形/圆形/斜角需要 8 方向才能走对角
+    const dirs = (shape === 'square' || shape === 'r' || shape === 'x')
+      ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+      : [[1,0],[-1,0],[0,1],[0,-1]];
+
     const result = [];
     const visited = new Map();
     const queue = [{ x: originX, y: originY, steps: 0 }];
     visited.set(key(originX, originY), 0);
     while (queue.length) {
       const cur = queue.shift();
-      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
       for (const [dx, dy] of dirs) {
         const nx = cur.x + dx;
         const ny = cur.y + dy;
@@ -83,7 +89,13 @@
         queue.push({ x: nx, y: ny, steps: ns });
       }
     }
-    return result;
+
+    // 用几何形状过滤：确保只返回落在 shape 内的格子
+    const shapeSet = new Set(
+      cellsInRange(shape, maxSteps, originX, originY, { includeSelf: false })
+        .map(c => key(c.x, c.y))
+    );
+    return result.filter(c => shapeSet.has(key(c.x, c.y)));
   }
 
   const Range = {

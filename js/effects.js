@@ -524,6 +524,177 @@
     },
     chance(p) {
       return Math.random() < p;
+    },
+
+    // ========== 单独恢复行动 ==========
+
+    // 仅恢复移动权限
+    resetMove(actor) {
+      if (!actor || !actor.alive) return false;
+      actor.moved = false;
+      if (global.Game) global.Game.log(actor.name + ' 恢复了移动权限！', 'turn');
+      return true;
+    },
+
+    // 仅恢复攻击权限
+    resetAttack(actor) {
+      if (!actor || !actor.alive) return false;
+      actor.attacked = false;
+      if (global.Game) global.Game.log(actor.name + ' 恢复了攻击权限！', 'turn');
+      return true;
+    },
+
+    // 仅恢复技能权限（可选：同时清空指定技能的冷却）
+    resetSkill(actor, skillId) {
+      if (!actor || !actor.alive) return false;
+      actor.skilled = false;
+      if (skillId && actor.cdMap) actor.cdMap[skillId] = 0;
+      if (global.Game) global.Game.log(actor.name + ' 恢复了技能权限！', 'turn');
+      return true;
+    },
+
+    // ========== 新效果 ==========
+
+    // 冻结：目标下回合无法移动（锁 moved），持续 turns 回合
+    freeze(target, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'freeze', {
+        display: '冻',
+        modifiers: { freezeTurns: turns },
+        data: { turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 被冻结 ' + turns + ' 回合，无法移动！');
+      return true;
+    },
+
+    // 中毒：目标每回合受到固定伤害（无视防御），持续 turns 回合
+    poison(target, dmgPerTurn, turns) {
+      turns = turns || 2;
+      dmgPerTurn = dmgPerTurn || 20;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'poison', {
+        display: '毒',
+        modifiers: { poisonDmg: dmgPerTurn, poisonTurns: turns },
+        data: { dmgPerTurn, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 中毒（每回合 ' + dmgPerTurn + ' 点，共 ' + turns + ' 回合）！');
+      return true;
+    },
+
+    // 再生：目标每回合回复固定生命，持续 turns 回合
+    regen(target, healPerTurn, turns) {
+      turns = turns || 2;
+      healPerTurn = healPerTurn || 20;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'regen', {
+        display: '生',
+        modifiers: { regenHeal: healPerTurn, regenTurns: turns },
+        data: { healPerTurn, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 获得再生（每回合 +' + healPerTurn + '，共 ' + turns + ' 回合）！');
+      return true;
+    },
+
+    // 换位：与目标交换坐标
+    swap(actor, target) {
+      if (!actor || !target || !actor.alive || !target.alive) return false;
+      var ax = actor.x, ay = actor.y;
+      actor.x = target.x; actor.y = target.y;
+      target.x = ax; target.y = ay;
+      if (global.Game) global.Game.log(actor.name + ' 与 ' + target.name + ' 换位！');
+      return true;
+    },
+
+    // 链式闪电：对 target 造成 amount 伤害，再弹射至最近的其他敌人，
+    // 最多弹射 count 次，每次伤害衰减为 decay 倍（默认 0.6）
+    chain(actor, target, amount, count, opts) {
+      opts = opts || {};
+      count = count === undefined ? 2 : count;
+      var decay = opts.decay !== undefined ? opts.decay : 0.6;
+      if (!actor || !target || !global.Game) return 0;
+      var g = global.Game;
+      var hit = [target];
+      var dmg = amount;
+      var totalHits = 0;
+      Effect.damage(actor, target, dmg, opts);
+      totalHits++;
+      for (var i = 0; i < count; i++) {
+        dmg = Math.floor(dmg * decay);
+        if (dmg < 1) break;
+        var last = hit[hit.length - 1];
+        var candidates = g.pieces.filter(function (p) {
+          return p.alive && p.side !== actor.side && hit.indexOf(p) < 0;
+        });
+        if (!candidates.length) break;
+        candidates.sort(function (a, b) {
+          return (Math.abs(a.x - last.x) + Math.abs(a.y - last.y)) -
+                 (Math.abs(b.x - last.x) + Math.abs(b.y - last.y));
+        });
+        var next = candidates[0];
+        if (!next) break;
+        hit.push(next);
+        Effect.damage(actor, next, dmg, opts);
+        totalHits++;
+      }
+      if (global.Game) global.Game.log(actor.name + ' 【链式】弹射 ' + totalHits + ' 目标！');
+      return totalHits;
+    },
+
+    // 嘲讽：标记自身（AI 会优先以带嘲讽标记的目标为攻击对象），持续 turns 回合
+    taunt(actor, turns) {
+      turns = turns || 2;
+      if (!actor || !actor.alive) return false;
+      Effect.mark(actor, 'taunt', {
+        display: '讽',
+        modifiers: { tauntTurns: turns },
+        data: { turns }
+      });
+      if (global.Game) global.Game.log(actor.name + ' 发起嘲讽，吸引敌方注意！');
+      return true;
+    },
+
+    // 随机传送：在以 actor 为中心的圆形 range 格内随机选一个空格传送
+    randomTeleport(actor, range) {
+      range = range || 3;
+      if (!actor || !actor.alive || !global.Game) return false;
+      var g = global.Game;
+      var cells = Range.cellsInRange('r', range, actor.x, actor.y, { includeSelf: false });
+      var empty = cells.filter(function (c) { return !g.pieceAt(c.x, c.y); });
+      if (!empty.length) return false;
+      var dest = empty[Math.floor(Math.random() * empty.length)];
+      actor.x = dest.x; actor.y = dest.y;
+      g.log(actor.name + ' 随机传送至 (' + dest.x + ',' + dest.y + ')！');
+      return true;
+    },
+
+    // 召唤幻象：在指定格子放置一个虚假棋子（用标记实现，会被攻击但无 hp），
+    // 返回创建的虚假棋子对象（放入 Game.pieces）
+    // 注：幻象 hp 耗尽后自动消亡
+    summonDecoy(actor, x, y, hp) {
+      hp = hp || 60;
+      if (!actor || !global.Game) return null;
+      var g = global.Game;
+      if (x < 0 || y < 0 || x >= Range.BOARD_SIZE || y >= Range.BOARD_SIZE) return null;
+      if (g.pieceAt(x, y)) return null;
+      var decoy = {
+        generalId: 'decoy_' + Date.now(),
+        name: actor.name + '·幻',
+        side: actor.side,
+        hp: hp, maxHp: hp,
+        atk: 0, def: 0,
+        x: x, y: y,
+        alive: true,
+        moved: true, attacked: true, skilled: true,
+        skills: [], cdMap: {},
+        moveRange: { shape: '+', n: 0 },
+        atkRange:  { shape: '+', n: 0 },
+        isDecoy: true
+      };
+      g.pieces.push(decoy);
+      g.log(actor.name + ' 在 (' + x + ',' + y + ') 召唤幻象！');
+      g._render();
+      return decoy;
     }
   };
 
