@@ -1,28 +1,11 @@
 {
   "extensions": [
     {
-      "id": "ext_default",
-      "name": "默认拓展",
-      "desc": "从旧数据自动迁移",
+      "id": "ext_mr0vn7wqvdj",
+      "name": "蜀汉",
+      "desc": "",
       "enabled": true,
-      "generals": [
-        {
-          "id": "diy_test5",
-          "name": "测试5",
-          "hp": 200,
-          "atk": 50,
-          "def": 20,
-          "moveRange": {
-            "shape": "+",
-            "n": 3
-          },
-          "attackRange": {
-            "shape": "+",
-            "n": 1
-          },
-          "skillIds": []
-        }
-      ],
+      "generals": [],
       "skills": []
     }
   ]
