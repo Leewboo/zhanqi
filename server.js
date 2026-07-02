@@ -162,20 +162,8 @@ app.use(async (ctx, next) => {
       ctx.status = 400; ctx.body = { ok: false, error: '武将 id 需为 2-20 位字母/数字/下划线' }; return;
     }
 
-    // 技能校验
+    // 技能校验（在构造循环中按模式分别校验）
     const skillArr = Array.isArray(skills) ? skills : [];
-    for (const s of skillArr) {
-      const sid = String(s.id || '').trim();
-      if (!sid || !/^[a-zA-Z0-9_-]{2,30}$/.test(sid)) {
-        ctx.status = 400; ctx.body = { ok: false, error: '技能 id 需为 2-30 位字母/数字/下划线' }; return;
-      }
-      if (!s.name || !String(s.name).trim()) {
-        ctx.status = 400; ctx.body = { ok: false, error: '技能 name 必填' }; return;
-      }
-      if (typeof s.filterCode !== 'string' || typeof s.contentCode !== 'string') {
-        ctx.status = 400; ctx.body = { ok: false, error: '技能 filterCode / contentCode 必须是字符串' }; return;
-      }
-    }
 
     // 构造武将对象
     const fullGid = 'diy_' + gid;

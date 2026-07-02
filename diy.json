@@ -5,19 +5,27 @@
       "name": "蜀汉",
       "desc": "",
       "enabled": true,
-      "generals": [],
-      "skills": [
+      "generals": [
         {
-          "id": "skill_test1",
-          "name": "测试技能",
-          "type": "主动",
-          "cooldown": 2,
-          "trigger": null,
-          "desc": "",
-          "preview": null,
-          "filterCode": "return true;",
-          "contentCode": "return true;"
-        },
+          "id": "diy_testref",
+          "name": "测试引用",
+          "hp": 200,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_test1"
+          ]
+        }
+      ],
+      "skills": [
         {
           "id": "skill_huoyan",
           "name": "烈焰术",
