@@ -710,6 +710,29 @@
   .fullscreen-btn:active {
     transform: translateY(1px);
   }
+  .format-btn {
+    position: absolute;
+    top: 4px;
+    right: 90px;
+    z-index: 4;
+    background: rgba(163, 190, 140, 0.18);
+    color: #7ee787;
+    border: 1px solid rgba(163, 190, 140, 0.4);
+    padding: 4px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    user-select: none;
+    transition: all 0.15s;
+  }
+  .format-btn:hover {
+    background: rgba(163, 190, 140, 0.35);
+    color: #fff;
+  }
+  .format-btn:active {
+    transform: translateY(1px);
+  }
   /* 全屏编辑器的标签隐藏自己的按钮，避免文字重叠 */
   .code-editor .code-label {
     right: 80px;
@@ -1555,6 +1578,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     </div>
     <div class="fs-editor-actions">
       <button id="fs-api-toggle" onclick="window._fsApiToggle()">📖 API</button>
+      <button id="fs-editor-format" class="btn">⇥ 格式化</button>
       <button id="fs-editor-save" class="btn primary">✓ 保存</button>
       <button id="fs-editor-cancel" class="btn danger">✕ 取消</button>
     </div>
@@ -1880,6 +1904,62 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
   // ============================================================
+  // JS 代码一键缩进（自动格式化）
+  // ============================================================
+  function formatJsCode(code) {
+    var indent = 0;
+    var result = '';
+    var lines = code.split('\n');
+    var inString = false;
+    var stringChar = '';
+    var prevChar = '';
+
+    function countIndent(line) {
+      var m = line.match(/^(\s*)/);
+      return m ? m[1].length : 0;
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) {
+        result += '\n';
+        continue;
+      }
+
+      var adj = 0;
+      if (line.charAt(0) === '}' || line.charAt(0) === ')' || line.charAt(0) === ']') {
+        adj = -1;
+      }
+
+      var curIndent = Math.max(0, indent + adj);
+      result += '  '.repeat(curIndent) + line + '\n';
+
+      var delta = 0;
+      for (var j = 0; j < line.length; j++) {
+        var c = line.charAt(j);
+        if (inString) {
+          if (c === stringChar && prevChar !== '\\') {
+            inString = false;
+          }
+        } else {
+          if (c === '"' || c === "'" || c === '`') {
+            inString = true;
+            stringChar = c;
+          } else if (c === '{' || c === '(' || c === '[') {
+            delta++;
+          } else if (c === '}' || c === ')' || c === ']') {
+            delta--;
+          }
+        }
+        prevChar = c;
+      }
+      indent += delta;
+    }
+
+    return result.replace(/\n$/, '');
+  }
+
+  // ============================================================
   // 语法高亮：双层编辑器（textarea 透明输入 + <pre><code> 高亮显示）
   // ============================================================
   function highlightText(text) {
@@ -1957,6 +2037,25 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         openFullscreenEditor(editorEl);
       });
     }
+
+    // 一键格式化按钮
+    var fmtBtn = document.createElement('button');
+    fmtBtn.type = 'button';
+    fmtBtn.className = 'format-btn';
+    fmtBtn.title = '一键格式化（自动缩进）';
+    fmtBtn.textContent = '⇥ 格式化';
+    editorEl.appendChild(fmtBtn);
+    fmtBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        var formatted = formatJsCode(ta.value);
+        ta.value = formatted;
+        debouncedSync();
+      } catch (err) {
+        console.warn('格式化失败:', err);
+      }
+    });
 
     // 初始渲染
     sync();
@@ -2436,8 +2535,27 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   document.addEventListener('DOMContentLoaded', function () {
     var saveBtn = $('fs-editor-save');
     var cancelBtn = $('fs-editor-cancel');
+    var formatBtn = $('fs-editor-format');
     if (saveBtn) saveBtn.addEventListener('click', saveAndCloseFullscreenEditor);
     if (cancelBtn) cancelBtn.addEventListener('click', closeFullscreenEditor);
+    if (formatBtn) formatBtn.addEventListener('click', function () {
+      var ta = fsEditorState.cloneTextarea;
+      if (!ta) return;
+      try {
+        ta.value = formatJsCode(ta.value);
+        var pre = qs('.fs-editor-body .hl-layer');
+        var code = qs('.fs-editor-body .hl-layer code');
+        if (pre && code) {
+          var val = ta.value;
+          if (val.charAt(val.length - 1) === '\n') val = val + ' ';
+          code.innerHTML = highlightText(val);
+          pre.scrollTop = ta.scrollTop;
+          pre.scrollLeft = ta.scrollLeft;
+        }
+      } catch (err) {
+        console.warn('格式化失败:', err);
+      }
+    });
     // 点击遮罩空白区关闭
     var mask = $('fs-editor');
     if (mask) mask.addEventListener('click', function (e) {

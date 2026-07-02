@@ -33,7 +33,10 @@
           "cooldown": 3,
           "trigger": null,
           "desc": "召唤烈焰灼烧敌人",
-          "preview": null,
+          "preview": {
+            "shape": "+",
+            "n": 2
+          },
           "filterCode": "return actor && actor.alive && !actor.skilled;",
           "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, hintText: \"选择敌人施放宽法术\" }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, 80, { ignoreDef: true }); global.Game.log(actor.name + \" 发动烈焰术！\"); return true;"
         }
