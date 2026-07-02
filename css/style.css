@@ -91,45 +91,6 @@ html, body {
 }
 
 /* ============================================================
-   设置按钮（在音乐按钮左侧）
-   ============================================================ */
-.settings-btn {
-  position: fixed;
-  top: 12px;
-  right: 68px;
-  left: auto;
-  z-index: 1000;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--fg);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
-  opacity: 0.55;
-  user-select: none;
-  touch-action: manipulation;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  padding: 0;
-  line-height: 1;
-}
-.settings-btn:hover {
-  opacity: 1;
-  background: #fff3c4;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
-}
-.settings-btn.active {
-  color: #3a6bb2;
-  background: #e6f0ff;
-  opacity: 0.95;
-}
-
-/* ============================================================
    设置面板
    ============================================================ */
 .settings-panel {
@@ -269,15 +230,13 @@ html, body {
     height: 100dvh;
     font-size: 13px;
   }
-  .music-btn,
-  .settings-btn {
+  .music-btn {
     width: 40px;
     height: 40px;
     font-size: 18px;
     top: 10px;
+    right: 12px;
   }
-  .settings-btn { right: 58px; }
-  .music-btn { right: 12px; }
 
   .home-btn {
     min-height: 48px;
@@ -318,72 +277,30 @@ html, body {
   }
   .top-bar { padding: 4px 10px; }
   .bottom-bar { padding: 4px 10px 6px; }
-  .music-btn, .settings-btn {
+  .music-btn {
     width: 36px;
     height: 36px;
     top: 6px;
     font-size: 16px;
   }
-  .settings-btn { right: 52px; }
 }
 
-.music-menu {
-  position: fixed;
-  z-index: 1001;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 14px;
-  min-width: 220px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-  animation: menuIn 0.18s ease;
-}
-@keyframes menuIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.music-menu.hidden { display: none; }
-.music-menu-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: 13px;
-  color: var(--fg);
-}
-.music-menu-row + .music-menu-row { border-top: 1px dashed rgba(0, 0, 0, 0.08); }
-.music-menu-label {
-  min-width: 60px;
-  color: var(--muted);
-  font-weight: 600;
-}
-.music-menu-val {
+.settings-val {
   min-width: 26px;
   text-align: right;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
-.music-menu input[type="range"] {
-  flex: 1;
-  accent-color: #b23a3a;
-}
-.music-menu-hint {
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
-  padding-top: 8px;
-  padding-bottom: 0;
-  opacity: 0.7;
-}
-.music-switch {
+.settings-switch {
   position: relative;
   display: inline-block;
   width: 40px;
   height: 22px;
   margin-left: auto;
 }
-.music-switch input { opacity: 0; width: 0; height: 0; }
-.music-switch-slider {
+.settings-switch input { opacity: 0; width: 0; height: 0; }
+.settings-switch-slider {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -391,7 +308,7 @@ html, body {
   transition: 0.2s;
   border-radius: 22px;
 }
-.music-switch-slider:before {
+.settings-switch-slider:before {
   position: absolute;
   content: "";
   height: 16px;
@@ -403,12 +320,8 @@ html, body {
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
-.music-switch input:checked + .music-switch-slider {
-  background: #b23a3a;
-}
-.music-switch input:checked + .music-switch-slider:before {
-  transform: translateX(18px);
-}
+.settings-switch input:checked + .settings-switch-slider { background: #b23a3a; }
+.settings-switch input:checked + .settings-switch-slider:before { transform: translateX(18px); }
 
 #app {
   height: 100vh;

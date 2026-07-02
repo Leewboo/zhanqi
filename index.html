@@ -23,29 +23,28 @@
     </div>
   </section>
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
-  <button id="btn-music" class="music-btn" title="点击开关 · 长按打开菜单">♪</button>
-  <button id="btn-settings" class="settings-btn" title="设置">⚙</button>
-  <div id="music-menu" class="music-menu hidden">
-    <div class="music-menu-row">
-      <span class="music-menu-label">音量</span>
-      <input id="music-volume" type="range" min="0" max="100" value="35" />
-      <span id="music-volume-val" class="music-menu-val">35</span>
-    </div>
-    <div class="music-menu-row">
-      <span class="music-menu-label">自动播放</span>
-      <label class="music-switch">
-        <input id="music-autoplay" type="checkbox" checked />
-        <span class="music-switch-slider"></span>
-      </label>
-    </div>
-    <div class="music-menu-row music-menu-hint">点击菜单外任意位置关闭</div>
-  </div>
+  <button id="btn-music" class="music-btn" title="点击开关音乐 · 长按打开设置">♪</button>
   <div id="settings-panel" class="settings-panel hidden">
     <div class="settings-panel-head">
-      <h3>游戏设置</h3>
+      <h3>设置</h3>
       <button id="settings-close" class="settings-close">×</button>
     </div>
     <div class="settings-panel-body">
+      <div class="settings-section">
+        <div class="settings-section-title">音乐</div>
+        <div class="settings-row">
+          <span class="settings-label">音量</span>
+          <input id="music-volume" type="range" min="0" max="100" value="35" />
+          <span id="music-volume-val" class="settings-val">35</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">自动播放</span>
+          <label class="settings-switch">
+            <input id="music-autoplay" type="checkbox" checked />
+            <span class="settings-switch-slider"></span>
+          </label>
+        </div>
+      </div>
       <div class="settings-section">
         <div class="settings-section-title">显示</div>
         <div class="settings-row">
@@ -192,6 +191,6 @@
   <script src="js/effects.js?v=4"></script>
   <script src="js/skills.js?v=4"></script>
   <script src="js/generals.js?v=4"></script>
-  <script src="js/game.js?v=5"></script>
+  <script src="js/game.js?v=6"></script>
 </body>
 </html>

@@ -2149,7 +2149,6 @@
     // ========== 背景音乐控制（拖动 / 长按菜单 / 自动播放） ==========
     const bgm = document.getElementById('bgm');
     const musicBtn = document.getElementById('btn-music');
-    const musicMenu = document.getElementById('music-menu');
     const volSlider = document.getElementById('music-volume');
     const volVal = document.getElementById('music-volume-val');
     const autoPlayBox = document.getElementById('music-autoplay');
@@ -2270,7 +2269,7 @@
         longPressTimer = setTimeout(() => {
           if (!moved) {
             longPressFired = true;
-            openMusicMenu();
+            openSettings();
             musicBtn.classList.add('long-press');
             setTimeout(() => musicBtn.classList.remove('long-press'), 300);
           }
@@ -2323,37 +2322,7 @@
       musicBtn.addEventListener('pointercancel', endDrag);
     }
 
-    // ========== 菜单：定位 + 显示 + 关闭 ==========
-    function openMusicMenu() {
-      if (!musicMenu || !musicBtn) return;
-      const btnRect = musicBtn.getBoundingClientRect();
-      musicMenu.classList.remove('hidden');
-      const menuRect = musicMenu.getBoundingClientRect();
-      const menuW = menuRect.width || 230;
-      const menuH = menuRect.height || 120;
-      // 默认放在按钮左下方；空间不足则出现在上方或右侧
-      let left = btnRect.left + btnRect.width / 2 - menuW / 2;
-      let top = btnRect.bottom + 8;
-      if (top + menuH > window.innerHeight - 6) top = btnRect.top - menuH - 8;
-      if (left < 6) left = 6;
-      if (left + menuW > window.innerWidth - 6) left = window.innerWidth - menuW - 6;
-      if (top < 6) top = btnRect.bottom + 8;
-      musicMenu.style.left = left + 'px';
-      musicMenu.style.top = top + 'px';
-    }
 
-    function closeMusicMenu() {
-      if (musicMenu) musicMenu.classList.add('hidden');
-    }
-
-    document.addEventListener('pointerdown', (e) => {
-      if (!musicMenu || musicMenu.classList.contains('hidden')) return;
-      if (musicMenu.contains(e.target) || (musicBtn && musicBtn.contains(e.target))) return;
-      closeMusicMenu();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeMusicMenu();
-    });
 
     // 主页按钮
     const localBtn = document.getElementById('btn-local');
@@ -2411,13 +2380,28 @@
     function openSettings() {
       if (!settingsPanel) return;
       settingsPanel.classList.remove('hidden');
-      if (settingsBtn) settingsBtn.classList.add('active');
+      // 使用 musicBtn 定位设置面板
+      if (musicBtn) {
+        const btnRect = musicBtn.getBoundingClientRect();
+        const panelRect = settingsPanel.getBoundingClientRect();
+        const panelW = panelRect.width || 300;
+        const panelH = panelRect.height || 400;
+        let left = btnRect.left + btnRect.width / 2 - panelW / 2;
+        let top = btnRect.bottom + 8;
+        if (top + panelH > window.innerHeight - 6) top = btnRect.top - panelH - 8;
+        if (left < 6) left = 6;
+        if (left + panelW > window.innerWidth - 6) left = window.innerWidth - panelW - 6;
+        if (top < 6) top = btnRect.bottom + 8;
+        settingsPanel.style.left = left + 'px';
+        settingsPanel.style.top = top + 'px';
+        musicBtn.classList.add('active');
+      }
       refreshSettingsUi();
     }
     function closeSettings() {
       if (!settingsPanel) return;
       settingsPanel.classList.add('hidden');
-      if (settingsBtn) settingsBtn.classList.remove('active');
+      if (musicBtn) musicBtn.classList.remove('active');
     }
 
     function refreshSettingsUi() {
@@ -2437,15 +2421,7 @@
       updateFsLabel();
     }
 
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', () => {
-        if (settingsPanel && !settingsPanel.classList.contains('hidden')) {
-          closeSettings();
-        } else {
-          openSettings();
-        }
-      });
-    }
+
     if (settingsClose) {
       settingsClose.addEventListener('click', closeSettings);
     }
@@ -2495,7 +2471,7 @@
     // 点击面板外关闭
     document.addEventListener('pointerdown', (e) => {
       if (!settingsPanel || settingsPanel.classList.contains('hidden')) return;
-      if (settingsPanel.contains(e.target) || (settingsBtn && settingsBtn.contains(e.target))) return;
+      if (settingsPanel.contains(e.target) || (musicBtn && musicBtn.contains(e.target))) return;
       closeSettings();
     });
     document.addEventListener('keydown', (e) => {
