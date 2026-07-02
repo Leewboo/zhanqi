@@ -24,7 +24,7 @@
   </section>
   <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
   <button id="btn-music" class="music-btn" title="点击开关 · 长按打开菜单">♪</button>
-  <button id="btn-fullscreen" class="fullscreen-btn" title="全屏/退出全屏">⛶</button>
+  <button id="btn-settings" class="settings-btn" title="设置">⚙</button>
   <div id="music-menu" class="music-menu hidden">
     <div class="music-menu-row">
       <span class="music-menu-label">音量</span>
@@ -39,6 +39,52 @@
       </label>
     </div>
     <div class="music-menu-row music-menu-hint">点击菜单外任意位置关闭</div>
+  </div>
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-panel-head">
+      <h3>游戏设置</h3>
+      <button id="settings-close" class="settings-close">×</button>
+    </div>
+    <div class="settings-panel-body">
+      <div class="settings-section">
+        <div class="settings-section-title">显示</div>
+        <div class="settings-row">
+          <span class="settings-label">全屏模式</span>
+          <button id="setting-fullscreen" class="act-btn small">进入全屏</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">游戏参数</div>
+        <div class="settings-row">
+          <span class="settings-label">对战人数（几v几）</span>
+          <div class="settings-select-group">
+            <button class="settings-chip" data-picks="3">3v3</button>
+            <button class="settings-chip" data-picks="5">5v5</button>
+            <button class="settings-chip" data-picks="7">7v7</button>
+            <button class="settings-chip" data-picks="10">10v10</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">对战模式</span>
+          <div class="settings-select-group">
+            <button class="settings-chip" data-mode="local">本机对战</button>
+            <button class="settings-chip" data-mode="ai">人机对战</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">操作</div>
+        <div class="settings-row">
+          <span class="settings-label">返回主页</span>
+          <button id="setting-home" class="act-btn small ghost">返回</button>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">重新开始</span>
+          <button id="setting-restart" class="act-btn small">重开</button>
+        </div>
+      </div>
+      <div class="settings-footer-hint">设置会自动保存到本地</div>
+    </div>
   </div>
   <section id="home-screen" class="home-screen">
     <div class="home-inner">

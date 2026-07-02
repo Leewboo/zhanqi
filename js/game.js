@@ -1,6 +1,48 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
-  const PICKS_PER_SIDE = 5;
+  const DEFAULT_PICKS = 5;
+  let PICKS_PER_SIDE = DEFAULT_PICKS;
+
+  // 游戏设置（从 localStorage 读取）
+  const GameSettings = {
+    picksPerSide: DEFAULT_PICKS,
+    gameMode: 'local', // local | ai
+
+    load() {
+      try {
+        const saved = localStorage.getItem('zhanqi_settings');
+        if (saved) {
+          const obj = JSON.parse(saved);
+          if (obj.picksPerSide) this.picksPerSide = parseInt(obj.picksPerSide) || DEFAULT_PICKS;
+          if (obj.gameMode) this.gameMode = obj.gameMode;
+        }
+      } catch (e) {}
+      PICKS_PER_SIDE = this.picksPerSide;
+    },
+
+    save() {
+      try {
+        localStorage.setItem('zhanqi_settings', JSON.stringify({
+          picksPerSide: this.picksPerSide,
+          gameMode: this.gameMode
+        }));
+      } catch (e) {}
+    },
+
+    setPicks(n) {
+      this.picksPerSide = Math.max(1, Math.min(10, parseInt(n) || DEFAULT_PICKS));
+      PICKS_PER_SIDE = this.picksPerSide;
+      this.save();
+    },
+
+    setMode(mode) {
+      this.gameMode = mode === 'ai' ? 'ai' : 'local';
+      this.save();
+    }
+  };
+
+  // 启动时加载设置
+  GameSettings.load();
 
   const TERRAIN_NAMES = {
     plain: '',
@@ -2308,21 +2350,23 @@
     if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
 
-    // ========== 一键全屏切换（支持桌面与手机）==========
-    const fsBtn = document.getElementById('btn-fullscreen');
-    function updateFsBtn() {
-      if (!fsBtn) return;
+    // ========== 设置面板（含全屏）==========
+    const settingsBtn = document.getElementById('btn-settings');
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsClose = document.getElementById('settings-close');
+    const settingFullscreen = document.getElementById('setting-fullscreen');
+    const settingHome = document.getElementById('setting-home');
+    const settingRestart = document.getElementById('setting-restart');
+
+    function updateFsLabel() {
+      if (!settingFullscreen) return;
       const isFs = document.fullscreenElement || document.webkitFullscreenElement
         || document.mozFullScreenElement || document.msFullscreenElement
         || (window.innerHeight === screen.height && window.innerWidth === screen.width);
       if (isFs) {
-        fsBtn.classList.add('active');
-        fsBtn.textContent = '⛷';
-        fsBtn.title = '退出全屏';
+        settingFullscreen.textContent = '退出全屏';
       } else {
-        fsBtn.classList.remove('active');
-        fsBtn.textContent = '⛶';
-        fsBtn.title = '进入全屏';
+        settingFullscreen.textContent = '进入全屏';
       }
     }
     function toggleFullscreen() {
@@ -2339,8 +2383,6 @@
       } else {
         if (req) {
           req.call(el).catch(() => {
-            // 浏览器不支持全屏 API（例如 iOS Safari 非 PWA）——退化方案：
-            // 将 body 改为 fixed 占满视口，提示用户手动放大
             if (document.body.requestFullscreen) return;
             alert('当前浏览器未开放全屏权限，可尝试双指放大或在浏览器菜单中选择「添加到主屏幕」。');
           });
@@ -2348,16 +2390,97 @@
           alert('当前浏览器不支持全屏 API。');
         }
       }
-      setTimeout(updateFsBtn, 250);
+      setTimeout(updateFsLabel, 250);
     }
-    if (fsBtn) {
-      fsBtn.addEventListener('click', toggleFullscreen);
-      document.addEventListener('fullscreenchange', updateFsBtn);
-      document.addEventListener('webkitfullscreenchange', updateFsBtn);
-      window.addEventListener('resize', updateFsBtn);
-      updateFsBtn();
+
+    function openSettings() {
+      if (!settingsPanel) return;
+      settingsPanel.classList.remove('hidden');
+      if (settingsBtn) settingsBtn.classList.add('active');
+      refreshSettingsUi();
     }
+    function closeSettings() {
+      if (!settingsPanel) return;
+      settingsPanel.classList.add('hidden');
+      if (settingsBtn) settingsBtn.classList.remove('active');
+    }
+
+    function refreshSettingsUi() {
+      // 更新 chip 选中状态
+      document.querySelectorAll('.settings-chip[data-picks]').forEach(chip => {
+        const v = parseInt(chip.getAttribute('data-picks'));
+        chip.classList.toggle('active', v === GameSettings.picksPerSide);
+      });
+      document.querySelectorAll('.settings-chip[data-mode]').forEach(chip => {
+        const v = chip.getAttribute('data-mode');
+        chip.classList.toggle('active', v === GameSettings.gameMode);
+      });
+      updateFsLabel();
+    }
+
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        if (settingsPanel && !settingsPanel.classList.contains('hidden')) {
+          closeSettings();
+        } else {
+          openSettings();
+        }
+      });
+    }
+    if (settingsClose) {
+      settingsClose.addEventListener('click', closeSettings);
+    }
+    if (settingFullscreen) {
+      settingFullscreen.addEventListener('click', toggleFullscreen);
+    }
+    if (settingHome) {
+      settingHome.addEventListener('click', () => {
+        closeSettings();
+        Game.goHome();
+      });
+    }
+    if (settingRestart) {
+      settingRestart.addEventListener('click', () => {
+        closeSettings();
+        Game.startGame(GameSettings.gameMode);
+      });
+    }
+
+    // 选择对战人数
+    document.querySelectorAll('.settings-chip[data-picks]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = parseInt(chip.getAttribute('data-picks'));
+        GameSettings.setPicks(v);
+        refreshSettingsUi();
+      });
+    });
+
+    // 选择对战模式
+    document.querySelectorAll('.settings-chip[data-mode]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = chip.getAttribute('data-mode');
+        GameSettings.setMode(v);
+        refreshSettingsUi();
+      });
+    });
+
+    // 点击面板外关闭
+    document.addEventListener('pointerdown', (e) => {
+      if (!settingsPanel || settingsPanel.classList.contains('hidden')) return;
+      if (settingsPanel.contains(e.target) || (settingsBtn && settingsBtn.contains(e.target))) return;
+      closeSettings();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSettings();
+    });
+
+    // 全屏变化监听
+    document.addEventListener('fullscreenchange', updateFsLabel);
+    document.addEventListener('webkitfullscreenchange', updateFsLabel);
+    window.addEventListener('resize', updateFsLabel);
+    updateFsLabel();
   });
 
   global.Game = Game;
+  global.GameSettings = GameSettings;
 })(window);
