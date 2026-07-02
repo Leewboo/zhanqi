@@ -1796,6 +1796,19 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               </tr>
               <tr><th>冷却</th><td><input type="number" id="scd" value="2" min="0" max="20" /></td></tr>
               <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
+              <tr>
+                <th>预览范围</th>
+                <td>
+                  <select id="s-pv-shape">
+                    <option value="">不预览</option>
+                    <option value="+">十字 +</option>
+                    <option value="square">方形</option>
+                    <option value="circle">圆形</option>
+                    <option value="x">X 形</option>
+                  </select>
+                  半径 <input type="number" id="s-pv-n" value="3" min="1" max="10" style="width:60px;" />
+                </td>
+              </tr>
             </table>
 
             <!-- 技能代码编辑器 -->
@@ -2877,6 +2890,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               $('strigger').value = s.trigger || '';
               $('scd').value = s.cooldown || 2;
               $('sdesc').value = s.desc || '';
+              if (s.preview && s.preview.shape) {
+                $('s-pv-shape').value = s.preview.shape;
+                $('s-pv-n').value = s.preview.n || 3;
+              } else {
+                $('s-pv-shape').value = '';
+                $('s-pv-n').value = 3;
+              }
               $('s-filter').value = s.filterCode || '';
               $('s-content').value = s.contentCode || '';
               if (data.extId) {
@@ -2936,6 +2956,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           trigger: $('strigger').value || null,
           cooldown: parseInt($('scd').value) || 2,
           desc: $('sdesc').value,
+          preview: (function () {
+            var sh = $('s-pv-shape').value;
+            return sh ? { shape: sh, n: parseInt($('s-pv-n').value, 10) || 3 } : null;
+          })(),
           filterCode: $('s-filter').value,
           contentCode: $('s-content').value
         };
@@ -2968,6 +2992,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('strigger').value = '';
         $('scd').value = '2';
         $('sdesc').value = '';
+        $('s-pv-shape').value = '';
+        $('s-pv-n').value = '3';
         $('s-filter').value = 'return actor && actor.alive && !actor.skilled;';
         $('s-content').value = '';
         $('btn-skill-submit').textContent = '✓ 提交技能';
