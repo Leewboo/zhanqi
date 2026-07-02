@@ -7,6 +7,14 @@
       "enabled": true,
       "generals": [],
       "skills": []
+    },
+    {
+      "id": "ext_mr3naoa1ufx",
+      "name": "群雄",
+      "desc": "逐鹿",
+      "enabled": true,
+      "generals": [],
+      "skills": []
     }
   ]
 }
