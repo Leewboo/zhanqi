@@ -101,6 +101,30 @@
     align-items: center;
     gap: 0;
   }
+  .diy-nav-tabs {
+    display: flex;
+    gap: 2px;
+    background: #f5f5f5;
+    padding: 3px;
+    border-radius: 6px;
+  }
+  .diy-nav-tab {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .diy-nav-tab:hover { color: #333; }
+  .diy-nav-tab.active {
+    background: #fff;
+    color: #333;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
   .diy-step {
     display: flex;
     align-items: center;
@@ -469,6 +493,33 @@
     display: block;
     letter-spacing: 0.5px;
   }
+  .diy-tab { display: flex; }
+  .diy-tab.hidden { display: none !important; }
+  .skill-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    border: 1px solid #eee;
+  }
+  .skill-list-name { font-weight: 600; flex: 1; }
+  .skill-list-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f0f0f0;
+    color: #666;
+    margin: 0 8px;
+  }
+  .skill-list-ext {
+    font-size: 11px;
+    color: #999;
+    margin-right: 8px;
+  }
+  .skill-list-actions { display: flex; gap: 6px; }
 
   /* ========= 技能卡片 ========= */
   .skill-card {
@@ -1506,7 +1557,11 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       <span class="diy-logo-sub">填属性 · 写技能 · 提交</span>
       <span id="project-name" class="project-name" style="display:none; margin-left: 12px; padding: 3px 10px; background: #e8f5e9; color: #2e7d32; border-radius: 12px; font-size: 12px;"></span>
     </div>
-    <div class="diy-steps">
+    <div class="diy-nav-tabs">
+      <button class="diy-nav-tab active" data-tab="general">武将编辑</button>
+      <button class="diy-nav-tab" data-tab="skill">独立技能</button>
+    </div>
+    <div class="diy-steps" id="diy-steps">
       <div class="diy-step active" data-step="1">
         <div class="diy-step-num">1</div>
         <span>填属性</span>
@@ -1564,100 +1619,222 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
   <!-- 两栏主布局 -->
   <div class="diy-main">
-    <!-- 左栏：拓展管理 + 武将属性 -->
-    <div class="diy-left">
-      <!-- 拓展列表 -->
-      <div class="card" style="margin-bottom: 14px;">
-        <div class="card-head">
-          <div class="card-title">已有拓展</div>
-        </div>
-        <div class="card-body" id="ext-list-container">
-          <span class="empty-state">加载中...</span>
-        </div>
-      </div>
-
-      <!-- 武将属性卡片 -->
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="card-title-num">1</span>
-            武将属性
+    <!-- 武将编辑页面 -->
+    <div class="diy-tab" data-tab="general">
+      <!-- 左栏：拓展管理 + 武将属性 -->
+      <div class="diy-left">
+        <!-- 拓展列表 -->
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-head">
+            <div class="card-title">已有拓展</div>
+          </div>
+          <div class="card-body" id="ext-list-container">
+            <span class="empty-state">加载中...</span>
           </div>
         </div>
-        <div class="card-body">
-          <table class="tbl">
-            <tr>
-              <th>拓展</th>
-              <td>
-                <select id="g-ext" style="width:100%;"></select>
-                <span class="hint">选择或新建拓展，武将提交到此拓展</span>
-              </td>
-            </tr>
-            <tr>
-              <th>id</th>
-              <td>
-                <input type="text" id="gid" placeholder="如 zhaoyun" />
-                <span class="hint">2–20 位字母/数字/下划线，自动加前缀 diy_</span>
-              </td>
-            </tr>
-            <tr><th>name</th><td><input type="text" id="gname" placeholder="如 赵云" /></td></tr>
-            <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
-            <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
-            <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
-            <tr>
-              <th>移动</th>
-              <td>
-                <select id="gmv-shape" style="width:80px;margin-right:6px;">
-                  <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                </select>
-                <input type="number" id="gmv-n" value="3" min="1" max="12" style="width:60px" />
-              </td>
-            </tr>
-            <tr>
-              <th>攻击</th>
-              <td>
-                <select id="gatk-shape" style="width:80px;margin-right:6px;">
-                  <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                </select>
-                <input type="number" id="gatk-n" value="1" min="1" max="12" style="width:60px" />
-              </td>
-            </tr>
-          </table>
 
-          <!-- 提交区域 -->
-          <div class="submit-row">
-            <label>密码</label>
-            <input type="password" id="pwd" placeholder="diy123" />
-            <button id="btn-submit" class="btn primary">✓ 提交</button>
-            <button id="btn-reset" class="btn">重置</button>
+        <!-- 武将属性卡片 -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">
+              <span class="card-title-num">1</span>
+              武将属性
+            </div>
           </div>
-          <div id="submit-info" class="output-msg" style="display:none;"></div>
-        </div>
-      </div>
-    </div><!-- end .diy-left -->
+          <div class="card-body">
+            <table class="tbl">
+              <tr>
+                <th>拓展</th>
+                <td>
+                  <select id="g-ext" style="width:100%;"></select>
+                  <span class="hint">选择或新建拓展，武将提交到此拓展</span>
+                </td>
+              </tr>
+              <tr>
+                <th>id</th>
+                <td>
+                  <input type="text" id="gid" placeholder="如 zhaoyun" />
+                  <span class="hint">2–20 位字母/数字/下划线，自动加前缀 diy_</span>
+                </td>
+              </tr>
+              <tr><th>name</th><td><input type="text" id="gname" placeholder="如 赵云" /></td></tr>
+              <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
+              <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
+              <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
+              <tr>
+                <th>移动</th>
+                <td>
+                  <select id="gmv-shape" style="width:80px;margin-right:6px;">
+                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
+                  </select>
+                  <input type="number" id="gmv-n" value="3" min="1" max="12" style="width:60px" />
+                </td>
+              </tr>
+              <tr>
+                <th>攻击</th>
+                <td>
+                  <select id="gatk-shape" style="width:80px;margin-right:6px;">
+                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
+                  </select>
+                  <input type="number" id="gatk-n" value="1" min="1" max="12" style="width:60px" />
+                </td>
+              </tr>
+            </table>
 
-    <!-- 右栏：技能列表 -->
-    <div class="diy-right">
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title">
-            <span class="card-title-num">2</span>
-            技能列表
+            <!-- 提交区域 -->
+            <div class="submit-row">
+              <label>密码</label>
+              <input type="password" id="pwd" placeholder="diy123" />
+              <button id="btn-submit" class="btn primary">✓ 提交</button>
+              <button id="btn-reset" class="btn">重置</button>
+            </div>
+            <div id="submit-info" class="output-msg" style="display:none;"></div>
           </div>
-          <button id="btn-add-skill" class="btn mini primary">+ 添加技能</button>
         </div>
-        <div class="card-body">
-          <span class="hint" style="margin-bottom:8px;display:block;">每个技能写 filter（判断是否可施放）和 content（主逻辑）。点击右上角「⤢ 全屏编辑」可展开大屏。</span>
-          <div id="skills-container"></div>
+      </div><!-- end .diy-left -->
+
+      <!-- 右栏：技能列表 -->
+      <div class="diy-right">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">
+              <span class="card-title-num">2</span>
+              技能列表
+            </div>
+            <button id="btn-add-skill" class="btn mini primary">+ 添加技能</button>
+          </div>
+          <div class="card-body">
+            <span class="hint" style="margin-bottom:8px;display:block;">每个技能写 filter（判断是否可施放）和 content（主逻辑）。点击右上角「⤢ 全屏编辑」可展开大屏。</span>
+            <div id="skills-container"></div>
+          </div>
+        </div>
+
+        <div class="footer-nav">
+          <a href="/">← 返回游戏首页</a>
+          <span>·</span>
+          <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
+        </div>
+      </div><!-- end .diy-right -->
+    </div><!-- end .diy-tab.general -->
+
+    <!-- 独立技能管理页面 -->
+    <div class="diy-tab" data-tab="skill">
+      <div class="diy-left">
+        <!-- 拓展列表 -->
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-head">
+            <div class="card-title">已有拓展</div>
+          </div>
+          <div class="card-body" id="skill-ext-list-container">
+            <span class="empty-state">加载中...</span>
+          </div>
+        </div>
+
+        <!-- 独立技能编辑卡片 -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">独立技能编辑</div>
+          </div>
+          <div class="card-body">
+            <table class="tbl">
+              <tr>
+                <th>拓展</th>
+                <td>
+                  <select id="s-ext" style="width:100%;"></select>
+                  <span class="hint">选择或新建拓展，技能提交到此拓展</span>
+                </td>
+              </tr>
+              <tr>
+                <th>id</th>
+                <td>
+                  <input type="text" id="sid" placeholder="如 fireball" />
+                  <span class="hint">2–30 位字母/数字/下划线，自动加前缀 skill_</span>
+                </td>
+              </tr>
+              <tr><th>name</th><td><input type="text" id="sname" placeholder="如 火球术" /></td></tr>
+              <tr>
+                <th>类型</th>
+                <td>
+                  <select id="stype" style="width:100%;">
+                    <option value="主动">主动</option>
+                    <option value="被动">被动</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <th>触发条件</th>
+                <td>
+                  <select id="strigger" style="width:100%;">
+                    <option value="">无（主动技能用）</option>
+                    <option value="onKill">onKill（击杀时）</option>
+                    <option value="onAttacked">onAttacked（被攻击时）</option>
+                    <option value="turnStart">turnStart（回合开始）</option>
+                    <option value="turnEnd">turnEnd（回合结束）</option>
+                  </select>
+                  <span class="hint">被动技能必填</span>
+                </td>
+              </tr>
+              <tr><th>冷却</th><td><input type="number" id="scd" value="2" min="0" max="20" /></td></tr>
+              <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
+            </table>
+
+            <!-- 技能代码编辑器 -->
+            <div class="form-row">
+              <label>filter（判断是否可施放）</label>
+              <div class="code-editor" id="s-filter-editor">
+                <div class="code-editor-header">
+                  <span class="code-editor-title">filter</span>
+                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
+                </div>
+                <div class="hl-layer"><pre><code></code></pre></div>
+                <textarea id="s-filter" class="code-input" spellcheck="false">return actor && actor.alive && !actor.skilled;</textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label>content（技能主逻辑）</label>
+              <div class="code-editor" id="s-content-editor">
+                <div class="code-editor-header">
+                  <span class="code-editor-title">content</span>
+                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
+                </div>
+                <div class="hl-layer"><pre><code></code></pre></div>
+                <textarea id="s-content" class="code-input" spellcheck="false"></textarea>
+              </div>
+            </div>
+
+            <!-- 提交区域 -->
+            <div class="submit-row">
+              <label>密码</label>
+              <input type="password" id="skill-pwd" placeholder="diy123" />
+              <button id="btn-skill-submit" class="btn primary">✓ 提交技能</button>
+              <button id="btn-skill-reset" class="btn">重置</button>
+            </div>
+            <div id="skill-submit-info" class="output-msg" style="display:none;"></div>
+          </div>
         </div>
       </div>
 
-      <div class="footer-nav">
-        <a href="/">← 返回游戏首页</a>
-        <span>·</span>
-        <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
+      <!-- 右栏：独立技能列表 -->
+      <div class="diy-right">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">独立技能列表</div>
+            <button id="btn-add-indep-skill" class="btn mini primary">+ 新建技能</button>
+          </div>
+          <div class="card-body">
+            <span class="hint" style="margin-bottom:8px;display:block;">独立技能可被多个武将共用，不绑定特定武将</span>
+            <div id="indep-skill-list-container"></div>
+          </div>
+        </div>
+
+        <div class="footer-nav">
+          <a href="/">← 返回游戏首页</a>
+          <span>·</span>
+          <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
+        </div>
       </div>
-    </div><!-- end .diy-right -->
+    </div><!-- end .diy-tab.skill -->
   </div><!-- end .diy-main -->
 </div><!-- end .diy-wrap -->
 
@@ -1823,7 +2000,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       { sig: 'Effect.teleport(actor, x, y)', desc: '瞬移到 (x,y) 空格', insert: 'Effect.teleport(actor, target.x, target.y);' },
       { sig: 'Effect.swap(actor, target)', desc: '与目标交换坐标位置', isNew: true, insert: 'Effect.swap(actor, target);' },
       { sig: 'Effect.randomTeleport(actor, range)', desc: '在圆形 range 格内随机传送到空格', isNew: true, insert: 'Effect.randomTeleport(actor, 3);' },
-      { sig: 'Effect.summonDecoy(actor, x, y, hp)', desc: '在 (x,y) 召唤幻象（己方假棋子）', isNew: true, insert: 'Effect.summonDecoy(actor, target.x, target.y, 60);' },
+      { sig: 'Effect.summonUnit(actor, x, y, opts)', desc: '在 (x,y) 召唤单位。opts: { hp, atk, def, name, moveRange, attackRange, skills }', isNew: true, insert: 'Effect.summonUnit(actor, cell.x, cell.y, {\n  name: "召唤物",\n  hp: 80, atk: 20, def: 10,\n  moveRange: { shape: "+", n: 2 },\n  attackRange: { shape: "+", n: 1 },\n  skills: [],\n  moved: false,\n  attacked: false,\n  skilled: false\n});' },
       { group: '推拉' },
       { sig: 'Effect.push(actor, target, dir, n)', desc: '击退：将 target 沿 dir=[dx,dy] 推 n 格', insert: 'var dir = [Math.sign(target.x-actor.x)||1, Math.sign(target.y-actor.y)||0];\nEffect.push(actor, target, dir, 2);' },
       { sig: 'Effect.pull(actor, target, n)', desc: '拉拽：将 target 向 actor 方向拉 n 格', insert: 'Effect.pull(actor, target, 2);' },
@@ -1929,16 +2106,25 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       ].join('\n')
     },
     {
-      name: '主动：召唤幻象并击退',
+      name: '主动：召唤单位',
       code: [
         'const cell = await Effect.chooseCell(actor, {',
         '  range: { shape: "r", n: 3 },',
         '  mustEmpty: true, passThrough: true,',
-        '  hintText: "【召唤】请选择幻象落点"',
+        '  hintText: "【召唤】请选择落点"',
         '});',
         'if (!cell) return false;',
         'actor.skilled = true;',
-        'Effect.summonDecoy(actor, cell.x, cell.y, 80);',
+        'Effect.summonUnit(actor, cell.x, cell.y, {',
+        '  name: "召唤物",',
+        '  hp: 80, atk: 20, def: 10,',
+        '  moveRange: { shape: "+", n: 2 },',
+        '  attackRange: { shape: "+", n: 1 },',
+        '  skills: [],',
+        '  moved: false,',
+        '  attacked: false,',
+        '  skilled: false',
+        '});',
         'return true;'
       ].join('\n')
     },
@@ -2318,24 +2504,40 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '<button class="btn mini danger" data-action="delete">删除此技能</button>' +
       '</div>' +
       '<table class="tbl">' +
-        '<tr><th>id</th><td><input type="text" class="s-id" value="' + escapeHtmlAttr(p.id || '') + '" placeholder="skill1" /></td>' +
-            '<th>name</th><td><input type="text" class="s-name" value="' + escapeHtmlAttr(p.name || '') + '" placeholder="技能名" /></td></tr>' +
-        '<tr><th>type</th><td>' +
-            '<select class="s-type">' +
-              '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
-              '<option value="被动"' + ((p.type === '被动') ? ' selected' : '') + '>被动</option>' +
+        '<tr><th>类型</th><td>' +
+            '<select class="s-mode">' +
+              '<option value="new"' + (p.ref ? '' : ' selected') + '>新建技能</option>' +
+              '<option value="ref"' + (p.ref ? ' selected' : '') + '>引用独立技能</option>' +
             '</select></td>' +
-            '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 2) + '" min="0" max="20" /></td></tr>' +
-        '<tr><th>trigger</th><td>' +
-            '<select class="s-trigger">' +
-              '<option value="">无（主动）</option>' +
-              '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
-              '<option value="onAttacked"' + (p.trigger === 'onAttacked' ? ' selected' : '') + '>onAttacked（被攻击时）</option>' +
-              '<option value="turnStart"' + (p.trigger === 'turnStart' ? ' selected' : '') + '>turnStart（回合开始）</option>' +
-              '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
-            '</select></td>' +
-            '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td></tr>' +
-        '<tr><th>预览范围</th><td colspan="3">' +
+            '<th>引用技能</th><td>' +
+              '<select class="s-ref" disabled>' +
+                '<option value="">选择独立技能</option>' +
+              '</select>' +
+            '</td></tr>' +
+        '<tr class="s-new-fields">' +
+            '<th>id</th><td><input type="text" class="s-id" value="' + escapeHtmlAttr(p.id || '') + '" placeholder="skill1" /></td>' +
+            '<th>name</th><td><input type="text" class="s-name" value="' + escapeHtmlAttr(p.name || '') + '" placeholder="技能名" /></td>' +
+        '</tr>' +
+        '<tr class="s-new-fields">' +
+            '<th>type</th><td>' +
+                '<select class="s-type">' +
+                  '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
+                  '<option value="被动"' + ((p.type === '被动') ? ' selected' : '') + '>被动</option>' +
+                '</select></td>' +
+            '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 2) + '" min="0" max="20" /></td>' +
+        '</tr>' +
+        '<tr class="s-new-fields">' +
+            '<th>trigger</th><td>' +
+                '<select class="s-trigger">' +
+                  '<option value="">无（主动）</option>' +
+                  '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
+                  '<option value="onAttacked"' + (p.trigger === 'onAttacked' ? ' selected' : '') + '>onAttacked（被攻击时）</option>' +
+                  '<option value="turnStart"' + (p.trigger === 'turnStart' ? ' selected' : '') + '>turnStart（回合开始）</option>' +
+                  '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
+                '</select></td>' +
+            '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td>' +
+        '</tr>' +
+        '<tr class="s-new-fields"><th>预览范围</th><td colspan="3">' +
             '形状 <select class="s-pv-shape">' +
               '<option value="">不预览</option>' +
               '<option value="+"' + (p.previewShape === '+' ? ' selected' : '') + '>十字 +</option>' +
@@ -2346,23 +2548,49 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             ' 半径 <input type="number" class="s-pv-n" value="' + ((p.previewN !== undefined && p.previewN !== null) ? p.previewN : 3) + '" min="1" max="12" style="width:72px" />' +
         '</td></tr>' +
       '</table>' +
-      '<div style="margin-top: 12px;">' +
+      '<div class="s-new-fields" style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>' +
         buildEditorBlock('filter', 's-filter', (p.filter !== undefined ? p.filter : FILTER_DEFAULT), 100) +
       '</div>' +
-      '<div style="margin-top: 12px;">' +
+      '<div class="s-new-fields" style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">async content(actor) — 技能主逻辑</label>' +
         buildEditorBlock('content', 's-content', (p.content !== undefined ? p.content : CONTENT_DEFAULT), 260) +
       '</div>';
 
-    // 删除按钮
+    var modeSel = div.querySelector('.s-mode');
+    var refSel = div.querySelector('.s-ref');
+    var newFields = div.querySelectorAll('.s-new-fields');
+
+    function toggleSkillMode() {
+      var mode = modeSel.value;
+      refSel.disabled = mode !== 'ref';
+      newFields.forEach(function (f) {
+        f.style.display = mode === 'new' ? '' : 'none';
+      });
+    }
+    modeSel.addEventListener('change', toggleSkillMode);
+    toggleSkillMode();
+
+    fetch('/api/skill/list')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok && data.skills && data.skills.length) {
+          data.skills.forEach(function (s) {
+            var opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            refSel.appendChild(opt);
+          });
+          if (p.ref) refSel.value = p.ref;
+        }
+      });
+
     div.querySelector('[data-action="delete"]').addEventListener('click', function () {
       if (confirm('确定删除这个技能？')) div.remove();
     });
 
     $('skills-container').appendChild(div);
 
-    // 初始化两个代码编辑器的高亮同步
     qsa('.code-editor', div).forEach(function (ed) {
       setupCodeEditor(ed);
     });
@@ -2474,8 +2702,28 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     // 加载拓展列表
     loadExtensions();
 
+    // 加载独立技能列表
+    loadIndepSkills();
+
     // 初始步骤
     updateStep();
+
+    // ========== 导航标签切换 ==========
+    var navTabs = qsa('.diy-nav-tab');
+    navTabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var tabName = this.dataset.tab;
+        navTabs.forEach(function (t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        qsa('.diy-tab').forEach(function (t) { t.classList.add('hidden'); });
+        var targetTab = qs('.diy-tab[data-tab="' + tabName + '"]');
+        if (targetTab) targetTab.classList.remove('hidden');
+        var steps = $('diy-steps');
+        if (steps) {
+          steps.style.display = tabName === 'general' ? 'flex' : 'none';
+        }
+      });
+    });
 
     // ========== 拓展管理功能 ==========
 
@@ -2561,6 +2809,163 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         e.target.value = '';
       });
     }
+
+    // ========== 独立技能管理 ==========
+
+    function loadIndepSkills() {
+      fetch('/api/skill/list')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var container = $('indep-skill-list-container');
+          if (!container) return;
+          if (!data.ok || !data.skills || !data.skills.length) {
+            container.innerHTML = '<span class="empty-state">暂无独立技能</span>';
+            return;
+          }
+          container.innerHTML = '';
+          data.skills.forEach(function (s) {
+            var row = document.createElement('div');
+            row.className = 'skill-list-row';
+            row.innerHTML = [
+              '<span class="skill-list-name">' + escapeHtml(s.name) + '</span>',
+              '<span class="skill-list-type">' + (s.type === '被动' ? '被动' : '主动') + '</span>',
+              '<span class="skill-list-ext">' + escapeHtml(s.extName || '') + '</span>',
+              '<div class="skill-list-actions">',
+              '  <button class="btn-mini edit-indep-skill" data-id="' + escapeHtml(s.id) + '">编辑</button>',
+              '  <button class="btn-mini del-indep-skill" data-id="' + escapeHtml(s.id) + '">删除</button>',
+              '</div>'
+            ].join('');
+            container.appendChild(row);
+          });
+          setupIndepSkillEvents();
+        })
+        .catch(function (e) { console.error('加载独立技能失败:', e); });
+    }
+
+    function setupIndepSkillEvents() {
+      qsa('.edit-indep-skill').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = this.dataset.id;
+          fetch('/api/skill/detail?id=' + encodeURIComponent(id))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.ok) { alert(data.error || '获取失败'); return; }
+              var s = data.skill;
+              $('sid').value = s.id.replace(/^skill_/, '');
+              $('sname').value = s.name;
+              $('stype').value = s.type === '被动' ? '被动' : '主动';
+              $('strigger').value = s.trigger || '';
+              $('scd').value = s.cooldown || 2;
+              $('sdesc').value = s.desc || '';
+              $('s-filter').value = s.filterCode || '';
+              $('s-content').value = s.contentCode || '';
+              if (data.extId) {
+                var sel = $('s-ext');
+                if (sel) sel.value = data.extId;
+              }
+              var submitBtn = $('btn-skill-submit');
+              if (submitBtn) submitBtn.textContent = '✓ 更新技能';
+              setupCodeEditor($('s-filter-editor'));
+              setupCodeEditor($('s-content-editor'));
+            });
+        });
+      });
+
+      qsa('.del-indep-skill').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = this.dataset.id;
+          if (!confirm('确定删除技能「' + this.parentElement.previousElementSibling.previousElementSibling.previousElementSibling.textContent + '」？')) return;
+          var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
+          fetch('/api/skill/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, password: pwd })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                showProjectToast('技能已删除');
+                loadIndepSkills();
+              } else {
+                alert(data.error || '删除失败');
+              }
+            });
+        });
+      });
+    }
+
+    var btnSkillSubmit = $('btn-skill-submit');
+    if (btnSkillSubmit) {
+      btnSkillSubmit.addEventListener('click', function () {
+        var sid = $('sid').value.trim();
+        var sname = $('sname').value.trim();
+        if (!sid || !sname) { alert('技能 id 和 name 必填'); return; }
+
+        var pwd = $('skill-pwd').value || 'diy123';
+        var extSel = $('s-ext');
+        var extId = extSel ? extSel.value : '';
+        var extName = '';
+        if (extSel && extSel.options[extSel.selectedIndex]) {
+          extName = extSel.options[extSel.selectedIndex].text;
+        }
+
+        var skill = {
+          id: sid,
+          name: sname,
+          type: $('stype').value,
+          trigger: $('strigger').value || null,
+          cooldown: parseInt($('scd').value) || 2,
+          desc: $('sdesc').value,
+          filterCode: $('s-filter').value,
+          contentCode: $('s-content').value
+        };
+
+        fetch('/api/skill/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skill: skill, password: pwd, extId: extId, extName: extName })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              showProjectToast('技能「' + sname + '」已保存');
+              btnSkillSubmit.textContent = '✓ 提交技能';
+              loadIndepSkills();
+            } else {
+              alert(data.error || '提交失败');
+            }
+          })
+          .catch(function (e) { alert('网络错误: ' + e.message); });
+      });
+    }
+
+    var btnSkillReset = $('btn-skill-reset');
+    if (btnSkillReset) {
+      btnSkillReset.addEventListener('click', function () {
+        $('sid').value = '';
+        $('sname').value = '';
+        $('stype').value = '主动';
+        $('strigger').value = '';
+        $('scd').value = '2';
+        $('sdesc').value = '';
+        $('s-filter').value = 'return actor && actor.alive && !actor.skilled;';
+        $('s-content').value = '';
+        $('btn-skill-submit').textContent = '✓ 提交技能';
+        setupCodeEditor($('s-filter-editor'));
+        setupCodeEditor($('s-content-editor'));
+      });
+    }
+
+    var btnAddIndepSkill = $('btn-add-indep-skill');
+    if (btnAddIndepSkill) {
+      btnAddIndepSkill.addEventListener('click', function () {
+        $('btn-skill-reset').click();
+      });
+    }
+
+    // 初始化技能编辑器
+    setupCodeEditor($('s-filter-editor'));
+    setupCodeEditor($('s-content-editor'));
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
@@ -2620,18 +3025,26 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     var cards = qsa('.skill-card');
     for (var i = 0; i < cards.length; i++) {
       var c = cards[i];
-      var pvShape = c.querySelector('.s-pv-shape').value;
-      skills.push({
-        id:          c.querySelector('.s-id').value.trim()   || ('skill' + (i + 1)),
-        name:        c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
-        type:        c.querySelector('.s-type').value,
-        cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
-        trigger:     c.querySelector('.s-trigger').value || null,
-        desc:        c.querySelector('.s-desc').value.trim() || '',
-        preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
-        filterCode:  c.querySelector('.s-filter').value,
-        contentCode: c.querySelector('.s-content').value
-      });
+      var mode = c.querySelector('.s-mode').value;
+      if (mode === 'ref') {
+        var ref = c.querySelector('.s-ref').value.trim();
+        if (ref) {
+          skills.push({ ref: ref });
+        }
+      } else {
+        var pvShape = c.querySelector('.s-pv-shape').value;
+        skills.push({
+          id:          c.querySelector('.s-id').value.trim()   || ('skill' + (i + 1)),
+          name:        c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
+          type:        c.querySelector('.s-type').value,
+          cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
+          trigger:     c.querySelector('.s-trigger').value || null,
+          desc:        c.querySelector('.s-desc').value.trim() || '',
+          preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
+          filterCode:  c.querySelector('.s-filter').value,
+          contentCode: c.querySelector('.s-content').value
+        });
+      }
     }
 
     var password = $('pwd').value;
@@ -2663,12 +3076,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   function loadExtensions() {
     var container = $('ext-list-container');
     var extSel    = $('g-ext');
+    var skillExtSel = $('s-ext');
     var prevVal   = extSel ? extSel.value : '';
 
     fetch('/api/ext/list')
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        // 更新下拉选择框
+        // 更新下拉选择框（武将编辑）
         if (extSel) {
           extSel.innerHTML = '';
           if (!data.ok || !data.extensions || !data.extensions.length) {
@@ -2682,23 +3096,54 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               opt.textContent = ext.name + (ext.enabled ? '' : ' [已禁用]');
               extSel.appendChild(opt);
             });
-            // 尽量保持之前的选择
             if (prevVal) extSel.value = prevVal;
           }
         }
 
-        // 渲染拓展卡片
+        // 更新下拉选择框（技能编辑）
+        if (skillExtSel) {
+          skillExtSel.innerHTML = '';
+          if (!data.ok || !data.extensions || !data.extensions.length) {
+            var opt = document.createElement('option');
+            opt.value = ''; opt.textContent = '（先新建一个拓展）';
+            skillExtSel.appendChild(opt);
+          } else {
+            data.extensions.forEach(function (ext) {
+              var opt = document.createElement('option');
+              opt.value = ext.id;
+              opt.textContent = ext.name + (ext.enabled ? '' : ' [已禁用]');
+              skillExtSel.appendChild(opt);
+            });
+          }
+        }
+
+        // 渲染拓展卡片（武将编辑）
         if (!data.ok || !data.extensions || !data.extensions.length) {
           container.innerHTML = '<span class="empty-state">（暂无拓展。点击右上角「＋ 新建拓展」创建。）</span>';
-          return;
+        } else {
+          container.innerHTML = '';
+          data.extensions.forEach(function (ext) {
+            container.appendChild(buildExtCard(ext));
+          });
         }
-        container.innerHTML = '';
-        data.extensions.forEach(function (ext) {
-          container.appendChild(buildExtCard(ext));
-        });
+
+        // 渲染拓展卡片（技能编辑）
+        var skillContainer = $('skill-ext-list-container');
+        if (skillContainer) {
+          if (!data.ok || !data.extensions || !data.extensions.length) {
+            skillContainer.innerHTML = '<span class="empty-state">（暂无拓展。点击右上角「＋ 新建拓展」创建。）</span>';
+          } else {
+            skillContainer.innerHTML = '';
+            data.extensions.forEach(function (ext) {
+              skillContainer.appendChild(buildExtCard(ext));
+            });
+          }
+        }
       })
       .catch(function () {
         container.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
+        var skillContainer = $('skill-ext-list-container');
+        if (skillContainer) skillContainer.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
       });
   }
 

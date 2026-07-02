@@ -671,30 +671,53 @@
     // 召唤幻象：在指定格子放置一个虚假棋子（用标记实现，会被攻击但无 hp），
     // 返回创建的虚假棋子对象（放入 Game.pieces）
     // 注：幻象 hp 耗尽后自动消亡
-    summonDecoy(actor, x, y, hp) {
-      hp = hp || 60;
+    summonUnit(actor, x, y, opts) {
       if (!actor || !global.Game) return null;
       var g = global.Game;
       if (x < 0 || y < 0 || x >= Range.BOARD_SIZE || y >= Range.BOARD_SIZE) return null;
       if (g.pieceAt(x, y)) return null;
-      var decoy = {
-        generalId: 'decoy_' + Date.now(),
-        name: actor.name + '·幻',
-        side: actor.side,
-        hp: hp, maxHp: hp,
-        atk: 0, def: 0,
+
+      opts = opts || {};
+      var unit = {
+        generalId: (opts.id || 'summon') + '_' + Date.now(),
+        name:      opts.name || actor.name + '·召',
+        side:      actor.side,
+        hp:        Math.max(1, parseInt(opts.hp) || 60),
+        maxHp:     Math.max(1, parseInt(opts.hp) || 60),
+        atk:       Math.max(0, parseInt(opts.atk) || 0),
+        def:       Math.max(0, parseInt(opts.def) || 0),
         x: x, y: y,
         alive: true,
-        moved: true, attacked: true, skilled: true,
-        skills: [], cdMap: {},
-        moveRange: { shape: '+', n: 0 },
-        atkRange:  { shape: '+', n: 0 },
-        isDecoy: true
+        moved: opts.moved !== undefined ? opts.moved : true,
+        attacked: opts.attacked !== undefined ? opts.attacked : true,
+        skilled: opts.skilled !== undefined ? opts.skilled : true,
+        skills: [],
+        cdMap: {},
+        moveRange: opts.moveRange || { shape: '+', n: 0 },
+        attackRange: opts.attackRange || { shape: '+', n: 0 },
+        isSummon: true
       };
-      g.pieces.push(decoy);
-      g.log(actor.name + ' 在 (' + x + ',' + y + ') 召唤幻象！');
+
+      if (opts.skills && Array.isArray(opts.skills)) {
+        for (const s of opts.skills) {
+          if (typeof s === 'string') {
+            const found = (global.Skills && global.Skills[s]) || (global.SkillsAPI && global.SkillsAPI.getSkill(s));
+            if (found) unit.skills.push(found);
+          } else if (typeof s === 'object') {
+            if (typeof s.content === 'function') {
+              unit.skills.push(s);
+            } else if (s.contentCode && global.SkillsAPI) {
+              const compiled = global.SkillsAPI.compileSkill(s);
+              if (compiled) unit.skills.push(compiled);
+            }
+          }
+        }
+      }
+
+      g.pieces.push(unit);
+      g.log(actor.name + ' 在 (' + x + ',' + y + ') 召唤 ' + unit.name + '！');
       g._render();
-      return decoy;
+      return unit;
     }
   };
 

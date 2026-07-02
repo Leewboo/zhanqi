@@ -179,6 +179,41 @@ app.use(async (ctx, next) => {
 
     // 构造武将对象
     const fullGid = 'diy_' + gid;
+    const skillIds = [];
+    const skillObjs = [];
+
+    for (const s of skillArr) {
+      if (s.ref) {
+        const refId = String(s.ref).trim();
+        const fullRefId = refId.startsWith('skill_') ? refId : 'skill_' + refId;
+        skillIds.push(fullRefId);
+      } else {
+        const sid = String(s.id || '').trim();
+        if (!sid || !/^[a-zA-Z0-9_-]{2,30}$/.test(sid)) {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 id 需为 2-30 位字母/数字/下划线' }; return;
+        }
+        if (!s.name || !String(s.name).trim()) {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 name 必填' }; return;
+        }
+        if (typeof s.filterCode !== 'string' || typeof s.contentCode !== 'string') {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 filterCode / contentCode 必须是字符串' }; return;
+        }
+        const fullSid = fullGid + '_' + sid;
+        skillIds.push(fullSid);
+        skillObjs.push({
+          id:          fullSid,
+          name:        String(s.name),
+          type:        s.type === '被动' ? '被动' : '主动',
+          cooldown:    Math.max(0, Math.min(20, parseInt(s.cooldown) || 2)),
+          trigger:     s.trigger || null,
+          desc:        String(s.desc || ''),
+          preview:     s.preview ? validateRange(s.preview, null) : null,
+          filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
+          contentCode: String(s.contentCode || '')
+        });
+      }
+    }
+
     const generalObj = {
       id: fullGid,
       name: gname,
@@ -187,21 +222,8 @@ app.use(async (ctx, next) => {
       def: Math.max(0,   Math.min(1000,  parseInt(general.def) || 20)),
       moveRange:   validateRange(general.moveRange,   { shape: '+', n: 3 }),
       attackRange: validateRange(general.attackRange, { shape: '+', n: 1 }),
-      skillIds: skillArr.map(s => fullGid + '_' + String(s.id))
+      skillIds: skillIds
     };
-
-    // 构造技能对象
-    const skillObjs = skillArr.map(s => ({
-      id:          fullGid + '_' + String(s.id),
-      name:        String(s.name),
-      type:        s.type === '被动' ? '被动' : '主动',
-      cooldown:    Math.max(0, Math.min(20, parseInt(s.cooldown) || 2)),
-      trigger:     s.trigger || null,
-      desc:        String(s.desc || ''),
-      preview:     s.preview ? validateRange(s.preview, null) : null,
-      filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
-      contentCode: String(s.contentCode || '')
-    }));
 
     // 找到或创建拓展
     const store = readStore();
@@ -282,6 +304,145 @@ app.use(async (ctx, next) => {
     writeStore(store);
     ctx.type = 'application/json; charset=utf-8';
     ctx.body = { ok: true };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // POST /api/skill/create  创建独立技能（不属于某个武将）
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/skill/create' && ctx.method === 'POST') {
+    const body = ctx.request.body;
+    if (!body || typeof body !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
+    }
+    const { skill, password, extId, extName } = body;
+    if (!checkPassword(ctx, password)) return;
+
+    if (!skill || typeof skill !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '缺少技能定义' }; return;
+    }
+    const sid = String(skill.id || '').trim();
+    const sname = String(skill.name || '').trim();
+    if (!sid || !/^[a-zA-Z0-9_-]{2,30}$/.test(sid)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '技能 id 需为 2-30 位字母/数字/下划线' }; return;
+    }
+    if (!sname) {
+      ctx.status = 400; ctx.body = { ok: false, error: '技能 name 必填' }; return;
+    }
+    if (typeof skill.filterCode !== 'string' || typeof skill.contentCode !== 'string') {
+      ctx.status = 400; ctx.body = { ok: false, error: '技能 filterCode / contentCode 必须是字符串' }; return;
+    }
+
+    const fullSid = 'skill_' + sid;
+    const skillObj = {
+      id:          fullSid,
+      name:        sname,
+      type:        skill.type === '被动' ? '被动' : '主动',
+      cooldown:    Math.max(0, Math.min(20, parseInt(skill.cooldown) || 2)),
+      trigger:     skill.trigger || null,
+      desc:        String(skill.desc || ''),
+      preview:     skill.preview ? validateRange(skill.preview, null) : null,
+      filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
+      contentCode: String(skill.contentCode || '')
+    };
+
+    const store = readStore();
+    let ext = null;
+    if (extId) {
+      ext = store.extensions.find(e => e.id === extId);
+    }
+    if (!ext && extName) {
+      ext = store.extensions.find(e => e.name === extName);
+    }
+    if (!ext) {
+      ext = {
+        id:       genId('ext'),
+        name:     String(extName || '默认拓展').slice(0, 40),
+        desc:     '',
+        enabled:  true,
+        generals: [],
+        skills:   []
+      };
+      store.extensions.push(ext);
+    }
+
+    ext.skills = ext.skills.filter(s => s.id !== fullSid);
+    ext.skills.push(skillObj);
+
+    if (!writeStore(store)) {
+      ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
+    }
+
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, skill: skillObj, extId: ext.id, extName: ext.name };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // POST /api/skill/delete  删除独立技能
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/skill/delete' && ctx.method === 'POST') {
+    const body = ctx.request.body;
+    const { id, password } = body || {};
+    if (!checkPassword(ctx, password)) return;
+
+    const fullId = String(id).startsWith('skill_') ? String(id) : 'skill_' + String(id);
+    const store = readStore();
+    for (const ext of store.extensions) {
+      ext.skills = ext.skills.filter(s => s.id !== fullId);
+    }
+    writeStore(store);
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // GET /api/skill/list  获取所有独立技能（供选择）
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/skill/list' && ctx.method === 'GET') {
+    const store = readStore();
+    const allSkills = [];
+    for (const ext of store.extensions) {
+      if (!ext.enabled) continue;
+      if (ext.skills) {
+        for (const s of ext.skills) {
+          if (s.id.startsWith('skill_')) {
+            allSkills.push({
+              id:       s.id,
+              name:     s.name,
+              type:     s.type,
+              desc:     s.desc,
+              extId:    ext.id,
+              extName:  ext.name
+            });
+          }
+        }
+      }
+    }
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, skills: allSkills };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // GET /api/skill/detail?id=xxx  获取单个技能详情（供编辑）
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/skill/detail' && ctx.method === 'GET') {
+    const id = String(ctx.query.id || '').trim();
+    if (!id) { ctx.status = 400; ctx.body = { ok: false, error: '缺少 id' }; return; }
+
+    const fullId = id.startsWith('skill_') ? id : 'skill_' + id;
+    const store = readStore();
+    let found = null, foundExt = null;
+    for (const ext of store.extensions) {
+      const s = (ext.skills || []).find(skill => skill.id === fullId);
+      if (s) { found = s; foundExt = ext; break; }
+    }
+    if (!found) { ctx.status = 404; ctx.body = { ok: false, error: '技能不存在' }; return; }
+
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, skill: found, extId: foundExt.id, extName: foundExt.name };
     return;
   }
 
