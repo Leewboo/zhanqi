@@ -7,6 +7,7 @@
   const GameSettings = {
     picksPerSide: DEFAULT_PICKS,
     gameMode: 'local', // local | ai
+    aiSide: 'blue',    // AI 控制的阵营：'blue'（玩家先手）| 'red'（AI先手）
 
     load() {
       try {
@@ -15,6 +16,7 @@
           const obj = JSON.parse(saved);
           if (obj.picksPerSide) this.picksPerSide = parseInt(obj.picksPerSide) || DEFAULT_PICKS;
           if (obj.gameMode) this.gameMode = obj.gameMode;
+          if (obj.aiSide) this.aiSide = obj.aiSide;
         }
       } catch (e) {}
       PICKS_PER_SIDE = this.picksPerSide;
@@ -24,7 +26,8 @@
       try {
         localStorage.setItem('zhanqi_settings', JSON.stringify({
           picksPerSide: this.picksPerSide,
-          gameMode: this.gameMode
+          gameMode: this.gameMode,
+          aiSide: this.aiSide
         }));
       } catch (e) {}
     },
@@ -37,6 +40,11 @@
 
     setMode(mode) {
       this.gameMode = mode === 'ai' ? 'ai' : 'local';
+      this.save();
+    },
+
+    setAiSide(side) {
+      this.aiSide = (side === 'red' || side === 'blue') ? side : 'blue';
       this.save();
     }
   };
@@ -174,7 +182,7 @@
       this.highlighted = [];
       this.over = false;
       this.aiMode = (mode === 'ai');
-      this.aiSide = 'blue';
+      this.aiSide = this.aiMode ? GameSettings.aiSide : 'blue';
       this._buildDom();
       this._bind();
       this._setupPassiveEvents();
@@ -185,7 +193,14 @@
       const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
       this.log('选将开始：双方轮流挑选武将，每方 ' + effectivePicks + ' 人。', 'turn');
       if (this.aiMode) {
-        this.log('人机对战：你执红，AI 执蓝。', 'turn');
+        const playerSide = this.aiSide === 'blue' ? '红' : '蓝';
+        const aiSideName = this.aiSide === 'blue' ? '蓝' : '红';
+        this.log('人机对战：你执' + playerSide + '，AI 执' + aiSideName + '。', 'turn');
+        if (this.aiSide === 'red') {
+          this.log('AI 先手。', 'turn');
+        } else {
+          this.log('你先手。', 'turn');
+        }
       }
       this.log('红方先选。', 'turn');
       this._maybeAiAct();
@@ -2415,6 +2430,10 @@
         const v = chip.getAttribute('data-mode');
         chip.classList.toggle('active', v === GameSettings.gameMode);
       });
+      document.querySelectorAll('.settings-chip[data-ai-side]').forEach(chip => {
+        const v = chip.getAttribute('data-ai-side');
+        chip.classList.toggle('active', v === GameSettings.aiSide);
+      });
       updateFsLabel();
     }
 
@@ -2460,6 +2479,15 @@
       chip.addEventListener('click', () => {
         const v = chip.getAttribute('data-mode');
         GameSettings.setMode(v);
+        refreshSettingsUi();
+      });
+    });
+
+    // 选择 AI 先手/后手
+    document.querySelectorAll('.settings-chip[data-ai-side]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = chip.getAttribute('data-ai-side');
+        GameSettings.setAiSide(v);
         refreshSettingsUi();
       });
     });
