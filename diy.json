@@ -6,7 +6,30 @@
       "desc": "",
       "enabled": true,
       "generals": [],
-      "skills": []
+      "skills": [
+        {
+          "id": "skill_test1",
+          "name": "测试技能",
+          "type": "主动",
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "",
+          "preview": null,
+          "filterCode": "return true;",
+          "contentCode": "return true;"
+        },
+        {
+          "id": "skill_huoyan",
+          "name": "烈焰术",
+          "type": "主动",
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "召唤烈焰灼烧敌人",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, hintText: \"选择敌人施放宽法术\" }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, 80, { ignoreDef: true }); global.Game.log(actor.name + \" 发动烈焰术！\"); return true;"
+        }
+      ]
     },
     {
       "id": "ext_mr3naoa1ufx",

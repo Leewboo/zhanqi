@@ -1089,6 +1089,10 @@
     .diy-steps { flex-wrap: wrap; gap: 4px; }
     .diy-step { padding: 4px 10px; font-size: 11px; }
     .diy-main { grid-template-columns: 1fr; }
+    .diy-tab { flex-direction: column; }
+    .diy-left, .diy-right { width: 100%; }
+    .diy-nav-tabs { width: 100%; }
+    .diy-nav-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: 12px; }
     .diy-hint-btn { left: 10px; bottom: 80px; }
     .diy-tutorial-panel { width: 88vw; }
     .fs-editor-mask { padding: 12px; }
@@ -1096,9 +1100,25 @@
     .fs-editor-title small { display: block; margin: 4px 0 0; font-size: 11px; }
     .fs-editor-actions .btn { font-size: 11px; padding: 6px 10px; }
     .card-body { padding: 12px; }
-    table.tbl th { width: 50px; }
+    table.tbl th { width: 60px; font-size: 12px; }
+    table.tbl td { padding: 6px 8px; }
     input[type="text"], input[type="number"], input[type="password"], select { width: 100%; }
-    .hint { display: block; margin-top: 3px; }
+    .hint { display: block; margin-top: 3px; font-size: 11px; }
+    .code-editor { height: 140px; }
+    .code-input { font-size: 12px; }
+    .submit-row { flex-direction: column; gap: 8px; }
+    .submit-row .btn { width: 100%; }
+    .skill-card-head { flex-wrap: wrap; gap: 6px; }
+    .skill-card-head .btn-mini { font-size: 11px; padding: 3px 8px; }
+    .footer-nav { font-size: 11px; flex-wrap: wrap; gap: 4px; }
+    #indep-skill-list-container .skill-list-row {
+      padding: 8px 10px;
+      font-size: 12px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .skill-list-name { font-size: 13px; }
+    .skill-list-actions { width: 100%; justify-content: flex-end; }
   }
   @media (max-width: 480px) {
     .diy-steps { display: none; }
@@ -1718,7 +1738,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     </div><!-- end .diy-tab.general -->
 
     <!-- 独立技能管理页面 -->
-    <div class="diy-tab" data-tab="skill">
+    <div class="diy-tab hidden" data-tab="skill">
       <div class="diy-left">
         <!-- 拓展列表 -->
         <div class="card" style="margin-bottom: 14px;">
