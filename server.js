@@ -10,7 +10,12 @@ const app = new Koa();
 const PORT = process.env.PORT || 5000;
 const ROOT = __dirname;
 const DIY_FILE = path.join(ROOT, 'diy.json');
-const DIY_PASSWORD = process.env.DIY_PASSWORD || 'diy123';
+const PORTRAIT_DIR = path.join(ROOT, 'portraits');
+if (!fs.existsSync(PORTRAIT_DIR)) {
+  try { fs.mkdirSync(PORTRAIT_DIR, { recursive: true }); } catch (e) {}
+}
+const ALLOWED_PORTRAIT_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+const MAX_PORTRAIT_SIZE = 5 * 1024 * 1024;
 
 // ============================================================
 // 工具函数：读写拓展数据（新格式 { extensions: [...] }）
@@ -74,21 +79,13 @@ function validateRange(r, fallback) {
   return { shape, n };
 }
 
-function checkPassword(ctx, password) {
-  if (!password || password !== DIY_PASSWORD) {
-    ctx.status = 403;
-    ctx.body = { ok: false, error: '密码错误' };
-    return false;
-  }
-  return true;
-}
-
 // ============================================================
 // 静态资源 + 缓存策略
 // ============================================================
 
 app.use(koaBody({
   enableTypes: ['json', 'form', 'multipart'],
+  multipart: true,
   jsonLimit: '10mb',
   formLimit: '10mb'
 }));
@@ -115,6 +112,55 @@ app.use(async (ctx, next) => {
 });
 
 app.use(serve(ROOT, { index: 'index.html', maxage: 0, hidden: false, defer: false, extensions: [] }));
+
+// ============================================================
+// 立绘接口  /api/portrait/*
+// ============================================================
+app.use(async (ctx, next) => {
+  if (!ctx.path.startsWith('/api/portrait/')) return next();
+
+  // POST /api/portrait/upload  上传立绘（multipart：字段名 file）
+  if (ctx.path === '/api/portrait/upload' && ctx.method === 'POST') {
+    const file = ctx.request.files?.file;
+    if (!file) { ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return; }
+    const originalName = String(file.originalFilename || file.name || '');
+    const ext = path.extname(originalName).toLowerCase();
+    if (!ALLOWED_PORTRAIT_EXT.includes(ext)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '仅支持图片格式：' + ALLOWED_PORTRAIT_EXT.join(', ') }; return;
+    }
+    try {
+      const stat = fs.statSync(file.filepath);
+      if (stat.size > MAX_PORTRAIT_SIZE) {
+        ctx.status = 400; ctx.body = { ok: false, error: '图片大小不能超过 5MB' }; return;
+      }
+    } catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '读取文件失败' }; return; }
+    const filename = 'pt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + ext;
+    const dest = path.join(PORTRAIT_DIR, filename);
+    try {
+      const buf = fs.readFileSync(file.filepath);
+      fs.writeFileSync(dest, buf);
+    } catch (e) { ctx.status = 500; ctx.body = { ok: false, error: '保存立绘失败: ' + e.message }; return; }
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, portrait: filename };
+    return;
+  }
+
+  // POST /api/portrait/delete  删除立绘
+  if (ctx.path === '/api/portrait/delete' && ctx.method === 'POST') {
+    const body = ctx.request.body || {};
+    const filename = String(body.portrait || '').trim();
+    if (!filename || !/^pt_[a-z0-9]+\.[a-z]+$/i.test(filename)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '无效的立绘文件名' }; return;
+    }
+    const full = path.join(PORTRAIT_DIR, filename);
+    try { if (fs.existsSync(full)) fs.unlinkSync(full); } catch (e) {}
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true };
+    return;
+  }
+
+  await next();
+});
 
 // ============================================================
 // DIY 武将接口  /api/diy/*
@@ -146,8 +192,7 @@ app.use(async (ctx, next) => {
     if (!body || typeof body !== 'object') {
       ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
     }
-    const { general, skills, password, extId, extName } = body;
-    if (!checkPassword(ctx, password)) return;
+    const { general, skills, extId, extName } = body;
 
     // 武将校验
     if (!general || typeof general !== 'object') {
@@ -210,7 +255,8 @@ app.use(async (ctx, next) => {
       def: Math.max(0,   Math.min(1000,  parseInt(general.def) || 20)),
       moveRange:   validateRange(general.moveRange,   { shape: '+', n: 3 }),
       attackRange: validateRange(general.attackRange, { shape: '+', n: 1 }),
-      skillIds: skillIds
+      skillIds: skillIds,
+      portrait: typeof general.portrait === 'string' && general.portrait ? String(general.portrait) : null
     };
 
     // 找到或创建拓展
@@ -236,6 +282,13 @@ app.use(async (ctx, next) => {
     }
 
     // 写入（覆盖同 id）
+    const oldGeneral = ext.generals.find(g => g.id === fullGid);
+    if (oldGeneral && oldGeneral.portrait && oldGeneral.portrait !== generalObj.portrait) {
+      try {
+        const oldPath = path.join(PORTRAIT_DIR, oldGeneral.portrait);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) {}
+    }
     ext.generals = ext.generals.filter(g => g.id !== fullGid);
     ext.generals.push(generalObj);
     const existingSkillIds = new Set(skillObjs.map(s => s.id));
@@ -280,12 +333,20 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/diy/delete' && ctx.method === 'POST') {
     const body = ctx.request.body;
-    const { id, password } = body || {};
-    if (!checkPassword(ctx, password)) return;
+    const { id } = body || {};
 
     const fullId = String(id).startsWith('diy_') ? String(id) : 'diy_' + String(id);
     const store = readStore();
     for (const ext of store.extensions) {
+      const removed = (ext.generals || []).filter(g => g.id === fullId);
+      for (const rg of removed) {
+        if (rg.portrait) {
+          try {
+            const pp = path.join(PORTRAIT_DIR, rg.portrait);
+            if (fs.existsSync(pp)) fs.unlinkSync(pp);
+          } catch (e) {}
+        }
+      }
       ext.generals = ext.generals.filter(g => g.id !== fullId);
       ext.skills   = ext.skills.filter(s => !s.id.startsWith(fullId + '_'));
     }
@@ -312,8 +373,7 @@ app.use(async (ctx, next) => {
     if (!body || typeof body !== 'object') {
       ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
     }
-    const { skill, password, extId, extName } = body;
-    if (!checkPassword(ctx, password)) return;
+    const { skill, extId, extName } = body;
 
     if (!skill || typeof skill !== 'object') {
       ctx.status = 400; ctx.body = { ok: false, error: '缺少技能定义' }; return;
@@ -380,8 +440,7 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/skill/delete' && ctx.method === 'POST') {
     const body = ctx.request.body;
-    const { id, password } = body || {};
-    if (!checkPassword(ctx, password)) return;
+    const { id } = body || {};
 
     const fullId = String(id).startsWith('skill_') ? String(id) : 'skill_' + String(id);
     const store = readStore();
@@ -478,7 +537,6 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/ext/create' && ctx.method === 'POST') {
     const body = ctx.request.body || {};
-    if (!checkPassword(ctx, body.password)) return;
 
     const name = String(body.name || '未命名拓展').trim().slice(0, 40);
     const desc = String(body.desc || '').slice(0, 200);
@@ -496,7 +554,6 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/ext/toggle' && ctx.method === 'POST') {
     const body = ctx.request.body || {};
-    if (!checkPassword(ctx, body.password)) return;
 
     const store = readStore();
     const ext = store.extensions.find(e => e.id === body.extId);
@@ -513,7 +570,6 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/ext/delete' && ctx.method === 'POST') {
     const body = ctx.request.body || {};
-    if (!checkPassword(ctx, body.password)) return;
 
     const store = readStore();
     const before = store.extensions.length;
@@ -532,7 +588,6 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/ext/rename' && ctx.method === 'POST') {
     const body = ctx.request.body || {};
-    if (!checkPassword(ctx, body.password)) return;
 
     const store = readStore();
     const ext = store.extensions.find(e => e.id === body.extId);
@@ -557,7 +612,6 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/project/export' && ctx.method === 'POST') {
     const body = ctx.request.body || {};
-    if (!checkPassword(ctx, body.password)) return;
 
     const store  = readStore();
     const extId  = body.extId;
@@ -586,6 +640,23 @@ app.use(async (ctx, next) => {
       zip.file('generals.json', JSON.stringify(Array.isArray(ext.generals) ? ext.generals : [], null, 2));
       zip.file('skills.json',   JSON.stringify(Array.isArray(ext.skills)   ? ext.skills   : [], null, 2));
 
+      // 打包武将引用的立绘文件到 portraits/ 目录
+      const portraitFolder = zip.folder('portraits');
+      const generalsList = Array.isArray(ext.generals) ? ext.generals : [];
+      const packedPortraits = [];
+      for (const g of generalsList) {
+        if (!g.portrait || packedPortraits.includes(g.portrait)) continue;
+        if (!/^pt_[a-z0-9]+\.[a-z]+$/i.test(g.portrait)) continue;
+        const portraitPath = path.join(PORTRAIT_DIR, g.portrait);
+        try {
+          if (fs.existsSync(portraitPath)) {
+            const imgBuf = fs.readFileSync(portraitPath);
+            portraitFolder.file(g.portrait, imgBuf);
+            packedPortraits.push(g.portrait);
+          }
+        } catch (e) { console.warn('[project/export] 立绘读取失败:', g.portrait, e.message); }
+      }
+
       const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
       ctx.type = 'application/zip';
       ctx.set('Content-Disposition',
@@ -604,9 +675,7 @@ app.use(async (ctx, next) => {
   // ----------------------------------------------------------
   if (ctx.path === '/api/project/import' && ctx.method === 'POST') {
     const zipFile  = ctx.request.files?.zip;
-    const password = String((ctx.request.body || {}).password || '');
 
-    if (!checkPassword(ctx, password)) return;
     if (!zipFile) { ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return; }
 
     try {
@@ -647,7 +716,34 @@ app.use(async (ctx, next) => {
         store.extensions.push(ext);
       }
 
+      // 从 ZIP 中恢复立绘文件，统一重命名避免冲突
+      const restoredPortraits = [];
+      const portraitFiles = Object.keys(zip.files).filter(function (p) {
+        return p.startsWith('portraits/') && !zip.files[p].dir;
+      });
+      for (const portraitPath of portraitFiles) {
+        const originalName = path.basename(portraitPath);
+        if (!/^pt_[a-z0-9]+\.[a-z]+$/i.test(originalName)) continue;
+        try {
+          const imgBuf = await zip.files[portraitPath].async('nodebuffer');
+          const ext2 = path.extname(originalName).toLowerCase();
+          const newName = 'pt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + ext2;
+          fs.writeFileSync(path.join(PORTRAIT_DIR, newName), imgBuf);
+          restoredPortraits.push({ original: originalName, newName: newName });
+        } catch (e) { console.warn('[project/import] 立绘恢复失败:', originalName, e.message); }
+      }
+      if (restoredPortraits.length > 0) {
+        for (const g of ext.generals) {
+          if (!g.portrait) continue;
+          const mapping = restoredPortraits.find(function (r) { return r.original === g.portrait; });
+          if (mapping) g.portrait = mapping.newName;
+        }
+      }
+
       if (!writeStore(store)) {
+        for (const r of restoredPortraits) {
+          try { fs.unlinkSync(path.join(PORTRAIT_DIR, r.newName)); } catch (e) {}
+        }
         ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
       }
 
@@ -657,7 +753,8 @@ app.use(async (ctx, next) => {
         extId:         ext.id,
         projectName:   ext.name,
         generalsCount: ext.generals.length,
-        skillsCount:   ext.skills.length
+        skillsCount:   ext.skills.length,
+        portraitsCount: restoredPortraits.length
       };
     } catch (e) {
       console.error('[project/import]', e.message);
@@ -715,6 +812,5 @@ app.listen(PORT, () => {
   console.log(`\n  三国战棋 · Koa 服务已启动`);
   console.log(`  本地访问: http://localhost:${PORT}/`);
   console.log(`  DIY 提交: http://localhost:${PORT}/diy.html`);
-  console.log(`  DIY 密码: ${DIY_PASSWORD}${process.env.DIY_PASSWORD ? '' : ' （可通过环境变量 DIY_PASSWORD 覆盖）'}`);
   console.log(`  工作目录: ${ROOT}\n`);
 });

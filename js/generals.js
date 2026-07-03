@@ -6,64 +6,7 @@
     skills: []
   };
 
-  const generals = [
-    {
-      id: 'gy',
-      name: '关羽',
-      hp: 200, atk: 90, def: 20,
-      moveRange: { shape: '+', n: 2 },
-      attackRange: { shape: 'square', n: 1 },
-      skills: [Skills.weiZhen, Skills.shuiYan]
-    },
-    {
-      id: 'zy',
-      name: '赵云',
-      hp: 150, atk: 60, def: 20,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.changSheng, Skills.danYong]
-    },
-    {
-      id: 'lb',
-      name: '吕布',
-      hp: 260, atk: 100, def: 25,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: 'square', n: 1 },
-      skills: [Skills.wuShuang, Skills.feiJiang]
-    },
-    {
-      id: 'zg',
-      name: '诸葛亮',
-      hp: 140, atk: 40, def: 15,
-      moveRange: { shape: '+', n: 2 },
-      attackRange: { shape: 'square', n: 2 },
-      skills: [Skills.huoGong, Skills.kongCheng]
-    },
-    {
-      id: 'zf',
-      name: '张飞',
-      hp: 230, atk: 85, def: 18,
-      moveRange: { shape: '+', n: 2 },
-      attackRange: { shape: '+', n: 1 },
-      skills: [Skills.paoXiao, Skills.yanRen]
-    },
-    {
-      id: 'dc',
-      name: '貂蝉',
-      hp: 130, atk: 35, def: 12,
-      moveRange: { shape: 'r', n: 3 },
-      attackRange: { shape: 'square', n: 1 },
-      skills: [Skills.liJian, Skills.qingGuo]
-    },
-    {
-      id: 'zyu',
-      name: '周瑜',
-      hp: 170, atk: 55, def: 18,
-      moveRange: { shape: '+', n: 3 },
-      attackRange: { shape: '+', n: 2 },
-      skills: [Skills.fengHuo, Skills.yingZi]
-    }
-  ];
+  const generals = [];
 
   function buildPiece(def, side, x, y) {
     // 解析技能：支持 Skills.xxx 对象 / 字符串 id / 自定义技能对象

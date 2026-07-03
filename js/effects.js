@@ -112,6 +112,19 @@
       }
     },
 
+    // 统一触发某个棋子的指定被动技能
+    // actor: 棋子, eventName: 触发时机, context: 上下文
+    triggerPassive(actor, eventName, context) {
+      if (!actor || !actor.skills || !actor.alive) return;
+      for (const sk of actor.skills) {
+        if (sk.type === '被动' && sk.trigger === eventName) {
+          if (!sk.filter || sk.filter(actor)) {
+            try { sk.content(actor, context || {}); } catch (e) { console.error(e); }
+          }
+        }
+      }
+    },
+
     // ========== 基础效果 ==========
     heal(actor, amount) {
       if (!actor || !actor.alive) return amount;
@@ -121,6 +134,9 @@
       if (global.Game && delta !== 0) {
         global.Game.log(actor.name + ' 恢复 ' + delta + ' 生命。');
         global.Game._showFloatText(actor.x, actor.y, '+' + delta, 'heal');
+        // 触发被治疗事件
+        Effect.trigger('onHeal', { actor, amount: delta });
+        Effect.triggerPassive(actor, 'onHeal', { healer: null, amount: delta });
       }
       return delta;
     },
@@ -185,16 +201,13 @@
         // 触发被攻击事件
         Effect.trigger('onAttacked', { actor, target, damage: final });
 
-        // 触发目标的 onAttacked 被动技能
-        if (target.skills) {
-          for (const sk of target.skills) {
-            if (sk.type === '被动' && sk.trigger === 'onAttacked' && sk.filter && sk.filter(target)) {
-              try {
-                sk.content(target, { attacker: actor, damage: final });
-              } catch (e) { console.error(e); }
-            }
-          }
+        // 触发攻击者的 onAttack 被动技能（发起攻击时）
+        if (actor && actor.alive) {
+          Effect.triggerPassive(actor, 'onAttack', { target, damage: final });
         }
+
+        // 触发目标的 onAttacked 被动技能
+        Effect.triggerPassive(target, 'onAttacked', { attacker: actor, damage: final });
 
         // 荆棘反伤
         const thornMarks = marks.filter(m => m.modifiers && m.modifiers.thornsAmount);
@@ -209,6 +222,9 @@
         if (target.hp <= 0) {
           target.hp = 0;
           target.alive = false;
+          // 触发被击杀事件
+          Effect.trigger('onKilled', { actor, victim: target, damage: final });
+          Effect.triggerPassive(target, 'onKilled', { killer: actor, damage: final });
           this.unmarkAll(target);
           global.Game.log(target.name + ' 被击败！');
           if (actor) global.Game._onKill(actor, target);
@@ -718,6 +734,86 @@
       g.log(actor.name + ' 在 (' + x + ',' + y + ') 召唤 ' + unit.name + '！');
       g._render();
       return unit;
+    },
+
+    // ========== 技能操作 API ==========
+    // 获得技能
+    gainSkill(actor, skillDef) {
+      if (!actor || !skillDef) return false;
+      actor.skills = actor.skills || [];
+      // 支持三种形式：字符串ID、DIY定义对象(带contentCode)、已编译技能对象(带content函数)
+      let skill = null;
+      if (typeof skillDef === 'string') {
+        skill = (global.Skills && global.Skills[skillDef]) || (global.SkillsAPI && global.SkillsAPI.getSkill(skillDef));
+      } else if (typeof skillDef === 'object') {
+        if (typeof skillDef.content === 'function') {
+          skill = skillDef;
+        } else if (typeof skillDef.contentCode === 'string' && global.SkillsAPI) {
+          skill = global.SkillsAPI.registerSkill(skillDef);
+        }
+      }
+      if (!skill) return false;
+      // 避免重复添加
+      if (actor.skills.some(s => s.id === skill.id)) return false;
+      actor.skills.push(skill);
+      return true;
+    },
+
+    // 失去技能
+    loseSkill(actor, skillId) {
+      if (!actor || !actor.skills) return false;
+      const idx = actor.skills.findIndex(s => s.id === skillId);
+      if (idx < 0) return false;
+      actor.skills.splice(idx, 1);
+      return true;
+    },
+
+    // 是否拥有技能
+    hasSkill(actor, skillId) {
+      if (!actor || !actor.skills) return false;
+      return actor.skills.some(s => s.id === skillId);
+    },
+
+    // 获取技能对象
+    getSkill(actor, skillId) {
+      if (!actor || !actor.skills) return null;
+      return actor.skills.find(s => s.id === skillId) || null;
+    },
+
+    // 设置技能冷却
+    setSkillCooldown(actor, skillId, cd) {
+      const sk = this.getSkill(actor, skillId);
+      if (!sk) return false;
+      actor.cdMap = actor.cdMap || {};
+      actor.cdMap[skillId] = Math.max(0, parseInt(cd) || 0);
+      return true;
+    },
+
+    // 重置技能冷却
+    resetSkillCooldown(actor, skillId) {
+      const sk = this.getSkill(actor, skillId);
+      if (!sk) return false;
+      actor.cdMap = actor.cdMap || {};
+      actor.cdMap[skillId] = 0;
+      return true;
+    },
+
+    // 修改技能属性
+    modifySkill(actor, skillId, changes) {
+      const sk = this.getSkill(actor, skillId);
+      if (!sk) return false;
+      Object.assign(sk, changes);
+      return true;
+    },
+
+    // 减少所有技能冷却
+    reduceAllCooldowns(actor, amount) {
+      if (!actor || !actor.cdMap) return false;
+      const amt = Math.max(0, parseInt(amount) || 0);
+      for (const id in actor.cdMap) {
+        actor.cdMap[id] = Math.max(0, (actor.cdMap[id] || 0) - amt);
+      }
+      return true;
     }
   };
 

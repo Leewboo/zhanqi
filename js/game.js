@@ -238,6 +238,8 @@
             global.Generals.registerGeneral(gDef);
           });
           if (!silent) this.log('已加载 DIY 武将 ' + data.generals.length + ' 个。');
+          // 预加载立绘
+          this._preloadPortraits(data.generals);
         }
 
         // 3) 如果 draft 阶段，刷新卡片让 DIY 武将出现在选将池中
@@ -248,6 +250,29 @@
         // 静默失败：静态文件服务器没实现 DIY 接口不影响游戏
         console.info('[DIY 加载] 未连接到 DIY 后端（或接口不可用），跳过：', e.message);
       }
+    },
+
+    // 立绘缓存：{ generalId: HTMLImageElement }
+    _portraitCache: null,
+
+    // 预加载所有 DIY 武将的立绘到缓存
+    _preloadPortraits(generals) {
+      if (!this._portraitCache) this._portraitCache = {};
+      for (const g of generals) {
+        if (g.portrait && !this._portraitCache[g.id]) {
+          const img = new Image();
+          img.src = '/portraits/' + g.portrait;
+          this._portraitCache[g.id] = img;
+        }
+      }
+    },
+
+    // 获取武将立绘 URL（无立绘返回 null）
+    _getPortraitUrl(generalId) {
+      if (!this._portraitCache) return null;
+      const g = Generals.list.find(x => x.id === generalId);
+      if (!g || !g.portrait) return null;
+      return '/portraits/' + g.portrait;
     },
 
     goHome() {
@@ -507,6 +532,19 @@
       title.textContent = piece.name + '（' + (piece.side === 'red' ? '红方' : '蓝方') + '）';
       body.innerHTML = '';
 
+      // 顶部显示立绘
+      const portraitUrl = this._getPortraitUrl(piece.generalId);
+      if (portraitUrl) {
+        const portraitWrap = document.createElement('div');
+        portraitWrap.className = 'detail-portrait';
+        const img = document.createElement('img');
+        img.src = portraitUrl;
+        img.alt = piece.name + ' 立绘';
+        img.onerror = function () { portraitWrap.style.display = 'none'; };
+        portraitWrap.appendChild(img);
+        body.appendChild(portraitWrap);
+      }
+
       const addRow = (label, value) => {
         const row = document.createElement('div');
         row.className = 'row';
@@ -761,7 +799,7 @@
       for (const sk of actor.skills) {
         if (sk.type === '被动' && sk.trigger === 'onKill' && sk.filter && sk.filter(actor)) {
           this.log(actor.name + ' 触发被动【' + sk.name + '】！', 'turn');
-          try { sk.content(actor, { target }); } catch (e) {}
+          try { sk.content(actor, { target, victim: target }); } catch (e) {}
         }
       }
     },
@@ -940,6 +978,8 @@
         const actuallyUsed = actor.skilled && !beforeSkilled;
         if (actuallyUsed) {
           self.log(actor.name + ' 发动技能：' + skill.name);
+          Effect.trigger('onSkillCast', { actor, skill });
+          Effect.triggerPassive(actor, 'onSkillCast', { skill });
           if (cooldown) actor.cdMap[skill.id] = cooldown;
           self._finishActorAction();
         } else {
@@ -1068,6 +1108,8 @@
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
+      Effect.trigger('onMove', { actor, x, y });
+      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.mode = null;
       this.highlighted = [];
       if (actor.attacked) {
@@ -1995,6 +2037,8 @@
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
+      Effect.trigger('onMove', { actor, x, y });
+      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.highlighted = [];
       this.mode = null;
       this._render();

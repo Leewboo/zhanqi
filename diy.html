@@ -468,7 +468,7 @@
     padding-right: 4px;
   }
 
-  input[type="text"], input[type="number"], input[type="password"], select {
+  input[type="text"], input[type="number"], select {
     padding: 7px 9px;
     border: 1px solid #d4cebc;
     background: #fff;
@@ -495,6 +495,7 @@
   }
   .diy-tab { display: flex; }
   .diy-tab.hidden { display: none !important; }
+  .hidden { display: none !important; }
   .skill-list-row {
     display: flex;
     align-items: center;
@@ -1125,7 +1126,7 @@
     .card-body { padding: 12px; }
     table.tbl th { width: 60px; font-size: 12px; }
     table.tbl td { padding: 6px 8px; }
-    input[type="text"], input[type="number"], input[type="password"], select { width: 100%; }
+    input[type="text"], input[type="number"], select { width: 100%; }
     .hint { display: block; margin-top: 3px; font-size: 11px; }
     .code-editor { height: 140px; }
     .code-input { font-size: 12px; }
@@ -1142,10 +1143,25 @@
     }
     .skill-list-name { font-size: 13px; }
     .skill-list-actions { width: 100%; justify-content: flex-end; }
+    .portrait-row { flex-direction: column; align-items: stretch; gap: 10px; }
+    .portrait-preview { width: 100%; height: 96px; }
+    .portrait-actions { width: 100%; }
+    .portrait-actions .btn { flex: 1; }
+    .form-row input[type="text"] { font-size: 13px; }
   }
   @media (max-width: 480px) {
     .diy-steps { display: none; }
     .diy-logo-sub { display: none; }
+    .diy-header-left { width: 100%; flex-wrap: wrap; gap: 6px; }
+    .diy-logo { font-size: 18px; }
+    .btn { font-size: 11px; letter-spacing: 1px; padding: 8px 10px; min-height: 40px; }
+    .btn.mini { padding: 6px 8px; min-height: 32px; }
+    .card-title { font-size: 13px; }
+    .code-editor { height: 120px; }
+    .fs-editor-actions .btn { font-size: 10px; padding: 5px 8px; }
+    table.tbl th { width: 50px; font-size: 11px; }
+    table.tbl td { padding: 5px 6px; font-size: 12px; }
+    .portrait-preview { height: 80px; }
   }
   .btn {
     padding: 7px 16px;
@@ -1245,6 +1261,29 @@
   .submit-row input {
     width: 140px;
   }
+
+  /* ========= 立绘上传 ========= */
+  .portrait-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 10px;
+    background: #faf8f1;
+    border: 1px solid #e8e0cc;
+    border-radius: 4px;
+    flex-wrap: wrap;
+  }
+  .portrait-label { font-size: 12px; color: #666; letter-spacing: 1px; white-space: nowrap; }
+  .portrait-preview {
+    width: 72px; height: 72px;
+    border: 1px dashed #c8be9e; border-radius: 4px;
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+    background: #fff; flex-shrink: 0;
+  }
+  .portrait-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .portrait-empty { font-size: 10px; color: #aaa; text-align: center; line-height: 1.3; }
+  .portrait-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* ========= 拓展管理 UI ========= */
   .diy-project-btns {
@@ -1417,8 +1456,7 @@
     font-weight: 600;
     letter-spacing: 1px;
   }
-  .form-row input[type="text"],
-  .form-row input[type="password"] {
+  .form-row input[type="text"] {
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -1455,7 +1493,7 @@
         <ol>
           <li>在左侧「武将属性」填 id、name、hp、atk、def、移动/攻击范围。</li>
           <li>在右侧「技能列表」点「+ 添加」，写 filter 与 content 代码。</li>
-          <li>底部输入密码 <code>diy123</code>，点「提交到服务器」。</li>
+          <li>点「✓ 提交」上传到服务器。</li>
           <li>回到游戏首页，DIY 武将会出现在选将池中。</li>
         </ol>
       </div>
@@ -1487,10 +1525,15 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       <div class="collapsible-head">▶ 被动触发时机一览<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <ul>
-          <li><code>turnEnd</code> — 回合结束时触发（己方回合）</li>
           <li><code>turnStart</code> — 回合开始时触发（己方回合，可加护盾/buff）</li>
+          <li><code>turnEnd</code> — 回合结束时触发（己方回合）</li>
           <li><code>onKill</code> — 击杀敌人时触发（<code>context.target</code> 为被击杀者）</li>
+          <li><code>onKilled</code> — 自身被击杀时触发（<code>context.killer</code> 为击杀者）</li>
+          <li><code>onAttack</code> — 发起攻击时触发（<code>context.target</code> 为攻击目标）</li>
           <li><code>onAttacked</code> — 被攻击后触发（<code>context.attacker</code> 为攻击者，<code>context.damage</code> 为受到的伤害）</li>
+          <li><code>onMove</code> — 移动结束后触发（<code>context.from</code>/<code>context.to</code> 为起止坐标）</li>
+          <li><code>onHeal</code> — 被治疗时触发（<code>context.healer</code> 为治疗者，<code>context.amount</code> 为治疗量）</li>
+          <li><code>onSkillCast</code> — 任意技能发动后触发（<code>context.caster</code> 为施法者，<code>context.skill</code> 为技能）</li>
         </ul>
       </div>
     </div>
@@ -1649,10 +1692,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           <label>描述（可选）</label>
           <input id="new-ext-desc" type="text" placeholder="简短描述" />
         </div>
-        <div class="form-row">
-          <label>密码</label>
-          <input id="new-ext-password" type="password" placeholder="默认：diy123" />
-        </div>
       </div>
       <div class="modal-foot">
         <button id="btn-create-ext" class="btn primary">创建</button>
@@ -1725,10 +1764,22 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               </tr>
             </table>
 
+            <!-- 立绘上传 -->
+            <div class="portrait-row">
+              <label class="portrait-label">武将立绘</label>
+              <div class="portrait-preview" id="portrait-preview">
+                <span class="portrait-empty" id="portrait-empty">未上传立绘</span>
+                <img id="portrait-img" class="hidden" alt="立绘预览" />
+              </div>
+              <div class="portrait-actions">
+                <input type="file" id="portrait-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="hidden" />
+                <button type="button" id="btn-portrait-pick" class="btn mini">选择图片</button>
+                <button type="button" id="btn-portrait-clear" class="btn mini">清除立绘</button>
+              </div>
+            </div>
+
             <!-- 提交区域 -->
             <div class="submit-row">
-              <label>密码</label>
-              <input type="password" id="pwd" placeholder="diy123" />
               <button id="btn-submit" class="btn primary">✓ 提交</button>
               <button id="btn-reset" class="btn">重置</button>
             </div>
@@ -1755,8 +1806,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
         <div class="footer-nav">
           <a href="/">← 返回游戏首页</a>
-          <span>·</span>
-          <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
         </div>
       </div><!-- end .diy-right -->
     </div><!-- end .diy-tab.general -->
@@ -1811,7 +1860,12 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                   <select id="strigger" style="width:100%;">
                     <option value="">无（主动技能用）</option>
                     <option value="onKill">onKill（击杀时）</option>
+                    <option value="onKilled">onKilled（被击杀时）</option>
+                    <option value="onAttack">onAttack（发起攻击时）</option>
                     <option value="onAttacked">onAttacked（被攻击时）</option>
+                    <option value="onMove">onMove（移动后）</option>
+                    <option value="onHeal">onHeal（被治疗时）</option>
+                    <option value="onSkillCast">onSkillCast（技能发动后）</option>
                     <option value="turnStart">turnStart（回合开始）</option>
                     <option value="turnEnd">turnEnd（回合结束）</option>
                   </select>
@@ -1862,8 +1916,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
             <!-- 提交区域 -->
             <div class="submit-row">
-              <label>密码</label>
-              <input type="password" id="skill-pwd" placeholder="diy123" />
               <button id="btn-skill-submit" class="btn primary">✓ 提交技能</button>
               <button id="btn-skill-reset" class="btn">重置</button>
             </div>
@@ -1887,8 +1939,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
         <div class="footer-nav">
           <a href="/">← 返回游戏首页</a>
-          <span>·</span>
-          <span>密码默认 <code style="background:#f0ead7;padding:1px 6px;border-radius:2px;font-size:11px;">diy123</code></span>
         </div>
       </div>
     </div><!-- end .diy-tab.skill -->
@@ -2090,7 +2140,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // API 侧栏数据
-  var FS_API_TABS = ['战斗', '状态', '位移', '查询', '恢复', '片段'];
+  var FS_API_TABS = ['战斗', '状态', '位移', '查询', '恢复', '触发', '片段'];
 
   var FS_API_DATA = {
     '战斗': [
@@ -2167,6 +2217,18 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       { sig: 'actor.moved = false', desc: '手动恢复移动标志', insert: 'actor.moved = false;' },
       { sig: 'actor.attacked = false', desc: '手动恢复攻击标志', insert: 'actor.attacked = false;' },
       { sig: 'actor.cdMap[sk.id] = 0', desc: '手动清除某技能的冷却', insert: 'actor.cdMap[actor.skills[0].id] = 0;' },
+    ],
+    '触发': [
+      { group: '被动触发时机（trigger 字段可选值）' },
+      { sig: 'turnStart', desc: '回合开始时触发（己方回合，可加护盾/buff）', insert: '// trigger: turnStart' },
+      { sig: 'turnEnd', desc: '回合结束时触发（己方回合）', insert: '// trigger: turnEnd' },
+      { sig: 'onKill', desc: '击杀敌人时触发（context.target 为被击杀者）', insert: '// trigger: onKill' },
+      { sig: 'onKilled', desc: '自身被击杀时触发（context.killer 为击杀者）', insert: '// trigger: onKilled' },
+      { sig: 'onAttack', desc: '发起攻击时触发（context.target 为攻击目标）', insert: '// trigger: onAttack' },
+      { sig: 'onAttacked', desc: '被攻击后触发（context.attacker 为攻击者，context.damage 为伤害）', insert: '// trigger: onAttacked' },
+      { sig: 'onMove', desc: '移动结束后触发（context.from / context.to 为起止坐标）', insert: '// trigger: onMove' },
+      { sig: 'onHeal', desc: '被治疗时触发（context.healer 为治疗者，context.amount 为治疗量）', insert: '// trigger: onHeal' },
+      { sig: 'onSkillCast', desc: '任意技能发动后触发（context.caster 为施法者，context.skill 为技能）', insert: '// trigger: onSkillCast' },
     ],
     '片段': null  // 片段用单独渲染
   };
@@ -2682,7 +2744,12 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                 '<select class="s-trigger">' +
                   '<option value="">无（主动）</option>' +
                   '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
+                  '<option value="onKilled"' + (p.trigger === 'onKilled' ? ' selected' : '') + '>onKilled（被击杀时）</option>' +
+                  '<option value="onAttack"' + (p.trigger === 'onAttack' ? ' selected' : '') + '>onAttack（发起攻击时）</option>' +
                   '<option value="onAttacked"' + (p.trigger === 'onAttacked' ? ' selected' : '') + '>onAttacked（被攻击时）</option>' +
+                  '<option value="onMove"' + (p.trigger === 'onMove' ? ' selected' : '') + '>onMove（移动后）</option>' +
+                  '<option value="onHeal"' + (p.trigger === 'onHeal' ? ' selected' : '') + '>onHeal（被治疗时）</option>' +
+                  '<option value="onSkillCast"' + (p.trigger === 'onSkillCast' ? ' selected' : '') + '>onSkillCast（技能发动后）</option>' +
                   '<option value="turnStart"' + (p.trigger === 'turnStart' ? ' selected' : '') + '>turnStart（回合开始）</option>' +
                   '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
                 '</select></td>' +
@@ -2781,7 +2848,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
     // 步骤指示器：根据用户焦点自动高亮
     var steps = qsa('.diy-step');
-    var inputs = qsa('input:not(#pwd), select, textarea', $('skills-container'));
+    var inputs = qsa('input, select, textarea', $('skills-container'));
     var stepEls = qsa('.diy-step');
 
     function updateStep() {
@@ -2818,9 +2885,9 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('gdef').value = 20;
         $('gmv-n').value = 3;
         $('gatk-n').value = 1;
-        $('pwd').value = '';
         $('skills-container').innerHTML = '';
         addSkillCard();
+        resetPortraitState();
         hideMsg();
         updateStep();
       });
@@ -2846,6 +2913,36 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         hljs.highlightAll();
       }
     } catch (e) {}
+
+    // ========== 立绘上传（事件绑定） ==========
+    var btnPortraitPick = $('btn-portrait-pick');
+    var portraitFileInput = $('portrait-file');
+    if (btnPortraitPick && portraitFileInput) {
+      btnPortraitPick.addEventListener('click', function () { portraitFileInput.click(); });
+      portraitFileInput.addEventListener('change', function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          alert('图片大小不能超过 5MB'); e.target.value = ''; return;
+        }
+        portraitState.pending = file;
+        portraitState.cleared = false;
+        renderPortraitPreview();
+      });
+    }
+
+    var btnPortraitClear = $('btn-portrait-clear');
+    if (btnPortraitClear) {
+      btnPortraitClear.addEventListener('click', function () {
+        portraitState.pending = null;
+        portraitState.cleared = true;
+        var fileInput = $('portrait-file');
+        if (fileInput) fileInput.value = '';
+        renderPortraitPreview();
+      });
+    }
+
+    renderPortraitPreview();
 
     // 默认创建一个技能卡片
     addSkillCard();
@@ -2896,7 +2993,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       btnExtNew.addEventListener('click', function () {
         $('new-ext-name').value = '';
         $('new-ext-desc').value = '';
-        $('new-ext-password').value = '';
         openModal('modal-new-ext');
       });
     }
@@ -2907,11 +3003,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       btnCreateExt.addEventListener('click', function () {
         var name = $('new-ext-name').value.trim() || '未命名拓展';
         var desc = $('new-ext-desc').value.trim();
-        var pwd  = $('new-ext-password').value || 'diy123';
         fetch('/api/ext/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name, desc: desc, password: pwd })
+          body: JSON.stringify({ name: name, desc: desc })
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -2942,10 +3037,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       importInput.addEventListener('change', function (e) {
         var file = e.target.files[0];
         if (!file) return;
-        var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
         var fd = new FormData();
         fd.append('zip', file, file.name);
-        fd.append('password', pwd);
         fetch('/api/project/import', { method: 'POST', body: fd })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -3033,11 +3126,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         btn.addEventListener('click', function () {
           var id = this.dataset.id;
           if (!confirm('确定删除技能「' + this.parentElement.previousElementSibling.previousElementSibling.previousElementSibling.textContent + '」？')) return;
-          var pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
           fetch('/api/skill/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, password: pwd })
+            body: JSON.stringify({ id: id })
           })
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -3059,7 +3151,6 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         var sname = $('sname').value.trim();
         if (!sid || !sname) { alert('技能 id 和 name 必填'); return; }
 
-        var pwd = $('skill-pwd').value || 'diy123';
         var extSel = $('s-ext');
         var extId = extSel ? extSel.value : '';
         var extName = '';
@@ -3085,7 +3176,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         fetch('/api/skill/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skill: skill, password: pwd, extId: extId, extName: extName })
+          body: JSON.stringify({ skill: skill, extId: extId, extName: extName })
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -3165,6 +3256,38 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   }
 
   // ============================================================
+  // 立绘上传：状态管理 + 预览渲染
+  // ============================================================
+  var portraitState = { current: null, pending: null, cleared: false };
+
+  function renderPortraitPreview() {
+    var imgEl = $('portrait-img');
+    var emptyEl = $('portrait-empty');
+    if (portraitState.pending) {
+      imgEl.src = URL.createObjectURL(portraitState.pending);
+      imgEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+    } else if (portraitState.current) {
+      imgEl.src = '/portraits/' + portraitState.current;
+      imgEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+    } else {
+      imgEl.classList.add('hidden');
+      imgEl.src = '';
+      emptyEl.classList.remove('hidden');
+    }
+  }
+
+  function resetPortraitState() {
+    portraitState.current = null;
+    portraitState.pending = null;
+    portraitState.cleared = false;
+    var fileInput = $('portrait-file');
+    if (fileInput) fileInput.value = '';
+    renderPortraitPreview();
+  }
+
+  // ============================================================
   // 提交武将（含拓展 id）
   // ============================================================
   function submitGeneral() {
@@ -3211,27 +3334,51 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       }
     }
 
-    var password = $('pwd').value;
-    if (!password) { showMsg('✗ 请输入提交密码（默认 diy123）', 'error'); return; }
-
     showMsg('提交中...', 'info');
 
-    fetch('/api/diy/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ general: general, skills: skills, password: password, extId: extId || undefined, extName: extName || '默认拓展' })
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data && data.ok) {
-          showMsg('✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已加入拓展「' + (data.extName || '默认拓展') + '」。', 'success');
-          resetSubmitBtn();
-          loadExtensions();
-        } else {
-          showMsg('✗ ' + (data && data.error ? data.error : '提交失败'), 'error');
-        }
+    function doSubmit(portraitValue) {
+      if (portraitValue !== undefined) general.portrait = portraitValue;
+      fetch('/api/diy/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ general: general, skills: skills, extId: extId || undefined, extName: extName || '默认拓展' })
       })
-      .catch(function (err) { showMsg('✗ 网络错误：' + err.message, 'error'); });
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.ok) {
+            portraitState.current = data.general.portrait || null;
+            portraitState.pending = null;
+            portraitState.cleared = false;
+            var fileInput = $('portrait-file');
+            if (fileInput) fileInput.value = '';
+            renderPortraitPreview();
+            showMsg('✓ 提交成功！武将 ' + data.general.name + '（' + data.general.id + '）已加入拓展「' + (data.extName || '默认拓展') + '」。', 'success');
+            resetSubmitBtn();
+            loadExtensions();
+          } else {
+            showMsg('✗ ' + (data && data.error ? data.error : '提交失败'), 'error');
+          }
+        })
+        .catch(function (err) { showMsg('✗ 网络错误：' + err.message, 'error'); });
+    }
+
+    if (portraitState.pending) {
+      var fd = new FormData();
+      fd.append('file', portraitState.pending);
+      fetch('/api/portrait/upload', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { showMsg('✗ 立绘上传失败：' + (d.error || '未知错误'), 'error'); return; }
+          doSubmit(d.portrait);
+        })
+        .catch(function (err) { showMsg('✗ 立绘上传网络错误：' + err.message, 'error'); });
+    } else if (portraitState.cleared) {
+      doSubmit(null);
+    } else if (portraitState.current) {
+      doSubmit(portraitState.current);
+    } else {
+      doSubmit(undefined);
+    }
   }
 
   // ============================================================
@@ -3367,18 +3514,15 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   // 拓展操作事件委托（启用/禁用/导出/删除拓展 + 删除/编辑武将）
   // ============================================================
   document.addEventListener('click', function (e) {
-    var pwd;
 
     // 启用/禁用拓展
     var toggleBtn = e.target.closest('.ext-toggle');
     if (toggleBtn) {
-      pwd = prompt('请输入密码：') || '';
-      if (!pwd) return;
       var extId   = toggleBtn.dataset.extId;
       var enabled = toggleBtn.dataset.enabled !== '1';
       fetch('/api/ext/toggle', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extId: extId, enabled: enabled, password: pwd })
+        body: JSON.stringify({ extId: extId, enabled: enabled })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.ok) loadExtensions(); else alert(d.error || '操作失败');
       }).catch(function (e) { alert(e.message); });
@@ -3388,12 +3532,11 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     // 导出拓展
     var exportBtn = e.target.closest('.ext-export');
     if (exportBtn) {
-      pwd = prompt('请输入密码（默认 diy123）：') || 'diy123';
       var extId   = exportBtn.dataset.extId;
       var extName = exportBtn.dataset.extName || 'extension';
       fetch('/api/project/export', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extId: extId, password: pwd })
+        body: JSON.stringify({ extId: extId })
       }).then(function (r) {
         if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || '导出失败'); });
         return r.blob();
@@ -3411,11 +3554,9 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     if (deleteExtBtn) {
       var extName = deleteExtBtn.dataset.extName;
       if (!confirm('确定删除整个拓展「' + extName + '」及其所有武将？此操作不可撤销。')) return;
-      pwd = prompt('请输入密码确认：') || '';
-      if (!pwd) return;
       fetch('/api/ext/delete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extId: deleteExtBtn.dataset.extId, password: pwd })
+        body: JSON.stringify({ extId: deleteExtBtn.dataset.extId })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.ok) { loadExtensions(); } else alert(d.error || '删除失败');
       }).catch(function (e) { alert(e.message); });
@@ -3436,11 +3577,9 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     if (delGenBtn) {
       var gid = delGenBtn.dataset.gid;
       if (!confirm('确定删除武将 ' + gid + '？')) return;
-      pwd = prompt('请输入密码：') || '';
-      if (!pwd) return;
       fetch('/api/diy/delete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: gid, password: pwd })
+        body: JSON.stringify({ id: gid })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.ok) loadExtensions(); else alert(d.error || '删除失败');
       }).catch(function (e) { alert(e.message); });
@@ -3477,6 +3616,14 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         // 切换拓展下拉
         var extSel = $('g-ext');
         if (extSel && extId) extSel.value = extId;
+
+        // 回填立绘
+        portraitState.current = g.portrait || null;
+        portraitState.pending = null;
+        portraitState.cleared = false;
+        var fileInput = $('portrait-file');
+        if (fileInput) fileInput.value = '';
+        renderPortraitPreview();
 
         // 重建技能列表
         $('skills-container').innerHTML = '';
