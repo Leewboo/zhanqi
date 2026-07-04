@@ -653,6 +653,149 @@
         });
     },
 
+    // ========== 通用选项选择模态框 ==========
+    // 显示一个模态框，让玩家从多个选项中选择一个。
+    // AI 模式下自动选择最优选项（按 aiScore 或自定义 aiPicker）。
+    //
+    // options: {
+    //   title:    '标题',           // 模态框标题（必填）
+    //   hintText: '战报提示',        // 显示在战报的提示文字（可选）
+    //   options:  [                  // 选项数组（必填，至少 1 个）
+    //     {
+    //       label:      '选项1',     // 显示文本（必填）
+    //       desc:       '描述',      // 描述说明（可选）
+    //       value:      'opt1',      // 选项值（可选，默认用 label）
+    //       aiScore:    50,          // AI 评分（可选，默认 0，越高越优先）
+    //       aiCondition: function(actor) { return true; }  // AI 可用条件（可选）
+    //     }, ...
+    //   ],
+    //   aiPicker: function(actor, options) { return options[0]; }  // 自定义 AI 选择函数（可选）
+    // }
+    // 返回选中的选项对象（含 label/desc/value 等）或 null（玩家取消）
+    _optionModal: null,
+    _optionResolve: null,
+
+    _aiChooseOption(actor, opts) {
+      const list = (opts.options || []).slice();
+      if (!list.length) return null;
+
+      // 1. 自定义 aiPicker 优先
+      if (typeof opts.aiPicker === 'function') {
+        try {
+          const picked = opts.aiPicker(actor, list);
+          if (picked) return picked;
+        } catch (e) { console.error('[aiPicker] 执行错误', e); }
+      }
+
+      // 2. 默认逻辑：过滤 aiCondition，按 aiScore 排序
+      const valid = [];
+      for (const opt of list) {
+        if (typeof opt.aiCondition === 'function') {
+          try { if (!opt.aiCondition(actor)) continue; }
+          catch (e) { console.error('[aiCondition] 执行错误', e); continue; }
+        }
+        valid.push(opt);
+      }
+      if (!valid.length) return null;
+
+      // 找最高分（同分随机）
+      let maxScore = -Infinity;
+      for (const o of valid) {
+        const s = typeof o.aiScore === 'number' ? o.aiScore : 0;
+        if (s > maxScore) maxScore = s;
+      }
+      const tops = valid.filter(o => (typeof o.aiScore === 'number' ? o.aiScore : 0) === maxScore);
+      return tops[Math.floor(Math.random() * tops.length)];
+    },
+
+    chooseOption(actor, opts) {
+      opts = opts || {};
+      // AI 模式：自动选择
+      if (Effect._aiContext && Effect._aiContext.mode) {
+        return Promise.resolve(Effect._aiChooseOption(actor, opts));
+      }
+      return new Promise(function (resolve) {
+        if (!global.Game || !opts.options || !opts.options.length) {
+          return resolve(null);
+        }
+        // 关闭已有模态框
+        Effect._closeOptionModal();
+
+        const g = global.Game;
+        if (opts.hintText) g.log(opts.hintText);
+
+        // 创建模态框
+        const mask = document.createElement('div');
+        mask.className = 'option-modal-mask';
+        mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:12px;';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#fff;border:2px solid #c0392b;border-radius:6px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
+        const head = document.createElement('div');
+        head.style.cssText = 'padding:12px 16px;border-bottom:1px solid #e3d9c4;background:#faf7f1;border-radius:4px 4px 0 0;';
+        head.innerHTML = '<h3 style="margin:0;font-size:15px;letter-spacing:2px;color:#c0392b;">' + (opts.title || '请选择') + '</h3>';
+        const body = document.createElement('div');
+        body.style.cssText = 'padding:12px;overflow-y:auto;flex:1;';
+
+        opts.options.forEach(function (opt, idx) {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding:12px;margin-bottom:8px;border:1px solid #e3d9c4;border-radius:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+          item.innerHTML =
+            '<div style="font-weight:bold;color:#333;font-size:14px;margin-bottom:4px;">' + (opt.label || ('选项 ' + (idx + 1))) + '</div>' +
+            (opt.desc ? '<div style="color:#666;font-size:12px;line-height:1.5;">' + opt.desc + '</div>' : '');
+          item.addEventListener('mouseenter', function () {
+            item.style.background = '#faf7f1';
+            item.style.borderColor = '#c0392b';
+          });
+          item.addEventListener('mouseleave', function () {
+            item.style.background = '#fff';
+            item.style.borderColor = '#e3d9c4';
+          });
+          item.addEventListener('click', function () {
+            const picked = Object.assign({}, opt, { _index: idx });
+            g.log(actor.name + ' 选择了：' + (opt.label || ('选项 ' + (idx + 1))) + '。');
+            Effect._closeOptionModal();
+            resolve(picked);
+          });
+          body.appendChild(item);
+        });
+
+        // 取消按钮
+        const foot = document.createElement('div');
+        foot.style.cssText = 'padding:10px 16px;border-top:1px solid #e3d9c4;text-align:right;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = 'padding:6px 16px;font-size:13px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer;border-radius:3px;';
+        cancelBtn.addEventListener('click', function () {
+          Effect._closeOptionModal();
+          resolve(null);
+        });
+        foot.appendChild(cancelBtn);
+
+        box.appendChild(head);
+        box.appendChild(body);
+        box.appendChild(foot);
+        mask.appendChild(box);
+        // 点击遮罩取消
+        mask.addEventListener('click', function (e) {
+          if (e.target === mask) {
+            Effect._closeOptionModal();
+            resolve(null);
+          }
+        });
+        document.body.appendChild(mask);
+        Effect._optionModal = mask;
+        Effect._optionResolve = resolve;
+      });
+    },
+
+    _closeOptionModal() {
+      if (Effect._optionModal && Effect._optionModal.parentNode) {
+        Effect._optionModal.parentNode.removeChild(Effect._optionModal);
+      }
+      Effect._optionModal = null;
+      Effect._optionResolve = null;
+    },
+
     // 获取某方所有存活棋子
     getAllies(actor) {
       if (!global.Game) return [];

@@ -1592,6 +1592,57 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ 选项模态框 chooseOption<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p><b>Effect.chooseOption(actor, opts)</b> 显示一个模态框让玩家选择，AI 模式下自动选择最优项。适合「分支选择」类技能（如：强攻 / 防御 / 治疗三选一）。</p>
+        <p style="margin-top:8px;"><b>参数结构</b>：</p>
+        <pre><code class="language-javascript">const choice = await Effect.chooseOption(actor, {
+  title:    '请选择效果',        // 模态框标题
+  hintText: '发动分支技能！',    // 战报提示（可选）
+  options: [                    // 选项数组
+    {
+      label:  '强攻',           // 显示文本（必填）
+      desc:   '+30 攻击力',     // 描述（可选）
+      value:  'atk',            // 选项值（可选）
+      aiScore: 60,              // AI 评分（默认 0，越高越优）
+      aiCondition: function(actor) {  // AI 可用条件（可选）
+        return true;
+      }
+    },
+    {
+      label:  '治疗',
+      desc:   '回复 50 生命',
+      value:  'heal',
+      aiScore: 80,
+      aiCondition: function(actor) {
+        return actor.hp &lt; actor.maxHp * 0.5;  // 仅低血时 AI 会选
+      }
+    }
+  ],
+  aiPicker: null  // 自定义 AI 选择函数 (actor, options) =&gt; option（可选）
+});
+
+if (choice) {
+  // choice = { label, desc, value, aiScore, _index }
+  if (choice.value === 'atk') {
+    Effect.modifyAttack(actor, 30, 2);
+  } else if (choice.value === 'heal') {
+    Effect.heal(actor, 50);
+  }
+  global.Game.log(actor.name + ' 选择了 ' + choice.label);
+}</code></pre>
+        <p style="margin-top:8px;"><b>AI 选择逻辑</b>（自动执行）：</p>
+        <ol>
+          <li>若提供 <code>aiPicker</code> 函数，优先调用它</li>
+          <li>否则过滤掉 <code>aiCondition</code> 返回 false 的选项</li>
+          <li>按 <code>aiScore</code> 排序，最高分当选（同分随机）</li>
+          <li>全部不可用则返回 null（AI 放弃此技能）</li>
+        </ol>
+        <p style="margin-top:8px;"><b>返回值</b>：选中选项对象（含 label/desc/value/aiScore 等 + <code>_index</code>）或 null（玩家取消 / AI 无可用项）。</p>
+        <p style="margin-top:8px;color:#888;font-size:12px;">提示：必须用 <code>await</code> 等待玩家选择。AI 模式下会立即返回不阻塞。</p>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ API 速查（战斗类）<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <div class="api-tag-row">
@@ -1629,6 +1680,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           <div class="api-tag"><b>Effect.chooseEnemy(actor, opts)</b> — 选择敌人，返回目标或 null</div>
           <div class="api-tag"><b>Effect.chooseAlly(actor, opts)</b> — 选择友方</div>
           <div class="api-tag"><b>Effect.chooseCell(actor, opts)</b> — 选择格子，返回 {x,y} 或 null</div>
+          <div class="api-tag"><b>Effect.chooseOption(actor, opts)</b> — <span style="color:#c0392b;">★</span>显示选项模态框，返回选中项或 null（AI 自动选）</div>
           <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移到空格</div>
           <div class="api-tag"><b>Effect.push(actor, target, dir, n)</b> — 击退 n 格，dir=[dx,dy]</div>
           <div class="api-tag"><b>Effect.pull(actor, target, n)</b> — 拉拽 n 格向自己</div>
@@ -2336,6 +2388,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       { sig: 'await Effect.chooseEnemy(actor, opts)', desc: '让玩家点选范围内敌人，返回棋子或 null', isAsync: true, insert: 'const target = await Effect.chooseEnemy(actor, {\n  range: { shape: \'+\', n: 3 },\n  passThrough: true,\n  hintText: \'请选择敌人\'\n});\nif (!target) return false;' },
       { sig: 'await Effect.chooseAlly(actor, opts)', desc: '让玩家点选范围内友方，返回棋子或 null', isAsync: true, insert: 'const ally = await Effect.chooseAlly(actor, {\n  range: { shape: \'r\', n: 2 },\n  passThrough: true,\n  hintText: \'请选择友方\'\n});\nif (!ally) return false;' },
       { sig: 'await Effect.chooseCell(actor, opts)', desc: '让玩家点选格子，返回 {x,y} 或 null', isAsync: true, insert: 'const cell = await Effect.chooseCell(actor, {\n  range: { shape: \'+\', n: 3 },\n  mustEmpty: true,\n  passThrough: true,\n  hintText: \'请选择目标格\'\n});\nif (!cell) return false;' },
+      { sig: 'await Effect.chooseOption(actor, opts)', desc: '★ 显示选项模态框，返回选中项或 null（AI 自动选）', isAsync: true, isNew: true, insert: 'const choice = await Effect.chooseOption(actor, {\n  title: \'请选择\',\n  hintText: \'发动分支技能！\',\n  options: [\n    { label: \'强攻\', desc: \'+30 攻击\', value: \'atk\', aiScore: 60 },\n    { label: \'治疗\', desc: \'回 50 血\', value: \'heal\', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.5; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === \'atk\') Effect.modifyAttack(actor, 30, 2);\nelse if (choice.value === \'heal\') Effect.heal(actor, 50);' },
       { group: '棋子 & 格子' },
       { sig: 'global.Game.pieceAt(x, y)', desc: '查询格子上的棋子，无则返回 null', insert: 'var p = global.Game.pieceAt(cell.x, cell.y);' },
       { sig: 'Effect.getAllies(actor)', desc: '获取己方所有存活棋子数组', insert: 'var allies = Effect.getAllies(actor);' },
