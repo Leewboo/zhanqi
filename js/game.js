@@ -2115,8 +2115,17 @@
     },
 
     // 统计技能范围内敌人数（辅助函数）
+    // preview 为空时（多步技能），以 actor 为中心估算附近 4 格
     _countEnemiesInSkillRange(actor, skill) {
-      if (!skill || !skill.preview) return 0;
+      if (!skill || !skill.preview) {
+        // 多步技能：以 actor 为中心 4 格估算
+        const side = actor.side;
+        let count = 0;
+        for (const e of this.pieces) {
+          if (e.alive && e.side !== side && Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 4) count++;
+        }
+        return count;
+      }
       const side = actor.side;
       const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
@@ -2131,8 +2140,16 @@
     },
 
     // 统计技能范围内友军数（辅助函数）
+    // preview 为空时（多步技能），以 actor 为中心估算附近 4 格
     _countAlliesInSkillRange(actor, skill) {
-      if (!skill || !skill.preview) return 0;
+      if (!skill || !skill.preview) {
+        const side = actor.side;
+        let count = 0;
+        for (const a of this.pieces) {
+          if (a.alive && a.side === side && a !== actor && Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y) <= 4) count++;
+        }
+        return count;
+      }
       const side = actor.side;
       const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
@@ -2200,6 +2217,9 @@
     },
 
     // AI 执行技能：设置 AI 上下文，调用 content，处理冷却
+    // 多步技能支持：AI 上下文贯穿整个 content 的 async 执行，
+    // 内部的 await Effect.chooseCell/chooseEnemy/chooseAlly/chooseOption
+    // 会自动走 AI 分支，立即返回 AI 选择的结果（不阻塞）。
     _aiExecuteSkill(actor, skill) {
       Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: skill.aiHint };
       const before = !!actor.skilled;
@@ -2207,6 +2227,7 @@
       const promise = skill.content(actor);
       Promise.resolve(promise).then(function (result) {
         Effect._aiContext = null;
+        // 多步技能：content 返回 false 表示技能未真正使用（AI 取消选择/无目标）
         const used = actor.skilled && !before;
         if (used) {
           self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
@@ -2218,6 +2239,9 @@
           }
           self._render(); self._renderBottom();
           self._checkWin();
+        } else if (result === false) {
+          // content 明确返回 false：技能未使用，不应用冷却，AI 继续评估其他行动
+          self.log(actor.name + ' 放弃使用【' + skill.name + '】。');
         }
         self._scheduleNext();
       }).catch(function (e) {

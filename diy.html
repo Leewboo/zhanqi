@@ -1643,6 +1643,60 @@ if (choice) {
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ 多步技能与 AI 支持<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p><b>多步技能</b>指 content 代码中包含一个或多个 <code>await Effect.chooseXxx()</code> 的技能，例如「先选格子 → 再对范围内敌人造成伤害」或「让玩家从 3 个效果中选 1 个」。</p>
+        <p style="margin-top:8px;"><b>AI 自动支持</b>：AI 执行技能时，会设置 <code>Effect._aiContext</code> 并贯穿整个 content 的 async 执行。content 内部的 <code>chooseCell/chooseEnemy/chooseAlly/chooseOption</code> 检测到 AI 模式后会<b>立即返回 AI 选择的结果</b>（不弹窗、不阻塞），让多步流程顺畅跑完。</p>
+        <p style="margin-top:8px;"><b>AI 选择依据</b>：</p>
+        <ul>
+          <li><code>chooseCell/chooseEnemy/chooseAlly</code>：根据 <code>aiHint.target</code> / <code>preferTarget</code> / <code>avoidSelf</code> 自动选最优格子或棋子</li>
+          <li><code>chooseOption</code>：根据 <code>aiScore</code> / <code>aiCondition</code> / <code>aiPicker</code> 自动选最优选项</li>
+        </ul>
+        <p style="margin-top:8px;"><b>content 返回 false 的约定</b>：</p>
+        <p>如果 AI（或玩家）在中间步骤取消选择（<code>chooseXxx</code> 返回 null），content 应该 <code>return false</code>。AI 引擎检测到 <code>result === false</code> 时不会应用冷却，并继续评估其他行动。</p>
+        <pre><code class="language-javascript">// 多步技能示例：先选格子，再对范围内敌人造成伤害
+async function content(actor) {
+  const cell = await Effect.chooseCell(actor, {
+    range: { shape: '+', n: 3 },
+    mustEmpty: false,    // 可以选到敌人
+    hintText: '请选择目标格'
+  });
+  if (!cell) return false;  // 取消则不消耗技能
+
+  const cells = Range.cellsInRange('r', 1, cell.x, cell.y, { includeSelf: true });
+  let hit = 0;
+  for (const c of cells) {
+    const t = Game.pieceAt(c.x, c.y);
+    if (t && t.alive && t.side !== actor.side) {
+      Effect.damage(actor, t, 50);
+      hit++;
+    }
+  }
+  if (hit === 0) return false;  // 没命中任何敌人也算未使用
+
+  actor.skilled = true;
+  return true;
+}</code></pre>
+        <p style="margin-top:8px;"><b>自定义 AI 逻辑</b>：在 content 内可调用 <code>Effect.aiContext()</code> 检测当前是否 AI 模式，并写分支逻辑：</p>
+        <pre><code class="language-javascript">async function content(actor) {
+  let target;
+  const aiCtx = Effect.aiContext();
+  if (aiCtx) {
+    // AI 模式：自定义选目标逻辑
+    target = Game.pieces.filter(p =&gt; p.alive &amp;&amp; p.side !== actor.side)
+      .sort((a, b) =&gt; a.hp - b.hp)[0];  // 选血量最低的敌人
+  } else {
+    // 玩家模式：弹窗选择
+    target = await Effect.chooseEnemy(actor, { range: { shape: '+', n: 5 } });
+  }
+  if (!target) return false;
+  Effect.damage(actor, target, 80);
+  actor.skilled = true;
+}</code></pre>
+        <p style="margin-top:8px;color:#888;font-size:12px;">提示：尽量用 <code>chooseXxx</code> 让 AI 自动决策；只有需要复杂自定义逻辑时才用 <code>aiContext()</code> 分支。</p>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ API 速查（战斗类）<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <div class="api-tag-row">
@@ -1681,6 +1735,8 @@ if (choice) {
           <div class="api-tag"><b>Effect.chooseAlly(actor, opts)</b> — 选择友方</div>
           <div class="api-tag"><b>Effect.chooseCell(actor, opts)</b> — 选择格子，返回 {x,y} 或 null</div>
           <div class="api-tag"><b>Effect.chooseOption(actor, opts)</b> — <span style="color:#c0392b;">★</span>显示选项模态框，返回选中项或 null（AI 自动选）</div>
+          <div class="api-tag"><b>Effect.aiContext()</b> — 查询当前 AI 上下文（非 AI 模式返回 null，用于多步技能分支）</div>
+          <div class="api-tag"><b>Effect.currentAiSkill()</b> — 获取当前 AI 模式下正在执行的技能对象</div>
           <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移到空格</div>
           <div class="api-tag"><b>Effect.push(actor, target, dir, n)</b> — 击退 n 格，dir=[dx,dy]</div>
           <div class="api-tag"><b>Effect.pull(actor, target, n)</b> — 拉拽 n 格向自己</div>
@@ -2389,6 +2445,8 @@ if (choice) {
       { sig: 'await Effect.chooseAlly(actor, opts)', desc: '让玩家点选范围内友方，返回棋子或 null', isAsync: true, insert: 'const ally = await Effect.chooseAlly(actor, {\n  range: { shape: \'r\', n: 2 },\n  passThrough: true,\n  hintText: \'请选择友方\'\n});\nif (!ally) return false;' },
       { sig: 'await Effect.chooseCell(actor, opts)', desc: '让玩家点选格子，返回 {x,y} 或 null', isAsync: true, insert: 'const cell = await Effect.chooseCell(actor, {\n  range: { shape: \'+\', n: 3 },\n  mustEmpty: true,\n  passThrough: true,\n  hintText: \'请选择目标格\'\n});\nif (!cell) return false;' },
       { sig: 'await Effect.chooseOption(actor, opts)', desc: '★ 显示选项模态框，返回选中项或 null（AI 自动选）', isAsync: true, isNew: true, insert: 'const choice = await Effect.chooseOption(actor, {\n  title: \'请选择\',\n  hintText: \'发动分支技能！\',\n  options: [\n    { label: \'强攻\', desc: \'+30 攻击\', value: \'atk\', aiScore: 60 },\n    { label: \'治疗\', desc: \'回 50 血\', value: \'heal\', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.5; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === \'atk\') Effect.modifyAttack(actor, 30, 2);\nelse if (choice.value === \'heal\') Effect.heal(actor, 50);' },
+      { sig: 'Effect.aiContext()', desc: '查询当前 AI 上下文（非 AI 模式返回 null，用于多步技能分支）', isNew: true, insert: 'var aiCtx = Effect.aiContext();\nif (aiCtx) {\n  // AI 模式：自定义选目标逻辑\n  var target = Game.pieces.filter(function(p){ return p.alive && p.side !== actor.side; })\n    .sort(function(a,b){ return a.hp - b.hp; })[0];\n} else {\n  // 玩家模式：弹窗选择\n  target = await Effect.chooseEnemy(actor, { range: { shape: \'+\', n: 5 } });\n}\nif (!target) return false;\nEffect.damage(actor, target, 80);' },
+      { sig: 'Effect.currentAiSkill()', desc: '获取当前 AI 模式下正在执行的技能对象', isNew: true, insert: 'var skill = Effect.currentAiSkill();\nif (skill) Game.log("AI 正在使用 " + skill.name);' },
       { group: '棋子 & 格子' },
       { sig: 'global.Game.pieceAt(x, y)', desc: '查询格子上的棋子，无则返回 null', insert: 'var p = global.Game.pieceAt(cell.x, cell.y);' },
       { sig: 'Effect.getAllies(actor)', desc: '获取己方所有存活棋子数组', insert: 'var allies = Effect.getAllies(actor);' },

@@ -292,6 +292,17 @@
     // _aiContext = { mode: true, actor, skill, hint }
     _aiContext: null,
 
+    // 查询当前是否处于 AI 模式（content 代码可调用以分支处理）
+    // 返回 _aiContext 对象（含 actor/skill/hint）或 null
+    aiContext() {
+      return Effect._aiContext;
+    },
+
+    // 查询当前 AI 模式下当前技能（便捷方法）
+    currentAiSkill() {
+      return Effect._aiContext ? Effect._aiContext.skill : null;
+    },
+
     // AI 评估一个棋子的威胁度（用于选择攻击/技能目标）
     _aiThreat(piece) {
       if (!piece || !piece.alive) return 0;
