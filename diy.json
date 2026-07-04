@@ -1,3 +1,81 @@
 {
-  "extensions": []
+  "extensions": [
+    {
+      "id": "ext_mr6ahjil8lq",
+      "name": "蜀汉",
+      "desc": "蜀国名将",
+      "enabled": true,
+      "generals": [
+        {
+          "id": "diy_zhaoyun",
+          "name": "赵云",
+          "hp": 210,
+          "atk": 60,
+          "def": 30,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhaoyun_chongzhen"
+          ],
+          "portrait": null
+        },
+        {
+          "id": "diy_guanyu",
+          "name": "关羽",
+          "hp": 250,
+          "atk": 70,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_guanyu_wusheng"
+          ],
+          "portrait": null
+        }
+      ],
+      "skills": [
+        {
+          "id": "diy_zhaoyun_chongzhen",
+          "name": "冲阵",
+          "type": "被动",
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "移动后立即对方形一范围内所有敌人造成伤害",
+          "preview": null,
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = global.Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side)\n  Effect.damage(actor, t, 20, { ignoreDef: false });\n}\nreturn true;\n",
+          "aiHint": null
+        },
+        {
+          "id": "diy_guanyu_wusheng",
+          "name": "额外获得一次攻击机会并恢复30点体力",
+          "type": "主动",
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "actor.attacked = false;\nactor.skilled = true;\nEffect.heal(actor, 30);\n",
+          "aiHint": {
+            "type": "buff",
+            "target": "self",
+            "power": 50,
+            "priority": 5
+          }
+        }
+      ]
+    }
+  ]
 }
