@@ -40,7 +40,8 @@
             "n": 1
           },
           "skillIds": [
-            "diy_zhaoyun_chongzhen"
+            "diy_zhaoyun_chongzhen",
+            "diy_zhaoyun_danyong"
           ],
           "portrait": null
         }
@@ -74,6 +75,29 @@
           "filterCode": "return actor && actor.alive && !actor.skilled;",
           "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side)\n    Effect.damage(actor, t, 20, { ignoreDef: true });\n}\nreturn true;\n",
           "aiHint": null
+        },
+        {
+          "id": "diy_zhaoyun_danyong",
+          "name": "胆勇",
+          "type": "主动",
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "选择回血或加伤",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '强攻', desc: '+30 攻击', value: 'atk', aiScore: 60 },\n    { label: '治疗', desc: '回 50 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.5; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') Effect.modifyAttack(actor, 30, 2);\nelse if (choice.value === 'heal') Effect.heal(actor, 50);\nactor.skilled = true;\nreturn true;\n",
+          "aiHint": {
+            "type": "heal",
+            "target": "self",
+            "power": 50,
+            "priority": 5,
+            "condition": "always",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0,
+            "notes": ""
+          }
         }
       ]
     }
