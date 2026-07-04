@@ -76,7 +76,9 @@ function validateRange(r, fallback) {
   const shape = String(r.shape || '+');
   const n = Math.max(1, Math.min(12, parseInt(r.n) || 1));
   if (!['+', 'square', 'r', 'x'].includes(shape)) return fallback;
-  return { shape, n };
+  const out = { shape, n };
+  if (r.passThrough === true) out.passThrough = true;
+  return out;
 }
 
 // ============================================================

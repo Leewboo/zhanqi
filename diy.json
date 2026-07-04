@@ -7,25 +7,6 @@
       "enabled": true,
       "generals": [
         {
-          "id": "diy_zhaoyun",
-          "name": "赵云",
-          "hp": 210,
-          "atk": 60,
-          "def": 30,
-          "moveRange": {
-            "shape": "+",
-            "n": 3
-          },
-          "attackRange": {
-            "shape": "+",
-            "n": 1
-          },
-          "skillIds": [
-            "diy_zhaoyun_chongzhen"
-          ],
-          "portrait": null
-        },
-        {
           "id": "diy_guanyu",
           "name": "关羽",
           "hp": 250,
@@ -43,21 +24,28 @@
             "diy_guanyu_wusheng"
           ],
           "portrait": null
+        },
+        {
+          "id": "diy_zhaoyun",
+          "name": "赵云",
+          "hp": 210,
+          "atk": 60,
+          "def": 30,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhaoyun_chongzhen"
+          ],
+          "portrait": null
         }
       ],
       "skills": [
-        {
-          "id": "diy_zhaoyun_chongzhen",
-          "name": "冲阵",
-          "type": "被动",
-          "cooldown": 0,
-          "trigger": "onMove",
-          "desc": "移动后立即对方形一范围内所有敌人造成20点伤害",
-          "preview": null,
-          "filterCode": "return actor && actor.alive",
-          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = global.Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: false });\n  }\n}\n",
-          "aiHint": null
-        },
         {
           "id": "diy_guanyu_wusheng",
           "name": "武圣",
@@ -74,6 +62,18 @@
             "power": 50,
             "priority": 5
           }
+        },
+        {
+          "id": "diy_zhaoyun_chongzhen",
+          "name": "冲阵",
+          "type": "被动",
+          "cooldown": 2,
+          "trigger": "onMove",
+          "desc": "移动后立即对方形一范围内所有敌人造成20点伤害",
+          "preview": null,
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = global.Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: false });\n  }\n}\n",
+          "aiHint": null
         }
       ]
     }
