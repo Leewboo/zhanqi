@@ -12,19 +12,18 @@
           "hp": 220,
           "atk": 45,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_xuanDe", "skill_benJi"]
-        },
-        {
-          "id": "diy_machao",
-          "name": "马超",
-          "hp": 240,
-          "atk": 70,
-          "def": 25,
-          "moveRange": { "shape": "+", "n": 5 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_jueQi", "skill_baFeng"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_xuanDe",
+            "skill_benJi"
+          ]
         },
         {
           "id": "diy_huangzhong",
@@ -32,9 +31,18 @@
           "hp": 200,
           "atk": 75,
           "def": 20,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 3 },
-          "skillIds": ["skill_baiBu", "skill_laoZhuang"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "skillIds": [
+            "skill_baiBu",
+            "skill_laoZhuang"
+          ]
         },
         {
           "id": "diy_weiyan",
@@ -42,9 +50,18 @@
           "hp": 230,
           "atk": 65,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_shenTong", "skill_juJi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_shenTong",
+            "skill_juJi"
+          ]
         },
         {
           "id": "diy_pangtong",
@@ -52,9 +69,18 @@
           "hp": 180,
           "atk": 35,
           "def": 15,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_luoHu", "skill_mingJi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_luoHu",
+            "skill_mingJi"
+          ]
         },
         {
           "id": "diy_jiangwei",
@@ -62,9 +88,38 @@
           "hp": 210,
           "atk": 60,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_longZheng", "skill_zhanJi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_longZheng",
+            "skill_zhanJi"
+          ]
+        },
+        {
+          "id": "diy_machao",
+          "name": "马超",
+          "hp": 240,
+          "atk": 70,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 5
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_machao_skill_jueQi",
+            "diy_machao_skill_baFeng"
+          ],
+          "portrait": null
         }
       ],
       "skills": [
@@ -83,10 +138,20 @@
           "name": "奔袭",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 5, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 5,
+            "passThrough": true
+          },
           "desc": "选择十字5格内空格瞬移，瞬移后本回合可再次行动",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: \"【奔袭】选择瞬移目标位置\" }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); Effect.resetAction(actor); return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: \"【奔袭】选择瞬移目标位置\" }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); Effect.resetAction(actor); return true;",
+          "aiHint": {
+            "type": "teleport",
+            "target": "cell",
+            "power": 40,
+            "priority": 5
+          }
         },
         {
           "id": "skill_jueQi",
@@ -103,20 +168,40 @@
           "name": "八风",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "对周围方形2格内所有敌人造成1.2倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.2 }); hits++; } } global.Game.log(actor.name + ' 发动【八风】，横扫 ' + hits + ' 人！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.2 }); hits++; } } global.Game.log(actor.name + ' 发动【八风】，横扫 ' + hits + ' 人！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 60,
+            "priority": 6
+          }
         },
         {
           "id": "skill_baiBu",
           "name": "百步",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "square", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择方形4格内敌人，造成2倍伤害无视防御",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 4 }, passThrough: true, hintText: '【百步】选择射击目标' }); if (!target) return false; actor.skilled = true; const dmg = Math.floor(Effect.getEffectiveAttack(actor) * 2); Effect.damage(actor, target, dmg, { ignoreDef: true }); global.Game.log(actor.name + ' 百步穿杨！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 4 }, passThrough: true, hintText: '【百步】选择射击目标' }); if (!target) return false; actor.skilled = true; const dmg = Math.floor(Effect.getEffectiveAttack(actor) * 2); Effect.damage(actor, target, dmg, { ignoreDef: true }); global.Game.log(actor.name + ' 百步穿杨！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 90,
+            "priority": 7
+          }
         },
         {
           "id": "skill_laoZhuang",
@@ -133,10 +218,20 @@
           "name": "神通",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择十字3格内敌人，造成1.5倍伤害并眩晕1回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【神通】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (target.alive) Effect.stun(target, 1); global.Game.log(actor.name + ' 发动神通！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【神通】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (target.alive) Effect.stun(target, 1); global.Game.log(actor.name + ' 发动神通！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 75,
+            "priority": 7
+          }
         },
         {
           "id": "skill_juJi",
@@ -153,10 +248,20 @@
           "name": "落凤",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "选择方形2格内位置，引发爆炸造成60伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【落凤】选择爆炸位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 60, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 发动落凤，命中 ' + result.hits + ' 人！'); return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【落凤】选择爆炸位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 60, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 发动落凤，命中 ' + result.hits + ' 人！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "cell",
+            "power": 70,
+            "priority": 6
+          }
         },
         {
           "id": "skill_mingJi",
@@ -173,10 +278,20 @@
           "name": "龙争",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择十字4格内敌人，造成1.8倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【龙争】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.8 }); global.Game.log(actor.name + ' 龙争虎斗！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【龙争】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.8 }); global.Game.log(actor.name + ' 龙争虎斗！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 85,
+            "priority": 7
+          }
         },
         {
           "id": "skill_zhanJi",
@@ -187,6 +302,37 @@
           "desc": "击杀敌人后，下回合攻击力+40",
           "filterCode": "return actor && actor.alive;",
           "contentCode": "actor.atkBuff = (actor.atkBuff || 0) + 40; actor.atkBuffTurns = 2; if (global.Game) global.Game.log('【战意】' + actor.name + ' 越战越勇，攻击+40！');"
+        },
+        {
+          "id": "diy_machao_skill_jueQi",
+          "name": "铁骑",
+          "type": "被动",
+          "cooldown": 2,
+          "trigger": "onMove",
+          "desc": "移动后，周围十字1格内敌人受到20点伤害",
+          "preview": null,
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "const cells = Range.cellsInRange('+', 1, actor.x, actor.y, { includeSelf: false });\nlet hit = 0;\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: true });\n    hit++;\n  }\n}\nif (hit > 0)Game.log('【铁骑】' + actor.name + ' 冲击造成 ' + hit + ' 人受伤！');"
+        },
+        {
+          "id": "diy_machao_skill_baFeng",
+          "name": "八风",
+          "type": "主动",
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "对周围方形2格内所有敌人造成1.2倍伤害",
+          "preview": {
+            "shape": "square",
+            "n": 2
+          },
+          "filterCode": "return actor.alive && !actor.skilled;",
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.2 }); hits++; } } global.Game.log(actor.name + ' 发动【八风】，横扫 ' + hits + ' 人！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 60,
+            "priority": 6
+          }
         }
       ]
     },
@@ -202,9 +348,18 @@
           "hp": 220,
           "atk": 55,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_jianLing", "skill_xiongBa"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_jianLing",
+            "skill_xiongBa"
+          ]
         },
         {
           "id": "diy_xiahoudun",
@@ -212,9 +367,18 @@
           "hp": 260,
           "atk": 60,
           "def": 35,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_kuangHu", "skill_jianYing"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_kuangHu",
+            "skill_jianYing"
+          ]
         },
         {
           "id": "diy_xiahouyuan",
@@ -222,9 +386,18 @@
           "hp": 210,
           "atk": 70,
           "def": 20,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 2 },
-          "skillIds": ["skill_kuaiJi", "skill_shenJi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "skillIds": [
+            "skill_kuaiJi",
+            "skill_shenJi"
+          ]
         },
         {
           "id": "diy_zhangliao",
@@ -232,9 +405,18 @@
           "hp": 230,
           "atk": 65,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_yaoHuo", "skill_zhiFang"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_yaoHuo",
+            "skill_zhiFang"
+          ]
         },
         {
           "id": "diy_xuhuang",
@@ -242,9 +424,18 @@
           "hp": 240,
           "atk": 60,
           "def": 35,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_kuaiBu", "skill_shuangJie"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_kuaiBu",
+            "skill_shuangJie"
+          ]
         },
         {
           "id": "diy_simaYi",
@@ -252,9 +443,18 @@
           "hp": 190,
           "atk": 45,
           "def": 20,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_shenCe", "skill_lianHuan"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_shenCe",
+            "skill_lianHuan"
+          ]
         },
         {
           "id": "diy_dianwei",
@@ -262,9 +462,18 @@
           "hp": 280,
           "atk": 70,
           "def": 40,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_jianGu", "skill_zhenSha"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_jianGu",
+            "skill_zhenSha"
+          ]
         },
         {
           "id": "diy_xuchu",
@@ -272,9 +481,18 @@
           "hp": 300,
           "atk": 65,
           "def": 35,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_baWang", "skill_tiePi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_baWang",
+            "skill_tiePi"
+          ]
         }
       ],
       "skills": [
@@ -293,20 +511,40 @@
           "name": "雄霸",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内敌人，造成1.5倍伤害并嘲讽2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【雄霸】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 }); Effect.taunt(target, 2); global.Game.log(actor.name + ' 雄霸天下！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【雄霸】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 }); Effect.taunt(target, 2); global.Game.log(actor.name + ' 雄霸天下！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 70,
+            "priority": 6
+          }
         },
         {
           "id": "skill_kuangHu",
           "name": "狂虎",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 1, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 1,
+            "passThrough": true
+          },
           "desc": "对周围方形1格内敌人造成2倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 2 }); hits++; } } global.Game.log(actor.name + ' 狂虎下山！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 2 }); hits++; } } global.Game.log(actor.name + ' 狂虎下山！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 100,
+            "priority": 8
+          }
         },
         {
           "id": "skill_jianYing",
@@ -323,10 +561,20 @@
           "name": "快击",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择十字3格内敌人，造成1.3倍伤害且无视防御",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【快击】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Math.floor(Effect.getEffectiveAttack(actor) * 1.3), { ignoreDef: true }); global.Game.log(actor.name + ' 神速一击！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【快击】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Math.floor(Effect.getEffectiveAttack(actor) * 1.3), { ignoreDef: true }); global.Game.log(actor.name + ' 神速一击！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 65,
+            "priority": 6
+          }
         },
         {
           "id": "skill_shenJi",
@@ -343,10 +591,20 @@
           "name": "耀武",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择十字4格内敌人，造成1.6倍伤害并击退2格",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【耀武】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.6 }); const dir = [Math.sign(target.x - actor.x) || 1, Math.sign(target.y - actor.y) || 0]; Effect.push(actor, target, dir, 2); global.Game.log(actor.name + ' 耀武扬威！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【耀武】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.6 }); const dir = [Math.sign(target.x - actor.x) || 1, Math.sign(target.y - actor.y) || 0]; Effect.push(actor, target, dir, 2); global.Game.log(actor.name + ' 耀武扬威！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 80,
+            "priority": 7
+          }
         },
         {
           "id": "skill_zhiFang",
@@ -363,30 +621,60 @@
           "name": "快步",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 5, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 5,
+            "passThrough": true
+          },
           "desc": "瞬移至十字5格内空格，瞬移后可攻击",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【快步】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); actor.attacked = false; return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【快步】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); actor.attacked = false; return true;",
+          "aiHint": {
+            "type": "teleport",
+            "target": "cell",
+            "power": 40,
+            "priority": 5
+          }
         },
         {
           "id": "skill_shuangJie",
           "name": "双截",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "选择十字2格内敌人，连续攻击2次",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, passThrough: true, hintText: '【双截】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); if (target.alive) Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); global.Game.log(actor.name + ' 双截棍法！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, passThrough: true, hintText: '【双截】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); if (target.alive) Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); global.Game.log(actor.name + ' 双截棍法！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 90,
+            "priority": 7
+          }
         },
         {
           "id": "skill_shenCe",
           "name": "深策",
           "type": "主动",
           "cooldown": 4,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内敌人，造成100伤害并中毒2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【深策】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, 100, { ignoreDef: true }); Effect.poison(target, 25, 2); global.Game.log(actor.name + ' 深谋远虑！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【深策】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, 100, { ignoreDef: true }); Effect.poison(target, 25, 2); global.Game.log(actor.name + ' 深谋远虑！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 100,
+            "priority": 8
+          }
         },
         {
           "id": "skill_lianHuan",
@@ -405,27 +693,53 @@
           "cooldown": 3,
           "desc": "获得80护盾，持续2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; Effect.shield(actor, 80); global.Game.log(actor.name + ' 铜墙铁壁！'); return true;"
+          "contentCode": "actor.skilled = true; Effect.shield(actor, 80); global.Game.log(actor.name + ' 铜墙铁壁！'); return true;",
+          "aiHint": {
+            "type": "buff",
+            "target": "self",
+            "power": 80,
+            "priority": 4
+          }
         },
         {
           "id": "skill_zhenSha",
           "name": "震杀",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 1, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 1,
+            "passThrough": true
+          },
           "desc": "对周围方形1格内敌人造成1.5倍伤害并眩晕1回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (t.alive) Effect.stun(t, 1); hits++; } } global.Game.log(actor.name + ' 震杀四方！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (t.alive) Effect.stun(t, 1); hits++; } } global.Game.log(actor.name + ' 震杀四方！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 75,
+            "priority": 7
+          }
         },
         {
           "id": "skill_baWang",
           "name": "霸王",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "选择十字2格内敌人，造成2.5倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, passThrough: true, hintText: '【霸王】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2.5 }); global.Game.log(actor.name + ' 霸王之力！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 2 }, passThrough: true, hintText: '【霸王】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2.5 }); global.Game.log(actor.name + ' 霸王之力！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 110,
+            "priority": 8
+          }
         },
         {
           "id": "skill_tiePi",
@@ -451,9 +765,18 @@
           "hp": 240,
           "atk": 70,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_chongFeng", "skill_wuZhong"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_chongFeng",
+            "skill_wuZhong"
+          ]
         },
         {
           "id": "diy_sunquan",
@@ -461,9 +784,18 @@
           "hp": 210,
           "atk": 50,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_longLing", "skill_fuRen"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_longLing",
+            "skill_fuRen"
+          ]
         },
         {
           "id": "diy_ganning",
@@ -471,9 +803,18 @@
           "hp": 220,
           "atk": 68,
           "def": 22,
-          "moveRange": { "shape": "+", "n": 5 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_shaShen", "skill_yinXi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 5
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_shaShen",
+            "skill_yinXi"
+          ]
         },
         {
           "id": "diy_taishici",
@@ -481,9 +822,18 @@
           "hp": 230,
           "atk": 65,
           "def": 28,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 2 },
-          "skillIds": ["skill_lianJi", "skill_zhongCheng"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "skillIds": [
+            "skill_lianJi",
+            "skill_zhongCheng"
+          ]
         },
         {
           "id": "diy_zhoutai",
@@ -491,9 +841,18 @@
           "hp": 280,
           "atk": 55,
           "def": 35,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_shaYu", "skill_jianRong"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_shaYu",
+            "skill_jianRong"
+          ]
         },
         {
           "id": "diy_lvmeng",
@@ -501,9 +860,18 @@
           "hp": 200,
           "atk": 60,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_mengBi", "skill_tanCheng"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_mengBi",
+            "skill_tanCheng"
+          ]
         },
         {
           "id": "diy_luxun",
@@ -511,9 +879,18 @@
           "hp": 180,
           "atk": 45,
           "def": 20,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_fenLie", "skill_huiBian"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_fenLie",
+            "skill_huiBian"
+          ]
         },
         {
           "id": "diy_lusu",
@@ -521,9 +898,18 @@
           "hp": 190,
           "atk": 40,
           "def": 22,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_huiHe", "skill_fuBen"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_huiHe",
+            "skill_fuBen"
+          ]
         }
       ],
       "skills": [
@@ -532,10 +918,20 @@
           "name": "冲锋",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 5, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 5,
+            "passThrough": true
+          },
           "desc": "瞬移至十字5格内空格，落地后对周围敌人造成30伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【冲锋】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, 30, { ignoreDef: true }); hits++; } } global.Game.log(actor.name + ' 冲锋陷阵，命中 ' + hits + ' 人！'); return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【冲锋】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, 30, { ignoreDef: true }); hits++; } } global.Game.log(actor.name + ' 冲锋陷阵，命中 ' + hits + ' 人！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "cell",
+            "power": 40,
+            "priority": 5
+          }
         },
         {
           "id": "skill_wuZhong",
@@ -552,10 +948,20 @@
           "name": "龙令",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内友军，恢复50生命并加30护盾",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const ally = await Effect.chooseAlly(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【龙令】选择友军' }); if (!ally) return false; actor.skilled = true; Effect.heal(ally, 50); Effect.shield(ally, 30); global.Game.log(actor.name + ' 龙令赐福！'); return true;"
+          "contentCode": "const ally = await Effect.chooseAlly(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【龙令】选择友军' }); if (!ally) return false; actor.skilled = true; Effect.heal(ally, 50); Effect.shield(ally, 30); global.Game.log(actor.name + ' 龙令赐福！'); return true;",
+          "aiHint": {
+            "type": "heal",
+            "target": "ally",
+            "power": 80,
+            "priority": 7
+          }
         },
         {
           "id": "skill_fuRen",
@@ -572,10 +978,20 @@
           "name": "杀神",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择十字4格内敌人，造成2倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【杀神】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2 }); global.Game.log(actor.name + ' 杀神降临！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【杀神】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2 }); global.Game.log(actor.name + ' 杀神降临！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 100,
+            "priority": 8
+          }
         },
         {
           "id": "skill_yinXi",
@@ -592,10 +1008,20 @@
           "name": "连击",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择十字3格内敌人，连续攻击2次",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【连击】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); if (target.alive) Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); global.Game.log(actor.name + ' 连珠炮！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【连击】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); if (target.alive) Effect.damage(actor, target, Effect.getEffectiveAttack(actor)); global.Game.log(actor.name + ' 连珠炮！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 90,
+            "priority": 7
+          }
         },
         {
           "id": "skill_zhongCheng",
@@ -632,30 +1058,60 @@
           "name": "蒙蔽",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "选择方形2格内敌人，使其冻结2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【蒙蔽】选择目标' }); if (!target) return false; actor.skilled = true; Effect.freeze(target, 2); global.Game.log(actor.name + ' 蒙蔽敌军！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【蒙蔽】选择目标' }); if (!target) return false; actor.skilled = true; Effect.freeze(target, 2); global.Game.log(actor.name + ' 蒙蔽敌军！'); return true;",
+          "aiHint": {
+            "type": "control",
+            "target": "enemy",
+            "power": 60,
+            "priority": 8
+          }
         },
         {
           "id": "skill_tanCheng",
           "name": "探城",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 5, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 5,
+            "passThrough": true
+          },
           "desc": "瞬移至十字5格内空格，瞬移后本回合可再次移动",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【探城】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); actor.moved = false; return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: \"+\", n: 5 }, mustEmpty: true, passThrough: true, hintText: '【探城】选择目标位置' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); actor.moved = false; return true;",
+          "aiHint": {
+            "type": "teleport",
+            "target": "cell",
+            "power": 40,
+            "priority": 5
+          }
         },
         {
           "id": "skill_fenLie",
           "name": "焚烈",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内位置，引爆火焰造成50伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【焚烈】选择目标位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 50, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 火烧连营！'); return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【焚烈】选择目标位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 50, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 火烧连营！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "cell",
+            "power": 60,
+            "priority": 6
+          }
         },
         {
           "id": "skill_huiBian",
@@ -672,10 +1128,20 @@
           "name": "汇合",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内友军，与其交换位置并各恢复30生命",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const ally = await Effect.chooseAlly(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【汇合】选择友军' }); if (!ally) return false; actor.skilled = true; Effect.swap(actor, ally); Effect.heal(actor, 30); Effect.heal(ally, 30); global.Game.log(actor.name + ' 与 ' + ally.name + ' 汇合！'); return true;"
+          "contentCode": "const ally = await Effect.chooseAlly(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【汇合】选择友军' }); if (!ally) return false; actor.skilled = true; Effect.swap(actor, ally); Effect.heal(actor, 30); Effect.heal(ally, 30); global.Game.log(actor.name + ' 与 ' + ally.name + ' 汇合！'); return true;",
+          "aiHint": {
+            "type": "heal",
+            "target": "ally",
+            "power": 60,
+            "priority": 6
+          }
         },
         {
           "id": "skill_fuBen",
@@ -701,9 +1167,18 @@
           "hp": 260,
           "atk": 85,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 5 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_wuShuang", "skill_feiJiang"]
+          "moveRange": {
+            "shape": "+",
+            "n": 5
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_wuShuang",
+            "skill_feiJiang"
+          ]
         },
         {
           "id": "diy_zhaoyun",
@@ -711,9 +1186,18 @@
           "hp": 230,
           "atk": 65,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 5 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_changSheng", "skill_danYong"]
+          "moveRange": {
+            "shape": "+",
+            "n": 5
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_changSheng",
+            "skill_danYong"
+          ]
         },
         {
           "id": "diy_guanyu",
@@ -721,9 +1205,18 @@
           "hp": 250,
           "atk": 75,
           "def": 30,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 2 },
-          "skillIds": ["skill_weiZhen", "skill_baBu"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "skillIds": [
+            "skill_weiZhen",
+            "skill_baBu"
+          ]
         },
         {
           "id": "diy_zhangfei",
@@ -731,9 +1224,18 @@
           "hp": 250,
           "atk": 72,
           "def": 28,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_paoXiao", "skill_yanRen"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_paoXiao",
+            "skill_yanRen"
+          ]
         },
         {
           "id": "diy_zhuge",
@@ -741,9 +1243,18 @@
           "hp": 170,
           "atk": 40,
           "def": 18,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_huoGong", "skill_kongCheng"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_huoGong",
+            "skill_kongCheng"
+          ]
         },
         {
           "id": "diy_diaochun",
@@ -751,9 +1262,18 @@
           "hp": 160,
           "atk": 35,
           "def": 15,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_liJian", "skill_qingGuo"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_liJian",
+            "skill_qingGuo"
+          ]
         },
         {
           "id": "diy_zhouyu",
@@ -761,9 +1281,18 @@
           "hp": 190,
           "atk": 50,
           "def": 20,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_fengHuo", "skill_yingZi"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_fengHuo",
+            "skill_yingZi"
+          ]
         },
         {
           "id": "diy_dongZhuo",
@@ -771,9 +1300,18 @@
           "hp": 300,
           "atk": 60,
           "def": 40,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_baQi", "skill_eZheng"]
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_baQi",
+            "skill_eZheng"
+          ]
         },
         {
           "id": "diy_yuanShao",
@@ -781,9 +1319,18 @@
           "hp": 200,
           "atk": 50,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["skill_yuanShi", "skill_qunLian"]
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "skill_yuanShi",
+            "skill_qunLian"
+          ]
         }
       ],
       "skills": [
@@ -792,10 +1339,20 @@
           "name": "无双",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 1, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 1,
+            "passThrough": true
+          },
           "desc": "对周围方形1格内所有敌人造成2倍伤害并击退2格",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 2 }); const dir = [Math.sign(c.x - actor.x) || 0, Math.sign(c.y - actor.y) || 0]; Effect.push(actor, t, dir, 2); hits++; } } global.Game.log(actor.name + ' 发动无双！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 2 }); const dir = [Math.sign(c.x - actor.x) || 0, Math.sign(c.y - actor.y) || 0]; Effect.push(actor, t, dir, 2); hits++; } } global.Game.log(actor.name + ' 发动无双！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 100,
+            "priority": 8
+          }
         },
         {
           "id": "skill_feiJiang",
@@ -822,10 +1379,20 @@
           "name": "胆勇",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择十字4格内敌人，瞬移至其周围空格并造成40伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【胆勇】选择敌人' }); if (!target) return false; const cell = await Effect.chooseCell(actor, { center: { x: target.x, y: target.y }, range: { shape: \"r\", n: 2 }, mustEmpty: true, passThrough: true, hintText: '【胆勇】选择落点' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); Effect.damage(actor, target, 40, { ignoreDef: true }); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 4 }, passThrough: true, hintText: '【胆勇】选择敌人' }); if (!target) return false; const cell = await Effect.chooseCell(actor, { center: { x: target.x, y: target.y }, range: { shape: \"r\", n: 2 }, mustEmpty: true, passThrough: true, hintText: '【胆勇】选择落点' }); if (!cell) return false; actor.skilled = true; Effect.teleport(actor, cell.x, cell.y); Effect.damage(actor, target, 40, { ignoreDef: true }); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 60,
+            "priority": 6
+          }
         },
         {
           "id": "skill_weiZhen",
@@ -842,20 +1409,40 @@
           "name": "八步",
           "type": "主动",
           "cooldown": 2,
-          "preview": { "shape": "+", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择十字3格内敌人，造成1.8倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【八步】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.8 }); global.Game.log(actor.name + ' 八步威震！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【八步】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.8 }); global.Game.log(actor.name + ' 八步威震！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 85,
+            "priority": 7
+          }
         },
         {
           "id": "skill_paoXiao",
           "name": "咆哮",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "对十字2格内敌人造成1.5倍伤害并眩晕1回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('+', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (t.alive) Effect.stun(t, 1); hits++; } } global.Game.log(actor.name + ' 咆哮震天！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('+', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); if (t.alive) Effect.stun(t, 1); hits++; } } global.Game.log(actor.name + ' 咆哮震天！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 75,
+            "priority": 7
+          }
         },
         {
           "id": "skill_yanRen",
@@ -872,10 +1459,20 @@
           "name": "火攻",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择方形3格内位置，引爆火焰造成60伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【火攻】选择目标位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 60, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 火攻！'); return true;"
+          "contentCode": "const cell = await Effect.chooseCell(actor, { range: { shape: 'square', n: 3 }, passThrough: true, hintText: '【火攻】选择目标位置' }); if (!cell) return false; actor.skilled = true; const result = Effect.explode(actor, cell.x, cell.y, 1, 60, { ignoreDef: true, shape: 'r' }); global.Game.log(actor.name + ' 火攻！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "cell",
+            "power": 70,
+            "priority": 6
+          }
         },
         {
           "id": "skill_kongCheng",
@@ -892,10 +1489,20 @@
           "name": "离间",
           "type": "主动",
           "cooldown": 4,
-          "preview": { "shape": "square", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "选择方形2格内敌人，使其魅惑2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【离间】选择目标' }); if (!target) return false; actor.skilled = true; Effect.charm(actor, target, 2); global.Game.log(actor.name + ' 离间计！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 2 }, passThrough: true, hintText: '【离间】选择目标' }); if (!target) return false; actor.skilled = true; Effect.charm(actor, target, 2); global.Game.log(actor.name + ' 离间计！'); return true;",
+          "aiHint": {
+            "type": "control",
+            "target": "enemy",
+            "power": 60,
+            "priority": 8
+          }
         },
         {
           "id": "skill_qingGuo",
@@ -912,10 +1519,20 @@
           "name": "烽火",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "+", "n": 3, "passThrough": true },
+          "preview": {
+            "shape": "+",
+            "n": 3,
+            "passThrough": true
+          },
           "desc": "选择十字3格内敌人，造成80伤害并拉向自己2格，回复40生命",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【烽火】选择目标' }); if (!target) return false; actor.skilled = true; Effect.leech(actor, target, 80, { ignoreDef: true, leechRatio: 0.5 }); if (target.alive) Effect.pull(actor, target, 2); global.Game.log(actor.name + ' 烽火连天！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: \"+\", n: 3 }, passThrough: true, hintText: '【烽火】选择目标' }); if (!target) return false; actor.skilled = true; Effect.leech(actor, target, 80, { ignoreDef: true, leechRatio: 0.5 }); if (target.alive) Effect.pull(actor, target, 2); global.Game.log(actor.name + ' 烽火连天！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 80,
+            "priority": 7
+          }
         },
         {
           "id": "skill_yingZi",
@@ -932,10 +1549,20 @@
           "name": "霸气",
           "type": "主动",
           "cooldown": 4,
-          "preview": { "shape": "square", "n": 2, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 2,
+            "passThrough": true
+          },
           "desc": "对周围方形2格内敌人造成1.5倍伤害并嘲讽2回合",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); Effect.taunt(t, 2); hits++; } } global.Game.log(actor.name + ' 霸气外露！'); return hits > 0;"
+          "contentCode": "actor.skilled = true; const cells = Range.cellsInRange('square', 2, actor.x, actor.y, { includeSelf: false }); let hits = 0; for (const c of cells) { const t = global.Game.pieceAt(c.x, c.y); if (t && t.alive && t.side !== actor.side) { Effect.damage(actor, t, Effect.getEffectiveAttack(actor), { mul: 1.5 }); Effect.taunt(t, 2); hits++; } } global.Game.log(actor.name + ' 霸气外露！'); return hits > 0;",
+          "aiHint": {
+            "type": "damage",
+            "target": "aoe_enemy",
+            "power": 75,
+            "priority": 7
+          }
         },
         {
           "id": "skill_eZheng",
@@ -952,10 +1579,20 @@
           "name": "元氏",
           "type": "主动",
           "cooldown": 3,
-          "preview": { "shape": "square", "n": 4, "passThrough": true },
+          "preview": {
+            "shape": "square",
+            "n": 4,
+            "passThrough": true
+          },
           "desc": "选择方形4格内敌人，造成1.3倍伤害",
           "filterCode": "return actor.alive && !actor.skilled;",
-          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 4 }, passThrough: true, hintText: '【元氏】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.3 }); global.Game.log(actor.name + ' 元氏雄风！'); return true;"
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { range: { shape: 'square', n: 4 }, passThrough: true, hintText: '【元氏】选择目标' }); if (!target) return false; actor.skilled = true; Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.3 }); global.Game.log(actor.name + ' 元氏雄风！'); return true;",
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 65,
+            "priority": 6
+          }
         },
         {
           "id": "skill_qunLian",

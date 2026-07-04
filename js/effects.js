@@ -286,8 +286,114 @@
       return true;
     },
 
+    // ========== AI 自动选择系统 ==========
+    // 当处于 AI 模式时，chooseCell/chooseEnemy/chooseAlly 不进入交互等待，
+    // 而是根据技能 aiHint 自动选择最优目标。
+    // _aiContext = { mode: true, actor, skill, hint }
+    _aiContext: null,
+
+    // AI 评估一个棋子的威胁度（用于选择攻击/技能目标）
+    _aiThreat(piece) {
+      if (!piece || !piece.alive) return 0;
+      const hpFactor = piece.hp / (piece.maxHp || 200);  // 血量越低越值得补刀
+      const atk = (piece.atk || 0) + (piece.atkBuff || 0);
+      return (atk * 2 + (piece.def || 0)) * (2 - hpFactor);  // 低血量目标威胁度调高（值得补刀）
+    },
+
+    // AI 选择最优格子（核心逻辑）
+    _aiChooseCell(actor, options) {
+      if (!global.Game) return null;
+      const g = global.Game;
+      const cx = options.center ? options.center.x : actor.x;
+      const cy = options.center ? options.center.y : actor.y;
+      const range = options.range || { shape: 'square', n: 3 };
+      const cells = Range.cellsInRangeWithBlock(
+        range.shape, range.n, cx, cy, {
+          pieceAt: (x, y) => {
+            const p = g.pieceAt(x, y);
+            if (!p || !p.alive) return null;
+            if (options.passThrough) return null;
+            return p;
+          },
+          includeSelf: !options.mustEmpty
+        }
+      );
+      const valid = [];
+      for (const c of cells) {
+        const p = g.pieceAt(c.x, c.y);
+        if (options.mustEmpty && p) continue;
+        if (options.mustEnemy && (!p || p.alive === false || p.side === actor.side)) continue;
+        if (options.mustAlly && (!p || p.alive === false || p.side !== actor.side)) continue;
+        if (options.mustSelf && (c.x !== actor.x || c.y !== actor.y)) continue;
+        valid.push({ x: c.x, y: c.y, piece: p });
+      }
+      if (!valid.length) return null;
+
+      const hint = (Effect._aiContext && Effect._aiContext.hint) || null;
+      const targetType = hint ? hint.target : (options.mustEnemy ? 'enemy' : options.mustAlly ? 'ally' : 'cell');
+
+      let best = null, bestScore = -Infinity;
+
+      if (targetType === 'enemy' || targetType === 'aoe_enemy') {
+        // 选威胁度最高/血量最低的敌人
+        for (const v of valid) {
+          if (!v.piece) continue;
+          let score = Effect._aiThreat(v.piece);
+          // 低血量补刀加成
+          if (v.piece.hp <= Effect.getEffectiveAttack(actor)) score *= 2;
+          if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
+        }
+      } else if (targetType === 'ally' || targetType === 'aoe_ally') {
+        // 选血量百分比最低的友军（治疗/增益优先给低血）
+        for (const v of valid) {
+          if (!v.piece) continue;
+          const hpPct = v.piece.hp / (v.piece.maxHp || 200);
+          // 排除满血友军（治疗无用）
+          if (hpPct >= 0.99 && hint && hint.type === 'heal') continue;
+          let score = (1 - hpPct) * 100;
+          if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
+        }
+        // 若都是满血，选威胁度最高的友军（增益给主力）
+        if (!best && hint && hint.type === 'buff') {
+          for (const v of valid) {
+            if (!v.piece) continue;
+            const score = Effect._aiThreat(v.piece);
+            if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
+          }
+        }
+      } else if (targetType === 'cell') {
+        // 选能命中最多敌人的格子（AOE 伤害类）
+        for (const v of valid) {
+          // 估算以此为落点能波及的敌人数（用方形1范围近似爆炸范围）
+          const aoeCells = Range.cellsInRange('r', 1, v.x, v.y, { includeSelf: true });
+          let enemyHits = 0, allyHits = 0;
+          for (const ac of aoeCells) {
+            const ap = g.pieceAt(ac.x, ac.y);
+            if (ap && ap.alive) {
+              if (ap.side !== actor.side) enemyHits++;
+              else if (ap.generalId !== actor.generalId) allyHits++;
+            }
+          }
+          let score = enemyHits * 50 - allyHits * 30;  // 避免误伤友军
+          if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
+        }
+        if (!best) best = { x: valid[0].x, y: valid[0].y };
+      } else {
+        // self/none 或无 hint：取第一个有效格
+        best = { x: valid[0].x, y: valid[0].y };
+      }
+
+      // 兜底：如果没有选到（可能 all 满血被跳过），取第一个有效格
+      if (!best && valid.length) best = { x: valid[0].x, y: valid[0].y };
+      return best;
+    },
+
     chooseCell(actor, options) {
       options = options || {};
+      // AI 模式：自动选择最优格子，不进入交互
+      if (Effect._aiContext && Effect._aiContext.mode) {
+        return Promise.resolve(Effect._aiChooseCell(actor, options));
+      }
       return new Promise(function (resolve) {
         if (!global.Game) return resolve(null);
         // 支持自定义中心点：options.center = {x,y}，默认以 actor 为中心

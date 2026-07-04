@@ -31,6 +31,7 @@
       name: '胆勇',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'damage', target: 'enemy', power: 60, priority: 6 },
       preview: { shape: '+', n: 4, passThrough: true },
       desc: '在+4范围内选择一名敌人，再选择其r2范围内的空格作为落点，然后对目标造成40技能伤害。',
       filter(actor) {
@@ -67,6 +68,7 @@
       name: '怒吼',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'buff', target: 'self', power: 30, priority: 4 },
       desc: '本回合攻击力提升30，持续至本回合结束。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -84,6 +86,7 @@
       name: '突袭',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'damage', target: 'aoe_enemy', power: 70, priority: 6 },
       preview: { shape: '+', n: 4, passThrough: true },
       desc: '十字4格范围内选中一格并移动过去，再对邻格敌人造成1.5倍伤害。',
       filter(actor) {
@@ -119,6 +122,7 @@
       name: '疗伤',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'heal', target: 'aoe_ally', power: 80, priority: 7 },
       preview: { shape: 'r', n: 3, passThrough: true },
       desc: '圆形3格范围内为己方单位回复80生命。',
       filter(actor) {
@@ -144,6 +148,7 @@
       name: '齐射',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'aoe_enemy', power: 50, priority: 5 },
       preview: { shape: 'r', n: 5, passThrough: true },
       desc: '圆形5格范围对所有敌人造成0.8倍攻击伤害。',
       filter(actor) {
@@ -169,6 +174,7 @@
       name: '坚守',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'buff', target: 'self', power: 25, priority: 3 },
       desc: '防御提升25，持续2回合。',
       filter(actor) {
         return actor.alive && !actor.skilled;
@@ -186,6 +192,7 @@
       name: '妙计',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'enemy', power: 90, priority: 7 },
       preview: { shape: '+', n: 3, passThrough: true },
       desc: '十字3格范围内选择敌人，造成2倍攻击伤害。',
       filter(actor) {
@@ -210,6 +217,7 @@
       name: '强袭',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'enemy', power: 85, priority: 7 },
       preview: { shape: 'square', n: 2, passThrough: true },
       desc: '方形2格范围内选择敌人，造成1.8倍伤害并击退2格。',
       filter(actor) {
@@ -268,6 +276,7 @@
       name: '水淹',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'cell', power: 50, priority: 5 },
       preview: { shape: 'square', n: 2, passThrough: true },
       desc: '选择方形2范围内的一个格子，以此格为中心方形1范围内所有格子改为河，并对敌方单位造成40点伤害。',
       filter(actor) {
@@ -334,6 +343,7 @@
       name: '百步穿杨',
       type: '主动',
       cooldown: 2,
+      aiHint: { type: 'damage', target: 'enemy', power: 80, priority: 7 },
       preview: { shape: 'square', n: 3, passThrough: true },
       desc: '方形 3 格范围内选择一名敌人，造成 1.6 倍攻击力伤害并 无视防御。',
       filter(actor) {
@@ -359,6 +369,7 @@
       name: '无双',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'aoe_enemy', power: 100, priority: 8 },
       preview: { shape: 'square', n: 1, passThrough: true },
       desc: '对周围方形1格内所有敌人造成2倍伤害，并击退2格。',
       filter(actor) {
@@ -417,6 +428,7 @@
       name: '火攻',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'cell', power: 70, priority: 6 },
       preview: { shape: 'square', n: 3, passThrough: true },
       desc: '选择方形3格内的一个格子，在该位置引爆圆形1范围的火焰，造成60点无视防御伤害。',
       filter(actor) {
@@ -456,6 +468,7 @@
       name: '咆哮',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'aoe_enemy', power: 70, priority: 7 },
       preview: { shape: '+', n: 2, passThrough: true },
       desc: '对十字2格范围内敌人造成1.5倍伤害，并眩晕1回合。',
       filter(actor) {
@@ -506,6 +519,7 @@
       name: '离间',
       type: '主动',
       cooldown: 4,
+      aiHint: { type: 'control', target: 'enemy', power: 60, priority: 8 },
       preview: { shape: 'square', n: 2, passThrough: true },
       desc: '选择方形2格内一名敌人，使其魅惑2回合（临时加入己方）。',
       filter(actor) {
@@ -558,6 +572,7 @@
       name: '烽火',
       type: '主动',
       cooldown: 3,
+      aiHint: { type: 'damage', target: 'enemy', power: 80, priority: 7 },
       preview: { shape: '+', n: 3, passThrough: true },
       desc: '选择十字3格内的一名敌人，对其造成80点伤害，并将其拉向自己2格，同时回复40生命。',
       filter(actor) {

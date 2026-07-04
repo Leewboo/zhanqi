@@ -1933,7 +1933,6 @@
 
     _aiBattleStep() {
       const side = this.currentSide;
-
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
       const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
       if (!cand) {
@@ -1944,82 +1943,274 @@
         return;
       }
       const actor = cand;
-      // 1) 尝试攻击当前攻击范围内的敌人
+      // 选出最佳行动（技能 > 攻击 > 移动）
+      const action = this._aiPickBestAction(actor);
+      if (!action) {
+        // 没有可行行动，标记完成
+        actor.moved = true; actor.attacked = true; actor.skilled = true;
+        this._render(); this._renderBottom();
+        this._scheduleNext();
+        return;
+      }
+      if (action.type === 'skill') {
+        this._aiExecuteSkill(actor, action.skill);
+      } else if (action.type === 'attack') {
+        this._executeAttack(actor, action.target);
+        this._scheduleNext();
+      } else if (action.type === 'move') {
+        this._aiExecuteMoveAndAttack(actor, action.dest);
+      } else {
+        actor.moved = true; actor.attacked = true; actor.skilled = true;
+        this._render(); this._renderBottom();
+        this._scheduleNext();
+      }
+    },
+
+    // ========== AI 决策核心：评估所有可选行动，返回得分最高的 ==========
+    _aiPickBestAction(actor) {
+      const side = actor.side;
+      let best = { score: -1, type: 'wait' };
+
+      // 1) 评估所有可用主动技能
+      if (!actor.skilled && actor.skills) {
+        for (const skill of actor.skills) {
+          if (skill.type === '被动') continue;
+          actor.cdMap = actor.cdMap || {};
+          if ((actor.cdMap[skill.id] || 0) > 0) continue;
+          if (skill.filter && !skill.filter(actor)) continue;
+          const score = this._aiScoreSkill(actor, skill);
+          if (score > best.score) best = { score, type: 'skill', skill };
+        }
+      }
+
+      // 2) 评估普通攻击
       if (!actor.attacked) {
-        const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
-          pieceAt: (x, y) => {
-            const p = this.pieceAt(x, y);
-            if (!p || !p.alive) return null;
-            return p;
-          }
-        });
-        const target = atkCells
-          .map(c => this.pieceAt(c.x, c.y))
-          .find(p => p && p.alive && p.side !== side);
-        if (target) {
-          this._executeAttack(actor, target);
-          this._scheduleNext();
-          return;
+        const atkTarget = this._aiBestAttackTarget(actor);
+        if (atkTarget) {
+          // 攻击得分：目标威胁度 + 致命加成
+          let score = Effect._aiThreat(atkTarget);
+          const dmg = Effect.getEffectiveAttack(actor);
+          if (atkTarget.hp <= dmg) score *= 2;  // 能击杀
+          score += 20;  // 攻击的基础分（保证有目标时优先攻击）
+          if (score > best.score) best = { score, type: 'attack', target: atkTarget };
         }
       }
-      // 2) 否则移动：朝最近敌人移动（考虑地形消耗，河流消耗2步）
+
+      // 3) 评估移动（若还没移动）
       if (!actor.moved) {
-        const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
-        const enemies = this.pieces.filter(p => p.side !== side && p.alive);
-        if (!enemies.length) { this._scheduleNext(); return; }
-        // 找一个最近的敌人作为目标
-        enemies.sort((a, b) => {
-          const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
-          const db = Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y);
-          return da - db;
-        });
-        const nearest = enemies[0];
-        // 在可移动的空格中，选离 nearest 最近的一格
-        const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
-        if (emptyMoves.length) {
-          emptyMoves.sort((a, b) => {
-            const da = Math.abs(a.x - nearest.x) + Math.abs(a.y - nearest.y);
-            const db = Math.abs(b.x - nearest.x) + Math.abs(b.y - nearest.y);
-            return da - db;
-          });
-          const target = emptyMoves[0];
-          this._executeMove(actor, target.x, target.y);
-          // 移动后再尝试攻击一次
-          const self = this;
-          setTimeout(() => {
-            if (self.over) return;
-            if (!actor.alive || actor.attacked) {
-              self._scheduleNext();
-              return;
-            }
-            const atkCells2 = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
-              pieceAt: (x, y) => {
-                const p = self.pieceAt(x, y);
-                if (!p || !p.alive) return null;
-                return p;
-              }
-            });
-            const tgt = atkCells2
-              .map(c => self.pieceAt(c.x, c.y))
-              .find(p => p && p.alive && p.side !== side);
-            if (tgt) {
-              self._executeAttack(actor, tgt);
-            } else {
-              // 没敌人则标记攻击已用（以免死循环）
-              actor.attacked = true;
-            }
-            self._scheduleNext();
-          }, 500);
-          return;
+        const moveDest = this._aiBestMoveDest(actor);
+        if (moveDest) {
+          // 移动得分：基于移动后能攻击到敌人
+          let score = moveDest.score;
+          if (score > best.score) best = { score, type: 'move', dest: { x: moveDest.x, y: moveDest.y } };
         }
       }
-      // 不能移动也不能攻击，标记完成这枚棋子
-      actor.moved = true;
-      actor.attacked = true;
-      actor.skilled = true;
-      this._render();
-      this._renderBottom();
-      this._scheduleNext();
+
+      return best;
+    },
+
+    // 评估技能得分
+    _aiScoreSkill(actor, skill) {
+      const hint = skill.aiHint;
+      if (!hint) {
+        // 无 aiHint 的技能给保守低分（AI 会优先用有 hint 的技能和攻击）
+        return 8;
+      }
+      const power = hint.power || 30;
+      const priority = hint.priority || 5;
+      let score = power * (0.5 + priority / 10);
+
+      // 根据类型和当前局势调整
+      const side = actor.side;
+      if (hint.type === 'damage') {
+        // 估算能命中的目标数
+        const preview = skill.preview;
+        if (preview) {
+          const cells = Range.cellsInRangeWithBlock(preview.shape, preview.n, actor.x, actor.y, {
+            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
+            passThrough: preview.passThrough
+          });
+          let enemies = 0;
+          for (const c of cells) {
+            const p = this.pieceAt(c.x, c.y);
+            if (p && p.alive && p.side !== side) enemies++;
+          }
+          if (hint.target === 'aoe_enemy' || hint.target === 'cell') {
+            score *= Math.max(1, enemies);  // 范围技多目标加成
+          } else if (enemies === 0) {
+            return 0;  // 单体伤害技没有目标则不使用
+          }
+        }
+        // 致命加成：若能击杀低血敌人
+        if (hint.target === 'enemy') {
+          const preview2 = skill.preview;
+          if (preview2) {
+            const cells = Range.cellsInRangeWithBlock(preview2.shape, preview2.n, actor.x, actor.y, {
+              pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+            });
+            for (const c of cells) {
+              const p = this.pieceAt(c.x, c.y);
+              if (p && p.alive && p.side !== side && p.hp <= power) {
+                score *= 1.8;  // 能击杀加成
+                break;
+              }
+            }
+          }
+        }
+      } else if (hint.type === 'heal') {
+        // 治疗类：检查友军是否需要治疗
+        const allies = this.pieces.filter(p => p.alive && p.side === side);
+        let needHeal = 0;
+        for (const a of allies) {
+          if (a.hp < a.maxHp * 0.7) needHeal++;
+        }
+        if (needHeal === 0) return 0;  // 没人需要治疗则不使用
+        score *= Math.max(1, needHeal);
+      } else if (hint.type === 'buff') {
+        // 增益类：附近有敌人时才用（否则浪费）
+        const enemies = this.pieces.filter(p => p.alive && p.side !== side);
+        let nearEnemy = false;
+        for (const e of enemies) {
+          if (Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 4) { nearEnemy = true; break; }
+        }
+        if (!nearEnemy) return 0;
+        score *= 0.7;  // buff 通常优先级略低于直接伤害
+      } else if (hint.type === 'control') {
+        // 控制类：高威胁敌人优先
+        const preview = skill.preview;
+        if (preview) {
+          const cells = Range.cellsInRangeWithBlock(preview.shape, preview.n, actor.x, actor.y, {
+            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+          });
+          let hasTarget = false;
+          for (const c of cells) {
+            const p = this.pieceAt(c.x, c.y);
+            if (p && p.alive && p.side !== side) { hasTarget = true; break; }
+          }
+          if (!hasTarget) return 0;
+        }
+      }
+
+      return Math.max(0, score);
+    },
+
+    // 找最佳攻击目标（威胁度最高/最易击杀）
+    _aiBestAttackTarget(actor) {
+      const side = actor.side;
+      const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+        pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+      });
+      let best = null, bestScore = -1;
+      for (const c of cells) {
+        const p = this.pieceAt(c.x, c.y);
+        if (!p || !p.alive || p.side === side) continue;
+        let score = Effect._aiThreat(p);
+        if (p.hp <= Effect.getEffectiveAttack(actor)) score *= 2;  // 能击杀
+        if (score > bestScore) { bestScore = score; best = p; }
+      }
+      return best;
+    },
+
+    // 找最佳移动落点（朝最近敌人靠近，且尽量能攻击到）
+    _aiBestMoveDest(actor) {
+      const side = actor.side;
+      const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
+      const enemies = this.pieces.filter(p => p.alive && p.side !== side);
+      if (!enemies.length || !moveCells.length) return null;
+      // 找最近的敌人
+      enemies.sort((a, b) => {
+        const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
+        const db = Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y);
+        return da - db;
+      });
+      const nearest = enemies[0];
+      const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
+      if (!emptyMoves.length) return null;
+      let best = null, bestScore = -Infinity;
+      for (const m of emptyMoves) {
+        // 距离最近敌人的曼哈顿距离（越近越好）
+        const dist = Math.abs(m.x - nearest.x) + Math.abs(m.y - nearest.y);
+        let score = -dist * 10;
+        // 若落点能攻击到任何敌人，大幅加分
+        const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
+          pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+        });
+        for (const ac of atkCells) {
+          const p = this.pieceAt(ac.x, ac.y);
+          if (p && p.alive && p.side !== side) {
+            score += Effect._aiThreat(p) * 0.5;
+            if (p.hp <= Effect.getEffectiveAttack(actor)) score += 50;  // 移动后能击杀
+          }
+        }
+        if (score > bestScore) { bestScore = score; best = { x: m.x, y: m.y, score }; }
+      }
+      return best;
+    },
+
+    // AI 执行技能：设置 AI 上下文，调用 content，处理冷却
+    _aiExecuteSkill(actor, skill) {
+      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: skill.aiHint };
+      const before = !!actor.skilled;
+      const self = this;
+      const promise = skill.content(actor);
+      Promise.resolve(promise).then(function (result) {
+        Effect._aiContext = null;
+        const used = actor.skilled && !before;
+        if (used) {
+          self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
+          Effect.trigger('onSkillCast', { actor: actor, skill: skill });
+          Effect.triggerPassive(actor, 'onSkillCast', { skill: skill });
+          if (skill.cooldown) {
+            actor.cdMap = actor.cdMap || {};
+            actor.cdMap[skill.id] = skill.cooldown;
+          }
+          self._render(); self._renderBottom();
+          self._checkWin();
+        }
+        self._scheduleNext();
+      }).catch(function (e) {
+        Effect._aiContext = null;
+        console.error('[AI 技能错误]', skill.name, e);
+        self.log('【' + skill.name + '】AI 执行出错：' + e.message);
+        self._scheduleNext();
+      });
+    },
+
+    // AI 移动并尝试攻击
+    _aiExecuteMoveAndAttack(actor, dest) {
+      this._executeMove(actor, dest.x, dest.y);
+      const self = this;
+      setTimeout(function () {
+        if (self.over) { return; }
+        if (!actor.alive || actor.attacked) { self._scheduleNext(); return; }
+        // 移动后再评估一次：可能有更好的技能可用
+        if (!actor.skilled && actor.skills) {
+          let bestSkill = null, bestScore = -1;
+          for (const skill of actor.skills) {
+            if (skill.type === '被动') continue;
+            actor.cdMap = actor.cdMap || {};
+            if ((actor.cdMap[skill.id] || 0) > 0) continue;
+            if (skill.filter && !skill.filter(actor)) continue;
+            const s = self._aiScoreSkill(actor, skill);
+            if (s > bestScore) { bestScore = s; bestSkill = skill; }
+          }
+          // 移动后用技能得分要明显高于攻击才用（避免移动后不攻击）
+          const atkTarget = self._aiBestAttackTarget(actor);
+          const atkScore = atkTarget ? Effect._aiThreat(atkTarget) + 20 : 0;
+          if (bestSkill && bestScore > atkScore + 10) {
+            self._aiExecuteSkill(actor, bestSkill);
+            return;
+          }
+        }
+        // 否则尝试攻击
+        const tgt = self._aiBestAttackTarget(actor);
+        if (tgt) {
+          self._executeAttack(actor, tgt);
+        } else {
+          actor.attacked = true;
+        }
+        self._scheduleNext();
+      }, 400);
     },
 
     _scheduleNext() {

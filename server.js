@@ -242,7 +242,13 @@ app.use(async (ctx, next) => {
           desc:        String(s.desc || ''),
           preview:     s.preview ? validateRange(s.preview, null) : null,
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
-          contentCode: String(s.contentCode || '')
+          contentCode: String(s.contentCode || ''),
+          aiHint:     s.aiHint ? {
+            type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
+            target:   ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
+            power:    Math.max(0, Math.min(200, parseInt(s.aiHint.power) || 30)),
+            priority: Math.max(1, Math.min(10, parseInt(s.aiHint.priority) || 5))
+          } : null
         });
       }
     }

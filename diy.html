@@ -1887,6 +1887,36 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                   半径 <input type="number" id="s-pv-n" value="3" min="1" max="10" style="width:60px;" />
                 </td>
               </tr>
+              <tr>
+                <th>AI 提示</th>
+                <td>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <select id="s-ai-type" style="width:auto;">
+                      <option value="">不启用AI</option>
+                      <option value="damage">伤害 damage</option>
+                      <option value="heal">治疗 heal</option>
+                      <option value="buff">增益 buff</option>
+                      <option value="debuff">减益 debuff</option>
+                      <option value="control">控制 control</option>
+                      <option value="teleport">位移 teleport</option>
+                      <option value="summon">召唤 summon</option>
+                      <option value="mixed">混合 mixed</option>
+                    </select>
+                    <select id="s-ai-target" style="width:auto;">
+                      <option value="enemy">敌方 enemy</option>
+                      <option value="ally">友方 ally</option>
+                      <option value="cell">格子 cell</option>
+                      <option value="self">自身 self</option>
+                      <option value="none">无 none</option>
+                      <option value="aoe_enemy">范围敌方 aoe_enemy</option>
+                      <option value="aoe_ally">范围友方 aoe_ally</option>
+                    </select>
+                    威力 <input type="number" id="s-ai-power" value="50" min="0" max="200" style="width:60px;" />
+                    优先级 <input type="number" id="s-ai-priority" value="5" min="1" max="10" style="width:50px;" />
+                  </div>
+                  <span class="hint">AI 用此信息评估技能价值。被动技能无需填写。</span>
+                </td>
+              </tr>
             </table>
 
             <!-- 技能代码编辑器 -->
@@ -2755,6 +2785,30 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                 '</select></td>' +
             '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td>' +
         '</tr>' +
+        '<tr class="s-new-fields"><th>AI</th><td colspan="3">' +
+            '<select class="s-ai-type">' +
+              '<option value="">不启用AI</option>' +
+              '<option value="damage"' + (p.aiHint && p.aiHint.type === 'damage' ? ' selected' : '') + '>伤害</option>' +
+              '<option value="heal"' + (p.aiHint && p.aiHint.type === 'heal' ? ' selected' : '') + '>治疗</option>' +
+              '<option value="buff"' + (p.aiHint && p.aiHint.type === 'buff' ? ' selected' : '') + '>增益</option>' +
+              '<option value="debuff"' + (p.aiHint && p.aiHint.type === 'debuff' ? ' selected' : '') + '>减益</option>' +
+              '<option value="control"' + (p.aiHint && p.aiHint.type === 'control' ? ' selected' : '') + '>控制</option>' +
+              '<option value="teleport"' + (p.aiHint && p.aiHint.type === 'teleport' ? ' selected' : '') + '>位移</option>' +
+              '<option value="summon"' + (p.aiHint && p.aiHint.type === 'summon' ? ' selected' : '') + '>召唤</option>' +
+              '<option value="mixed"' + (p.aiHint && p.aiHint.type === 'mixed' ? ' selected' : '') + '>混合</option>' +
+            '</select>' +
+            '<select class="s-ai-target">' +
+              '<option value="enemy"' + (p.aiHint && p.aiHint.target === 'enemy' ? ' selected' : '') + '>敌方</option>' +
+              '<option value="ally"' + (p.aiHint && p.aiHint.target === 'ally' ? ' selected' : '') + '>友方</option>' +
+              '<option value="cell"' + (p.aiHint && p.aiHint.target === 'cell' ? ' selected' : '') + '>格子</option>' +
+              '<option value="self"' + (p.aiHint && p.aiHint.target === 'self' ? ' selected' : '') + '>自身</option>' +
+              '<option value="none"' + (p.aiHint && p.aiHint.target === 'none' ? ' selected' : '') + '>无</option>' +
+              '<option value="aoe_enemy"' + (p.aiHint && p.aiHint.target === 'aoe_enemy' ? ' selected' : '') + '>范围敌方</option>' +
+              '<option value="aoe_ally"' + (p.aiHint && p.aiHint.target === 'aoe_ally' ? ' selected' : '') + '>范围友方</option>' +
+            '</select>' +
+            ' 威力 <input type="number" class="s-ai-power" value="' + (p.aiHint ? (p.aiHint.power || 50) : 50) + '" min="0" max="200" style="width:60px" />' +
+            ' 优先级 <input type="number" class="s-ai-priority" value="' + (p.aiHint ? (p.aiHint.priority || 5) : 5) + '" min="1" max="10" style="width:50px" />' +
+        '</td></tr>' +
         '<tr class="s-new-fields"><th>预览范围</th><td colspan="3">' +
             '形状 <select class="s-pv-shape">' +
               '<option value="">不预览</option>' +
@@ -3110,6 +3164,11 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               }
               $('s-filter').value = s.filterCode || '';
               $('s-content').value = s.contentCode || '';
+              const ai = s.aiHint || {};
+              $('s-ai-type').value = ai.type || '';
+              $('s-ai-target').value = ai.target || 'enemy';
+              $('s-ai-power').value = ai.power !== undefined ? ai.power : 50;
+              $('s-ai-priority').value = ai.priority !== undefined ? ai.priority : 5;
               if (data.extId) {
                 var sel = $('s-ext');
                 if (sel) sel.value = data.extId;
@@ -3170,7 +3229,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             return sh ? { shape: sh, n: parseInt($('s-pv-n').value, 10) || 3 } : null;
           })(),
           filterCode: $('s-filter').value,
-          contentCode: $('s-content').value
+          contentCode: $('s-content').value,
+          aiHint: $('s-ai-type').value ? {
+            type:     $('s-ai-type').value,
+            target:   $('s-ai-target').value,
+            power:    parseInt($('s-ai-power').value) || 30,
+            priority: parseInt($('s-ai-priority').value) || 5
+          } : null
         };
 
         fetch('/api/skill/create', {
@@ -3199,6 +3264,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('sname').value = '';
         $('stype').value = '主动';
         $('strigger').value = '';
+        $('s-ai-type').value = '';
+        $('s-ai-target').value = 'enemy';
+        $('s-ai-power').value = 50;
+        $('s-ai-priority').value = 5;
         $('scd').value = '2';
         $('sdesc').value = '';
         $('s-pv-shape').value = '';
@@ -3325,6 +3394,12 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           name:        c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
           type:        c.querySelector('.s-type').value,
           cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
+          aiHint: c.querySelector('.s-ai-type') && c.querySelector('.s-ai-type').value ? {
+            type:     c.querySelector('.s-ai-type').value,
+            target:   c.querySelector('.s-ai-target').value,
+            power:    parseInt(c.querySelector('.s-ai-power').value, 10) || 30,
+            priority: parseInt(c.querySelector('.s-ai-priority').value, 10) || 5
+          } : null,
           trigger:     c.querySelector('.s-trigger').value || null,
           desc:        c.querySelector('.s-desc').value.trim() || '',
           preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
