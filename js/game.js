@@ -2018,80 +2018,132 @@
       }
       const power = hint.power || 30;
       const priority = hint.priority || 5;
+      const side = actor.side;
+
+      // ===== 1. 使用条件检查（condition）=====
+      const cond = hint.condition || 'always';
+      const hpThresh = hint.hpThreshold || 0;
+      if (cond === 'self_low_hp') {
+        const threshold = hpThresh > 0 ? hpThresh / 100 : 0.4;
+        if (actor.hp / actor.maxHp > threshold) return 0;
+      } else if (cond === 'self_full_hp') {
+        if (actor.hp < actor.maxHp * 0.99) return 0;
+      } else if (cond === 'enemy_near') {
+        let near = false;
+        for (const e of this.pieces) {
+          if (e.alive && e.side !== side && Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 4) { near = true; break; }
+        }
+        if (!near) return 0;
+      } else if (cond === 'enemy_in_range') {
+        const inRange = this._countEnemiesInSkillRange(actor, skill);
+        if (inRange === 0) return 0;
+      } else if (cond === 'ally_injured') {
+        const threshold = hpThresh > 0 ? hpThresh / 100 : 0.7;
+        let injured = 0;
+        for (const a of this.pieces) {
+          if (a.alive && a.side === side && a.hp / a.maxHp < threshold) injured++;
+        }
+        if (injured === 0) return 0;
+      } else if (cond === 'has_target') {
+        const inRange = this._countEnemiesInSkillRange(actor, skill);
+        if (inRange === 0) return 0;
+      }
+
+      // ===== 2. 基础得分 =====
       let score = power * (0.5 + priority / 10);
 
-      // 根据类型和当前局势调整
-      const side = actor.side;
+      // ===== 3. 计算范围内敌人数（用于多种判断）=====
+      const enemiesInRange = this._countEnemiesInSkillRange(actor, skill);
+      const alliesInRange = this._countAlliesInSkillRange(actor, skill);
+
+      // ===== 4. 最少命中数限制（minTargets）=====
+      if (hint.minTargets && hint.minTargets > 0) {
+        const cnt = (hint.target === 'aoe_ally' || hint.target === 'ally') ? alliesInRange : enemiesInRange;
+        if (cnt < hint.minTargets) return 0;
+      }
+
+      // ===== 5. 根据类型调整 =====
       if (hint.type === 'damage') {
-        // 估算能命中的目标数
-        const preview = skill.preview;
-        if (preview) {
-          const cells = Range.cellsInRangeWithBlock(preview.shape, preview.n, actor.x, actor.y, {
-            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
-            passThrough: preview.passThrough
-          });
-          let enemies = 0;
-          for (const c of cells) {
-            const p = this.pieceAt(c.x, c.y);
-            if (p && p.alive && p.side !== side) enemies++;
-          }
-          if (hint.target === 'aoe_enemy' || hint.target === 'cell') {
-            score *= Math.max(1, enemies);  // 范围技多目标加成
-          } else if (enemies === 0) {
-            return 0;  // 单体伤害技没有目标则不使用
-          }
+        if (hint.target === 'aoe_enemy' || hint.target === 'cell') {
+          score *= Math.max(1, enemiesInRange);  // 范围技多目标加成
+        } else if (enemiesInRange === 0) {
+          return 0;  // 单体伤害技没有目标则不使用
         }
         // 致命加成：若能击杀低血敌人
-        if (hint.target === 'enemy') {
-          const preview2 = skill.preview;
-          if (preview2) {
-            const cells = Range.cellsInRangeWithBlock(preview2.shape, preview2.n, actor.x, actor.y, {
-              pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-            });
-            for (const c of cells) {
-              const p = this.pieceAt(c.x, c.y);
-              if (p && p.alive && p.side !== side && p.hp <= power) {
-                score *= 1.8;  // 能击杀加成
-                break;
-              }
+        if (hint.target === 'enemy' && skill.preview) {
+          const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
+            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+          });
+          for (const c of cells) {
+            const p = this.pieceAt(c.x, c.y);
+            if (p && p.alive && p.side !== side && p.hp <= power) {
+              score *= 1.8;  // 能击杀加成
+              break;
             }
           }
         }
       } else if (hint.type === 'heal') {
-        // 治疗类：检查友军是否需要治疗
-        const allies = this.pieces.filter(p => p.alive && p.side === side);
+        const threshold = hpThresh > 0 ? hpThresh / 100 : 0.7;
         let needHeal = 0;
-        for (const a of allies) {
-          if (a.hp < a.maxHp * 0.7) needHeal++;
+        for (const a of this.pieces) {
+          if (a.alive && a.side === side && a.hp / a.maxHp < threshold) needHeal++;
         }
-        if (needHeal === 0) return 0;  // 没人需要治疗则不使用
+        if (needHeal === 0) return 0;
         score *= Math.max(1, needHeal);
       } else if (hint.type === 'buff') {
-        // 增益类：附近有敌人时才用（否则浪费）
-        const enemies = this.pieces.filter(p => p.alive && p.side !== side);
         let nearEnemy = false;
-        for (const e of enemies) {
-          if (Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 4) { nearEnemy = true; break; }
+        for (const e of this.pieces) {
+          if (e.alive && e.side !== side && Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 4) { nearEnemy = true; break; }
         }
         if (!nearEnemy) return 0;
-        score *= 0.7;  // buff 通常优先级略低于直接伤害
+        score *= 0.7;
       } else if (hint.type === 'control') {
-        // 控制类：高威胁敌人优先
-        const preview = skill.preview;
-        if (preview) {
-          const cells = Range.cellsInRangeWithBlock(preview.shape, preview.n, actor.x, actor.y, {
-            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-          });
-          let hasTarget = false;
-          for (const c of cells) {
-            const p = this.pieceAt(c.x, c.y);
-            if (p && p.alive && p.side !== side) { hasTarget = true; break; }
-          }
-          if (!hasTarget) return 0;
+        if (enemiesInRange === 0) return 0;
+      } else if (hint.type === 'debuff') {
+        if (enemiesInRange === 0) return 0;
+        score *= 0.8;
+      } else if (hint.type === 'teleport') {
+        // 位移类：附近有敌人或自身位置危险时才用
+        let nearEnemy = false;
+        for (const e of this.pieces) {
+          if (e.alive && e.side !== side && Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y) <= 2) { nearEnemy = true; break; }
         }
+        if (!nearEnemy && actor.hp / actor.maxHp > 0.5) return 0;
       }
 
       return Math.max(0, score);
+    },
+
+    // 统计技能范围内敌人数（辅助函数）
+    _countEnemiesInSkillRange(actor, skill) {
+      if (!skill || !skill.preview) return 0;
+      const side = actor.side;
+      const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
+        pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
+        passThrough: skill.preview.passThrough
+      });
+      let count = 0;
+      for (const c of cells) {
+        const p = this.pieceAt(c.x, c.y);
+        if (p && p.alive && p.side !== side) count++;
+      }
+      return count;
+    },
+
+    // 统计技能范围内友军数（辅助函数）
+    _countAlliesInSkillRange(actor, skill) {
+      if (!skill || !skill.preview) return 0;
+      const side = actor.side;
+      const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
+        pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
+        passThrough: skill.preview.passThrough
+      });
+      let count = 0;
+      for (const c of cells) {
+        const p = this.pieceAt(c.x, c.y);
+        if (p && p.alive && p.side === side) count++;
+      }
+      return count;
     },
 
     // 找最佳攻击目标（威胁度最高/最易击杀）

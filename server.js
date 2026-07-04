@@ -246,10 +246,16 @@ app.use(async (ctx, next) => {
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
           contentCode: String(s.contentCode || ''),
           aiHint:     s.aiHint ? {
-            type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
-            target:   ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
-            power:    Math.max(0, Math.min(200, parseInt(s.aiHint.power) || 30)),
-            priority: Math.max(1, Math.min(10, parseInt(s.aiHint.priority) || 5))
+            type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
+            target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
+            power:        Math.max(0, Math.min(200, parseInt(s.aiHint.power) || 30)),
+            priority:     Math.max(1, Math.min(10, parseInt(s.aiHint.priority) || 5)),
+            condition:    ['always','enemy_near','enemy_in_range','ally_injured','self_low_hp','self_full_hp','has_target'].includes(s.aiHint.condition) ? s.aiHint.condition : 'always',
+            preferTarget: ['','low_hp','high_threat','injured_ally','nearest','caster'].includes(s.aiHint.preferTarget) ? s.aiHint.preferTarget : '',
+            minTargets:   Math.max(0, Math.min(10, parseInt(s.aiHint.minTargets) || 0)),
+            avoidSelf:    s.aiHint.avoidSelf === true,
+            hpThreshold:  Math.max(0, Math.min(100, parseInt(s.aiHint.hpThreshold) || 0)),
+            notes:        String(s.aiHint.notes || '').slice(0, 200)
           } : null
         });
       }
@@ -410,10 +416,16 @@ app.use(async (ctx, next) => {
       filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
       contentCode: String(skill.contentCode || ''),
       aiHint:      skill.aiHint ? {
-        type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(skill.aiHint.type) ? skill.aiHint.type : 'mixed',
-        target:   ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(skill.aiHint.target) ? skill.aiHint.target : 'enemy',
-        power:    Math.max(0, Math.min(200, parseInt(skill.aiHint.power) || 30)),
-        priority: Math.max(1, Math.min(10, parseInt(skill.aiHint.priority) || 5))
+        type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(skill.aiHint.type) ? skill.aiHint.type : 'mixed',
+        target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(skill.aiHint.target) ? skill.aiHint.target : 'enemy',
+        power:        Math.max(0, Math.min(200, parseInt(skill.aiHint.power) || 30)),
+        priority:     Math.max(1, Math.min(10, parseInt(skill.aiHint.priority) || 5)),
+        condition:    ['always','enemy_near','enemy_in_range','ally_injured','self_low_hp','self_full_hp','has_target'].includes(skill.aiHint.condition) ? skill.aiHint.condition : 'always',
+        preferTarget: ['','low_hp','high_threat','injured_ally','nearest','caster'].includes(skill.aiHint.preferTarget) ? skill.aiHint.preferTarget : '',
+        minTargets:   Math.max(0, Math.min(10, parseInt(skill.aiHint.minTargets) || 0)),
+        avoidSelf:    skill.aiHint.avoidSelf === true,
+        hpThreshold:  Math.max(0, Math.min(100, parseInt(skill.aiHint.hpThreshold) || 0)),
+        notes:        String(skill.aiHint.notes || '').slice(0, 200)
       } : null
     };
 

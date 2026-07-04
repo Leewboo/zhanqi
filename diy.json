@@ -28,9 +28,9 @@
         {
           "id": "diy_zhaoyun",
           "name": "赵云",
-          "hp": 210,
+          "hp": 230,
           "atk": 60,
-          "def": 30,
+          "def": 25,
           "moveRange": {
             "shape": "+",
             "n": 3
@@ -40,7 +40,6 @@
             "n": 1
           },
           "skillIds": [
-            "diy_zhaoyun_longdan",
             "diy_zhaoyun_chongzhen"
           ],
           "portrait": null
@@ -65,32 +64,15 @@
           }
         },
         {
-          "id": "diy_zhaoyun_longdan",
-          "name": "龙胆",
-          "type": "主动",
-          "cooldown": 3,
-          "trigger": null,
-          "desc": "回复20点生命并提升20点防御",
-          "preview": null,
-          "filterCode": "return actor && actor.alive && !actor.skilled && actor.hp < actor.maxHp;",
-          "contentCode": "Effect.heal(actor, 20);\nEffect.shield(actor, 20);\nactor.skilled = true;\n",
-          "aiHint": {
-            "type": "heal",
-            "target": "self",
-            "power": 60,
-            "priority": 6
-          }
-        },
-        {
           "id": "diy_zhaoyun_chongzhen",
           "name": "冲阵",
           "type": "被动",
           "cooldown": 2,
           "trigger": "onMove",
-          "desc": "移动后立即对方形一范围内所有敌人造成20点伤害",
+          "desc": "移动后造成20无视防御的伤害",
           "preview": null,
-          "filterCode": "return actor && actor.alive",
-          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = global.Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: false });\n  }\n}\n",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side)\n    Effect.damage(actor, t, 20, { ignoreDef: true });\n}\nreturn true;\n",
           "aiHint": null
         }
       ]

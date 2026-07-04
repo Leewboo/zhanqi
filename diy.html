@@ -1544,6 +1544,54 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ AI 提示 aiHint 详解<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p><b>aiHint</b> 是技能的可选字段，告诉 AI 如何评估和使用此技能。不填则 AI 给保守低分（倾向于不用）。</p>
+        <p style="margin-top:8px;"><b>字段一览</b>：</p>
+        <ul>
+          <li><code>type</code>（必填）— 技能类型：<code>damage</code>伤害 / <code>heal</code>治疗 / <code>buff</code>增益 / <code>debuff</code>减益 / <code>control</code>控制 / <code>teleport</code>位移 / <code>summon</code>召唤 / <code>mixed</code>混合</li>
+          <li><code>target</code>（必填）— 目标类型：<code>enemy</code>敌方单体 / <code>ally</code>友方单体 / <code>cell</code>格子 / <code>self</code>自身 / <code>none</code>无目标 / <code>aoe_enemy</code>范围敌方 / <code>aoe_ally</code>范围友方</li>
+          <li><code>power</code>（0-200，默认30）— 威力值，影响基础评分。伤害类对应伤害量，治疗类对应治疗量</li>
+          <li><code>priority</code>（1-10，默认5）— 优先级，越高越优先使用</li>
+          <li><code>condition</code>（默认 always）— 使用条件，不满足时 AI 不会用此技能：
+            <ul>
+              <li><code>always</code> 总是评估</li>
+              <li><code>enemy_near</code> 附近 4 格内有敌人</li>
+              <li><code>enemy_in_range</code> 技能范围内有敌人</li>
+              <li><code>ally_injured</code> 有友军血量低于阈值</li>
+              <li><code>self_low_hp</code> 自身血量低于阈值</li>
+              <li><code>self_full_hp</code> 自身满血</li>
+              <li><code>has_target</code> 有合法目标</li>
+            </ul>
+          </li>
+          <li><code>preferTarget</code>（默认空）— 目标偏好策略：
+            <ul>
+              <li><code>low_hp</code> 优先低血目标（补刀）</li>
+              <li><code>high_threat</code> 优先高威胁目标</li>
+              <li><code>injured_ally</code> 优先残血友军（治疗）</li>
+              <li><code>nearest</code> 优先最近敌人</li>
+              <li><code>caster</code> 优先法师型单位（低防高攻）</li>
+            </ul>
+          </li>
+          <li><code>minTargets</code>（0-10，默认0）— 范围技至少命中 N 个目标才使用</li>
+          <li><code>avoidSelf</code>（bool，默认 false）— 是否避免选自己作为目标</li>
+          <li><code>hpThreshold</code>（0-100，默认0）— 血量阈值百分比，配合 <code>self_low_hp</code>/<code>ally_injured</code> 使用，0 表示用默认值（40%/70%）</li>
+          <li><code>notes</code>（字符串）— 设计备注，不参与 AI 计算，仅作记录</li>
+        </ul>
+        <p style="margin-top:8px;"><b>评分公式</b>：<code>score = power * (0.5 + priority / 10)</code>，再根据 type/condition/minTargets 调整。</p>
+        <p style="margin-top:8px;"><b>示例</b>：关羽武圣（额外攻击+回血）：</p>
+        <pre><code class="language-javascript">aiHint: {
+  type: 'damage',
+  target: 'self',        // 自身增益
+  power: 50,
+  priority: 5,
+  condition: 'enemy_near', // 附近有敌时才用
+  preferTarget: 'high_threat'
+}</code></pre>
+        <p style="margin-top:8px;color:#888;font-size:12px;">提示：aiHint 只影响 AI 决策，不影响技能实际效果。技能效果完全由 content 代码决定。</p>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ API 速查（战斗类）<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <div class="api-tag-row">
@@ -1892,31 +1940,95 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               <tr class="s-row-active" id="s-row-ai">
                 <th>AI 提示</th>
                 <td>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                    <select id="s-ai-type" style="width:auto;">
-                      <option value="">不启用AI</option>
-                      <option value="damage">伤害 damage</option>
-                      <option value="heal">治疗 heal</option>
-                      <option value="buff">增益 buff</option>
-                      <option value="debuff">减益 debuff</option>
-                      <option value="control">控制 control</option>
-                      <option value="teleport">位移 teleport</option>
-                      <option value="summon">召唤 summon</option>
-                      <option value="mixed">混合 mixed</option>
-                    </select>
-                    <select id="s-ai-target" style="width:auto;">
-                      <option value="enemy">敌方 enemy</option>
-                      <option value="ally">友方 ally</option>
-                      <option value="cell">格子 cell</option>
-                      <option value="self">自身 self</option>
-                      <option value="none">无 none</option>
-                      <option value="aoe_enemy">范围敌方 aoe_enemy</option>
-                      <option value="aoe_ally">范围友方 aoe_ally</option>
-                    </select>
-                    威力 <input type="number" id="s-ai-power" value="50" min="0" max="200" style="width:60px;" />
-                    优先级 <input type="number" id="s-ai-priority" value="5" min="1" max="10" style="width:50px;" />
+                  <div id="s-ai-panel" style="border:1px solid #e3d9c4;border-radius:6px;padding:10px;background:#faf7f1;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                      <label style="font-weight:bold;color:#c0392b;">启用 AI</label>
+                      <select id="s-ai-type" style="width:auto;">
+                        <option value="">不启用 AI</option>
+                        <option value="damage">伤害 damage</option>
+                        <option value="heal">治疗 heal</option>
+                        <option value="buff">增益 buff</option>
+                        <option value="debuff">减益 debuff</option>
+                        <option value="control">控制 control</option>
+                        <option value="teleport">位移 teleport</option>
+                        <option value="summon">召唤 summon</option>
+                        <option value="mixed">混合 mixed</option>
+                      </select>
+                      <span class="hint" style="margin:0;">选择技能类型，AI 据此评估使用时机</span>
+                    </div>
+
+                    <div id="s-ai-detail" class="hidden" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;margin-top:6px;padding-top:8px;border-top:1px dashed #e3d9c4;">
+                      <div>
+                        <label style="font-size:12px;color:#666;">目标类型 <code>target</code></label>
+                        <select id="s-ai-target" style="width:100%;">
+                          <option value="enemy">敌方 enemy（单体）</option>
+                          <option value="ally">友方 ally（单体）</option>
+                          <option value="cell">格子 cell（指定位置）</option>
+                          <option value="self">自身 self</option>
+                          <option value="none">无 none（无需选目标）</option>
+                          <option value="aoe_enemy">范围敌方 aoe_enemy</option>
+                          <option value="aoe_ally">范围友方 aoe_ally</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">威力 <code>power</code>（0-200）</label>
+                        <input type="number" id="s-ai-power" value="50" min="0" max="200" style="width:100%;" />
+                        <span class="hint">基础评分：伤害/治疗量或效果强度</span>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">优先级 <code>priority</code>（1-10）</label>
+                        <input type="number" id="s-ai-priority" value="5" min="1" max="10" style="width:100%;" />
+                        <span class="hint">越高越优先使用（10 最先）</span>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">使用条件 <code>condition</code></label>
+                        <select id="s-ai-condition" style="width:100%;">
+                          <option value="always">总是评估 always</option>
+                          <option value="enemy_near">附近有敌 enemy_near</option>
+                          <option value="enemy_in_range">范围内有敌 enemy_in_range</option>
+                          <option value="ally_injured">有友军受伤 ally_injured</option>
+                          <option value="self_low_hp">自身低血 self_low_hp</option>
+                          <option value="self_full_hp">自身满血 self_full_hp</option>
+                          <option value="has_target">有合法目标 has_target</option>
+                        </select>
+                        <span class="hint">不满足条件时 AI 不会使用此技能</span>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">目标偏好 <code>preferTarget</code></label>
+                        <select id="s-ai-prefer" style="width:100%;">
+                          <option value="">默认（按威胁度）</option>
+                          <option value="low_hp">低血目标 low_hp</option>
+                          <option value="high_threat">高威胁 high_threat</option>
+                          <option value="injured_ally">残血友军 injured_ally</option>
+                          <option value="nearest">最近敌人 nearest</option>
+                          <option value="caster">敌方法师 caster</option>
+                        </select>
+                        <span class="hint">AI 选择目标时的偏好策略</span>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">最少命中数 <code>minTargets</code></label>
+                        <input type="number" id="s-ai-min-targets" value="0" min="0" max="10" style="width:100%;" />
+                        <span class="hint">范围技至少命中 N 个目标才用（0=不限）</span>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">避免对自身 <code>avoidSelf</code></label>
+                        <select id="s-ai-avoid-self" style="width:100%;">
+                          <option value="0">否（可对自身使用）</option>
+                          <option value="1">是（不选自己作目标）</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size:12px;color:#666;">血量阈值 <code>hpThreshold</code>（%）</label>
+                        <input type="number" id="s-ai-hp-threshold" value="0" min="0" max="100" style="width:100%;" />
+                        <span class="hint">配合 self_low_hp/ally_injured，0=禁用</span>
+                      </div>
+                      <div style="grid-column:span 2;">
+                        <label style="font-size:12px;color:#666;">设计备注 <code>notes</code>（不参与 AI 计算）</label>
+                        <input type="text" id="s-ai-notes" style="width:100%;" placeholder="此技能的设计意图、使用技巧..." />
+                      </div>
+                    </div>
                   </div>
-                  <span class="hint">AI 用此信息评估技能价值。被动技能无需填写。</span>
+                  <span class="hint">AI 用此信息评估技能价值与使用时机。被动技能无需填写。</span>
                 </td>
               </tr>
             </table>
@@ -2810,6 +2922,30 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             '</select>' +
             ' 威力 <input type="number" class="s-ai-power" value="' + (p.aiHint ? (p.aiHint.power || 50) : 50) + '" min="0" max="200" style="width:60px" />' +
             ' 优先级 <input type="number" class="s-ai-priority" value="' + (p.aiHint ? (p.aiHint.priority || 5) : 5) + '" min="1" max="10" style="width:50px" />' +
+            ' <select class="s-ai-condition" title="使用条件">' +
+              '<option value="always"' + (!p.aiHint || !p.aiHint.condition || p.aiHint.condition === 'always' ? ' selected' : '') + '>总是</option>' +
+              '<option value="enemy_near"' + (p.aiHint && p.aiHint.condition === 'enemy_near' ? ' selected' : '') + '>附近有敌</option>' +
+              '<option value="enemy_in_range"' + (p.aiHint && p.aiHint.condition === 'enemy_in_range' ? ' selected' : '') + '>范围内有敌</option>' +
+              '<option value="ally_injured"' + (p.aiHint && p.aiHint.condition === 'ally_injured' ? ' selected' : '') + '>友军受伤</option>' +
+              '<option value="self_low_hp"' + (p.aiHint && p.aiHint.condition === 'self_low_hp' ? ' selected' : '') + '>自身低血</option>' +
+              '<option value="self_full_hp"' + (p.aiHint && p.aiHint.condition === 'self_full_hp' ? ' selected' : '') + '>自身满血</option>' +
+              '<option value="has_target"' + (p.aiHint && p.aiHint.condition === 'has_target' ? ' selected' : '') + '>有目标</option>' +
+            '</select>' +
+            ' <select class="s-ai-prefer" title="目标偏好">' +
+              '<option value=""' + (!p.aiHint || !p.aiHint.preferTarget ? ' selected' : '') + '>默认</option>' +
+              '<option value="low_hp"' + (p.aiHint && p.aiHint.preferTarget === 'low_hp' ? ' selected' : '') + '>低血</option>' +
+              '<option value="high_threat"' + (p.aiHint && p.aiHint.preferTarget === 'high_threat' ? ' selected' : '') + '>高威胁</option>' +
+              '<option value="injured_ally"' + (p.aiHint && p.aiHint.preferTarget === 'injured_ally' ? ' selected' : '') + '>残血友军</option>' +
+              '<option value="nearest"' + (p.aiHint && p.aiHint.preferTarget === 'nearest' ? ' selected' : '') + '>最近</option>' +
+              '<option value="caster"' + (p.aiHint && p.aiHint.preferTarget === 'caster' ? ' selected' : '') + '>法师</option>' +
+            '</select>' +
+            ' 最少命中 <input type="number" class="s-ai-min-targets" value="' + (p.aiHint ? (p.aiHint.minTargets || 0) : 0) + '" min="0" max="10" style="width:48px" title="最少命中数" />' +
+            ' <select class="s-ai-avoid-self" title="避免对自身">' +
+              '<option value="0"' + (!p.aiHint || !p.aiHint.avoidSelf ? ' selected' : '') + '>可对己</option>' +
+              '<option value="1"' + (p.aiHint && p.aiHint.avoidSelf ? ' selected' : '') + '>不对己</option>' +
+            '</select>' +
+            ' 血量阈值% <input type="number" class="s-ai-hp-threshold" value="' + (p.aiHint ? (p.aiHint.hpThreshold || 0) : 0) + '" min="0" max="100" style="width:48px" title="配合 self_low_hp/ally_injured" />' +
+            ' <input type="text" class="s-ai-notes" value="' + escapeHtmlAttr(p.aiHint ? (p.aiHint.notes || '') : '') + '" placeholder="备注" style="width:120px" />' +
         '</td></tr>' +
         '<tr class="s-new-fields s-active-only"><th>预览范围</th><td colspan="3">' +
             '形状 <select class="s-pv-shape">' +
@@ -2930,6 +3066,24 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     if (stype) {
       stype.addEventListener('change', toggleStype);
       toggleStype();
+    }
+
+    // 独立技能表单：AI 提示面板联动
+    var aiTypeSel = $('s-ai-type');
+    var aiDetail = $('s-ai-detail');
+    function toggleAiDetail() {
+      if (!aiTypeSel || !aiDetail) return;
+      if (aiTypeSel.value) {
+        aiDetail.classList.remove('hidden');
+        aiDetail.style.display = 'grid';
+      } else {
+        aiDetail.classList.add('hidden');
+        aiDetail.style.display = 'none';
+      }
+    }
+    if (aiTypeSel) {
+      aiTypeSel.addEventListener('change', toggleAiDetail);
+      toggleAiDetail();
     }
 
     // 悬浮教程面板 toggle
@@ -3220,6 +3374,14 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               $('s-ai-target').value = ai.target || 'enemy';
               $('s-ai-power').value = ai.power !== undefined ? ai.power : 50;
               $('s-ai-priority').value = ai.priority !== undefined ? ai.priority : 5;
+              $('s-ai-condition').value = ai.condition || 'always';
+              $('s-ai-prefer').value = ai.preferTarget || '';
+              $('s-ai-min-targets').value = ai.minTargets !== undefined ? ai.minTargets : 0;
+              $('s-ai-avoid-self').value = ai.avoidSelf ? '1' : '0';
+              $('s-ai-hp-threshold').value = ai.hpThreshold !== undefined ? ai.hpThreshold : 0;
+              $('s-ai-notes').value = ai.notes || '';
+              // 触发 AI 面板联动显示
+              if (aiTypeSel && typeof toggleAiDetail === 'function') toggleAiDetail();
               if (data.extId) {
                 var sel = $('s-ext');
                 if (sel) sel.value = data.extId;
@@ -3282,10 +3444,16 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           filterCode: $('s-filter').value,
           contentCode: $('s-content').value,
           aiHint: $('s-ai-type').value ? {
-            type:     $('s-ai-type').value,
-            target:   $('s-ai-target').value,
-            power:    parseInt($('s-ai-power').value) || 30,
-            priority: parseInt($('s-ai-priority').value) || 5
+            type:         $('s-ai-type').value,
+            target:       $('s-ai-target').value,
+            power:        parseInt($('s-ai-power').value) || 30,
+            priority:     parseInt($('s-ai-priority').value) || 5,
+            condition:    $('s-ai-condition').value || 'always',
+            preferTarget: $('s-ai-prefer').value || '',
+            minTargets:   Math.max(0, parseInt($('s-ai-min-targets').value) || 0),
+            avoidSelf:    $('s-ai-avoid-self').value === '1',
+            hpThreshold:  Math.max(0, Math.min(100, parseInt($('s-ai-hp-threshold').value) || 0)),
+            notes:        $('s-ai-notes').value.trim() || ''
           } : null
         };
 
@@ -3319,6 +3487,13 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('s-ai-target').value = 'enemy';
         $('s-ai-power').value = 50;
         $('s-ai-priority').value = 5;
+        $('s-ai-condition').value = 'always';
+        $('s-ai-prefer').value = '';
+        $('s-ai-min-targets').value = 0;
+        $('s-ai-avoid-self').value = '0';
+        $('s-ai-hp-threshold').value = 0;
+        $('s-ai-notes').value = '';
+        if (typeof toggleAiDetail === 'function') toggleAiDetail();
         $('scd').value = '2';
         $('sdesc').value = '';
         $('s-pv-shape').value = '';
@@ -3446,10 +3621,16 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           type:        c.querySelector('.s-type').value,
           cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
           aiHint: c.querySelector('.s-ai-type') && c.querySelector('.s-ai-type').value ? {
-            type:     c.querySelector('.s-ai-type').value,
-            target:   c.querySelector('.s-ai-target').value,
-            power:    parseInt(c.querySelector('.s-ai-power').value, 10) || 30,
-            priority: parseInt(c.querySelector('.s-ai-priority').value, 10) || 5
+            type:         c.querySelector('.s-ai-type').value,
+            target:       c.querySelector('.s-ai-target').value,
+            power:        parseInt(c.querySelector('.s-ai-power').value, 10) || 30,
+            priority:     parseInt(c.querySelector('.s-ai-priority').value, 10) || 5,
+            condition:    (c.querySelector('.s-ai-condition') || {}).value || 'always',
+            preferTarget: (c.querySelector('.s-ai-prefer') || {}).value || '',
+            minTargets:   Math.max(0, parseInt((c.querySelector('.s-ai-min-targets') || {}).value, 10) || 0),
+            avoidSelf:    (c.querySelector('.s-ai-avoid-self') || {}).value === '1',
+            hpThreshold:  Math.max(0, Math.min(100, parseInt((c.querySelector('.s-ai-hp-threshold') || {}).value, 10) || 0)),
+            notes:        ((c.querySelector('.s-ai-notes') || {}).value || '').trim()
           } : null,
           trigger:     c.querySelector('.s-trigger').value || null,
           desc:        c.querySelector('.s-desc').value.trim() || '',

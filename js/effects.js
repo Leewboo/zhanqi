@@ -331,6 +331,8 @@
 
       const hint = (Effect._aiContext && Effect._aiContext.hint) || null;
       const targetType = hint ? hint.target : (options.mustEnemy ? 'enemy' : options.mustAlly ? 'ally' : 'cell');
+      const prefer = hint ? (hint.preferTarget || '') : '';
+      const avoidSelf = hint ? (hint.avoidSelf === true) : false;
 
       let best = null, bestScore = -Infinity;
 
@@ -338,7 +340,20 @@
         // 选威胁度最高/血量最低的敌人
         for (const v of valid) {
           if (!v.piece) continue;
+          if (avoidSelf && v.piece === actor) continue;
           let score = Effect._aiThreat(v.piece);
+          // 目标偏好策略
+          if (prefer === 'low_hp') {
+            score = (1 - v.piece.hp / (v.piece.maxHp || 200)) * 200;  // 血越低分越高
+          } else if (prefer === 'high_threat') {
+            score = Effect._aiThreat(v.piece) * 1.5;
+          } else if (prefer === 'nearest') {
+            const dist = Math.abs(v.piece.x - actor.x) + Math.abs(v.piece.y - actor.y);
+            score = 1000 - dist * 10;  // 越近分越高
+          } else if (prefer === 'caster') {
+            // 优先攻击低防高攻的法师型单位
+            score = (v.piece.atk || 0) * 3 - (v.piece.def || 0);
+          }
           // 低血量补刀加成
           if (v.piece.hp <= Effect.getEffectiveAttack(actor)) score *= 2;
           if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
@@ -347,16 +362,25 @@
         // 选血量百分比最低的友军（治疗/增益优先给低血）
         for (const v of valid) {
           if (!v.piece) continue;
+          if (avoidSelf && v.piece === actor) continue;
           const hpPct = v.piece.hp / (v.piece.maxHp || 200);
           // 排除满血友军（治疗无用）
           if (hpPct >= 0.99 && hint && hint.type === 'heal') continue;
-          let score = (1 - hpPct) * 100;
+          let score;
+          if (prefer === 'injured_ally') {
+            score = (1 - hpPct) * 200;  // 残血友军优先
+          } else if (prefer === 'high_threat' && hint && hint.type === 'buff') {
+            score = Effect._aiThreat(v.piece);  // 增益给主力
+          } else {
+            score = (1 - hpPct) * 100;
+          }
           if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
         }
         // 若都是满血，选威胁度最高的友军（增益给主力）
         if (!best && hint && hint.type === 'buff') {
           for (const v of valid) {
             if (!v.piece) continue;
+            if (avoidSelf && v.piece === actor) continue;
             const score = Effect._aiThreat(v.piece);
             if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
           }
