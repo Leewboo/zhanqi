@@ -2,12 +2,17 @@
   const SIZE = Range.BOARD_SIZE;
   const DEFAULT_PICKS = 5;
   let PICKS_PER_SIDE = DEFAULT_PICKS;
+  const DEFAULT_CELL_SIZE = 48;
+  const DEFAULT_DRAFT_POOL_SIZE = 12;
 
   // 游戏设置（从 localStorage 读取）
   const GameSettings = {
     picksPerSide: DEFAULT_PICKS,
     gameMode: 'local', // local | ai
     aiSide: 'blue',    // AI 控制的阵营：'blue'（玩家先手）| 'red'（AI先手）
+    cellSize: DEFAULT_CELL_SIZE,       // 棋盘格子大小（px）
+    draftPoolSize: DEFAULT_DRAFT_POOL_SIZE, // 选将阶段最多显示武将数（0 = 全部）
+    showPortraitInDraft: true,         // 选将时显示立绘
 
     load() {
       try {
@@ -17,9 +22,13 @@
           if (obj.picksPerSide) this.picksPerSide = parseInt(obj.picksPerSide) || DEFAULT_PICKS;
           if (obj.gameMode) this.gameMode = obj.gameMode;
           if (obj.aiSide) this.aiSide = obj.aiSide;
+          if (obj.cellSize) this.cellSize = Math.max(32, Math.min(80, parseInt(obj.cellSize) || DEFAULT_CELL_SIZE));
+          if (typeof obj.draftPoolSize !== 'undefined') this.draftPoolSize = Math.max(0, Math.min(40, parseInt(obj.draftPoolSize) || 0));
+          if (typeof obj.showPortraitInDraft !== 'undefined') this.showPortraitInDraft = obj.showPortraitInDraft === true;
         }
       } catch (e) {}
       PICKS_PER_SIDE = this.picksPerSide;
+      this._applyCellSize();
     },
 
     save() {
@@ -27,8 +36,17 @@
         localStorage.setItem('zhanqi_settings', JSON.stringify({
           picksPerSide: this.picksPerSide,
           gameMode: this.gameMode,
-          aiSide: this.aiSide
+          aiSide: this.aiSide,
+          cellSize: this.cellSize,
+          draftPoolSize: this.draftPoolSize,
+          showPortraitInDraft: this.showPortraitInDraft
         }));
+      } catch (e) {}
+    },
+
+    _applyCellSize() {
+      try {
+        document.documentElement.style.setProperty('--cell-size', this.cellSize + 'px');
       } catch (e) {}
     },
 
@@ -45,6 +63,22 @@
 
     setAiSide(side) {
       this.aiSide = (side === 'red' || side === 'blue') ? side : 'blue';
+      this.save();
+    },
+
+    setCellSize(px) {
+      this.cellSize = Math.max(32, Math.min(80, parseInt(px) || DEFAULT_CELL_SIZE));
+      this._applyCellSize();
+      this.save();
+    },
+
+    setDraftPoolSize(n) {
+      this.draftPoolSize = Math.max(0, Math.min(40, parseInt(n) || 0));
+      this.save();
+    },
+
+    setShowPortraitInDraft(v) {
+      this.showPortraitInDraft = v === true;
       this.save();
     }
   };
@@ -1724,6 +1758,45 @@
         return shape;
       };
 
+      const buildDraftCard = function (g, onClick) {
+        const card = document.createElement('div');
+        card.className = 'draft-card';
+        const showPortrait = GameSettings.showPortraitInDraft !== false;
+        const portraitUrl = g.portrait ? '/portraits/' + g.portrait : null;
+
+        if (showPortrait && portraitUrl) {
+          const imgWrap = document.createElement('div');
+          imgWrap.className = 'draft-card-portrait';
+          const img = document.createElement('img');
+          img.src = portraitUrl;
+          img.alt = g.name;
+          img.onerror = function () { imgWrap.style.display = 'none'; };
+          imgWrap.appendChild(img);
+          card.appendChild(imgWrap);
+        }
+
+        const head = document.createElement('div');
+        head.className = 'draft-card-head';
+        head.textContent = g.name;
+        card.appendChild(head);
+
+        const body = document.createElement('div');
+        body.className = 'draft-card-body';
+        const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
+          if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
+          return s;
+        }).filter(Boolean);
+        body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
+          '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
+          (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
+        card.appendChild(body);
+
+        if (onClick) {
+          card.addEventListener('click', onClick);
+        }
+        return card;
+      };
+
       // 顶部：双方已选清单
       const summary = document.getElementById('draft-summary');
       if (summary) {
@@ -1745,28 +1818,13 @@
           !this.pickedRed.find(p => p.id === g.id) &&
           !this.pickedBlue.find(p => p.id === g.id)
         );
+        const poolLimit = GameSettings.draftPoolSize;
+        const displayPool = (poolLimit > 0 && pool.length > poolLimit) ? pool.slice(0, poolLimit) : pool;
         const self = this;
-        for (const g of pool) {
-          const card = document.createElement('div');
-          card.className = 'draft-card';
-          const head = document.createElement('div');
-          head.className = 'draft-card-head';
-          head.textContent = g.name;
-          const body = document.createElement('div');
-          body.className = 'draft-card-body';
-          const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
-            if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
-            return s;
-          }).filter(Boolean);
-          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
-            '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
-            (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
-          card.appendChild(head);
-          card.appendChild(body);
+        for (const g of displayPool) {
           const draftSide = this.draftIndex % 2 === 0 ? 'red' : 'blue';
-          if (!(this.aiMode && draftSide === this.aiSide)) {
-            card.addEventListener('click', () => self._pickGeneral(g));
-          }
+          const canClick = !(this.aiMode && draftSide === this.aiSide);
+          const card = buildDraftCard(g, canClick ? () => self._pickGeneral(g) : null);
           cards.appendChild(card);
         }
         return;
@@ -1784,24 +1842,12 @@
         cards.innerHTML = '';
         const self = this;
         for (const g of pending) {
-          const card = document.createElement('div');
-          card.className = 'draft-card';
-          if (this.deploySelected && this.deploySelected.id === g.id) card.classList.add('selected');
-          const head = document.createElement('div');
-          head.className = 'draft-card-head';
-          head.textContent = g.name + (this.deploySelected && this.deploySelected.id === g.id ? ' ★' : '');
-          const body = document.createElement('div');
-          body.className = 'draft-card-body';
-          const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
-            if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
-            return s;
-          }).filter(Boolean);
-          body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
-            '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
-            (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
-          card.appendChild(head);
-          card.appendChild(body);
-          card.addEventListener('click', () => self._selectForDeploy(g));
+          const card = buildDraftCard(g, () => self._selectForDeploy(g));
+          if (this.deploySelected && this.deploySelected.id === g.id) {
+            card.classList.add('selected');
+            const headEl = card.querySelector('.draft-card-head');
+            if (headEl) headEl.textContent = g.name + ' ★';
+          }
           cards.appendChild(card);
         }
         const placed = picked.filter(g => placedIds.includes(g.id));
@@ -2653,6 +2699,7 @@
     const settingFullscreen = document.getElementById('setting-fullscreen');
     const settingHome = document.getElementById('setting-home');
     const settingRestart = document.getElementById('setting-restart');
+    const settingDraftPortrait = document.getElementById('setting-draft-portrait');
 
     function updateFsLabel() {
       if (!settingFullscreen) return;
@@ -2730,6 +2777,17 @@
         const v = chip.getAttribute('data-ai-side');
         chip.classList.toggle('active', v === GameSettings.aiSide);
       });
+      document.querySelectorAll('.settings-chip[data-cell-size]').forEach(chip => {
+        const v = parseInt(chip.getAttribute('data-cell-size'));
+        chip.classList.toggle('active', v === GameSettings.cellSize);
+      });
+      document.querySelectorAll('.settings-chip[data-draft-pool]').forEach(chip => {
+        const v = parseInt(chip.getAttribute('data-draft-pool'));
+        chip.classList.toggle('active', v === GameSettings.draftPoolSize);
+      });
+      if (settingDraftPortrait) {
+        settingDraftPortrait.checked = !!GameSettings.showPortraitInDraft;
+      }
       updateFsLabel();
     }
 
@@ -2779,6 +2837,39 @@
         refreshSettingsUi();
       });
     });
+
+    // 选择格子大小
+    document.querySelectorAll('.settings-chip[data-cell-size]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = parseInt(chip.getAttribute('data-cell-size'));
+        GameSettings.setCellSize(v);
+        refreshSettingsUi();
+        if (Game && Game._render) Game._render();
+      });
+    });
+
+    // 选择选将池大小
+    document.querySelectorAll('.settings-chip[data-draft-pool]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const v = parseInt(chip.getAttribute('data-draft-pool'));
+        GameSettings.setDraftPoolSize(v);
+        refreshSettingsUi();
+        if (Game && Game.phase === 'draft' && Game._renderDraftCards) {
+          Game._renderDraftCards();
+        }
+      });
+    });
+
+    // 选将显示立绘开关
+    if (settingDraftPortrait) {
+      settingDraftPortrait.addEventListener('change', () => {
+        GameSettings.setShowPortraitInDraft(settingDraftPortrait.checked);
+        refreshSettingsUi();
+        if (Game && Game.phase === 'draft' && Game._renderDraftCards) {
+          Game._renderDraftCards();
+        }
+      });
+    }
 
     // 点击面板外关闭
     document.addEventListener('pointerdown', (e) => {

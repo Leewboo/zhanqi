@@ -48,6 +48,22 @@
       <div class="settings-section">
         <div class="settings-section-title">显示</div>
         <div class="settings-row">
+          <span class="settings-label">格子大小</span>
+          <div class="settings-select-group">
+            <button class="settings-chip" data-cell-size="36">小</button>
+            <button class="settings-chip" data-cell-size="48">中</button>
+            <button class="settings-chip" data-cell-size="60">大</button>
+            <button class="settings-chip" data-cell-size="72">特大</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">选将显示立绘</span>
+          <label class="settings-switch">
+            <input id="setting-draft-portrait" type="checkbox" checked />
+            <span class="settings-switch-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
           <span class="settings-label">全屏模式</span>
           <button id="setting-fullscreen" class="act-btn small">进入全屏</button>
         </div>
@@ -61,6 +77,15 @@
             <button class="settings-chip" data-picks="5">5v5</button>
             <button class="settings-chip" data-picks="7">7v7</button>
             <button class="settings-chip" data-picks="10">10v10</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">选将池显示数</span>
+          <div class="settings-select-group">
+            <button class="settings-chip" data-draft-pool="8">8</button>
+            <button class="settings-chip" data-draft-pool="12">12</button>
+            <button class="settings-chip" data-draft-pool="20">20</button>
+            <button class="settings-chip" data-draft-pool="0">全部</button>
           </div>
         </div>
         <div class="settings-row">
