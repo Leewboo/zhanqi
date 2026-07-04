@@ -40,6 +40,7 @@
             "n": 1
           },
           "skillIds": [
+            "diy_zhaoyun_longdan",
             "diy_zhaoyun_chongzhen"
           ],
           "portrait": null
@@ -64,10 +65,27 @@
           }
         },
         {
+          "id": "diy_zhaoyun_longdan",
+          "name": "龙胆",
+          "type": "主动",
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "回复40点生命并提升20点防御（持续到回合结束）",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled && actor.hp < actor.maxHp;",
+          "contentCode": "Effect.heal(actor, 40);\nEffect.modifyStat(actor, 'def', 20, 'turnEnd');\nactor.skilled = true;\n",
+          "aiHint": {
+            "type": "heal",
+            "target": "self",
+            "power": 60,
+            "priority": 6
+          }
+        },
+        {
           "id": "diy_zhaoyun_chongzhen",
           "name": "冲阵",
           "type": "被动",
-          "cooldown": 2,
+          "cooldown": 0,
           "trigger": "onMove",
           "desc": "移动后立即对方形一范围内所有敌人造成20点伤害",
           "preview": null,
