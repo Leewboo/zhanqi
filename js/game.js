@@ -714,7 +714,7 @@
 
       if (target && target.alive && target.side === this.currentSide) {
         // 只有未完成所有行动的棋子才能被选中
-        if (target.moved && target.attacked && target.skilled) {
+        if (this._actorDone(target)) {
           return;
         }
         this.selected = target;
@@ -954,12 +954,39 @@
       if (existing) existing.remove();
     },
 
+    // 判断武将本回合是否所有主动技都已用过（无主动技时返回 true）
+    _allSkillsUsed(piece) {
+      if (!piece || !piece.skills) return true;
+      piece.skillUsed = piece.skillUsed || {};
+      const activeSkills = piece.skills.filter(s => s && s.type !== '被动');
+      if (activeSkills.length === 0) return true;
+      return activeSkills.every(s => piece.skillUsed[s.id]);
+    },
+
+    // 判断武将本回合是否用过任意主动技
+    _hasUsedAnySkill(piece) {
+      if (!piece || !piece.skills || !piece.skillUsed) return false;
+      return piece.skills.some(s => s && s.type !== '被动' && piece.skillUsed[s.id]);
+    },
+
+    // 判断武将本回合行动是否全部结束
+    _actorDone(piece) {
+      if (!piece) return true;
+      return piece.moved && piece.attacked && this._allSkillsUsed(piece);
+    },
+
     _castSkill(skill) {
       if (this.phase !== 'battle') return;
       const actor = this.selected;
-      if (!actor || actor.skilled) return;
+      if (!actor) return;
       if (!skill || skill.type === '被动') return;
       actor.cdMap = actor.cdMap || {};
+      actor.skillUsed = actor.skillUsed || {};
+      // 独立判断：本回合此技能是否已用过
+      if (actor.skillUsed[skill.id]) {
+        this.log('【' + skill.name + '】本回合已使用过。');
+        return;
+      }
       if ((actor.cdMap[skill.id] || 0) > 0) {
         this.log('【' + skill.name + '】冷却中（剩余 ' + actor.cdMap[skill.id] + ' 回合）。');
         return;
@@ -969,18 +996,28 @@
         return;
       }
       this.pendingSkillId = null;
-      const beforeSkilled = !!actor.skilled;
+      const beforeUsed = !!actor.skillUsed[skill.id];
       const promise = skill.content(actor);
       this.mode = null;
       const self = this;
       const cooldown = skill.cooldown;
       Promise.resolve(promise).then(function (result) {
-        const actuallyUsed = actor.skilled && !beforeSkilled;
-        if (actuallyUsed) {
-          self.log(actor.name + ' 发动技能：' + skill.name);
+        // 技能代码内应调用 Effect.markSkillUsed(actor, skillId) 来标记
+        // 同时为兼容旧代码，检测 actor.skilled 是否被手动置 true
+        const actuallyUsed = actor.skillUsed[skill.id] && !beforeUsed;
+        const legacyUsed = !actuallyUsed && actor.skilled && !beforeUsed;
+        if (actuallyUsed || legacyUsed) {
+          if (actuallyUsed) {
+            self.log(actor.name + ' 发动技能：' + skill.name);
+          } else {
+            // 旧式代码：actor.skilled = true 但没用 markSkillUsed
+            Effect.markSkillUsed(actor, skill.id);
+            self.log(actor.name + ' 发动技能：' + skill.name);
+          }
           Effect.trigger('onSkillCast', { actor, skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill });
           if (cooldown) actor.cdMap[skill.id] = cooldown;
+          // 仅当所有主动技都用过、或武将移动+攻击+技能都完成时才结束行动
           self._finishActorAction();
         } else {
           // 技能未真正发动（选择非法目标或中途取消）
@@ -992,8 +1029,14 @@
         }
       }).catch(function (e) {
         console.error('[技能代码错误]', skill.name, e);
-        // 技能代码抛出异常时，若已标记 skilled 则仍应用冷却并结束行动
-        if (actor.skilled && !beforeSkilled) {
+        // 技能代码抛出异常时，若已标记使用则仍应用冷却
+        if (actor.skillUsed[skill.id] && !beforeUsed) {
+          self.log(actor.name + ' 发动技能：' + skill.name + '（代码有误，见控制台）');
+          if (cooldown) actor.cdMap[skill.id] = cooldown;
+          self._finishActorAction();
+        } else if (actor.skilled && !beforeUsed) {
+          // 旧式代码兜底
+          Effect.markSkillUsed(actor, skill.id);
           self.log(actor.name + ' 发动技能：' + skill.name + '（代码有误，见控制台）');
           if (cooldown) actor.cdMap[skill.id] = cooldown;
           self._finishActorAction();
@@ -1030,7 +1073,7 @@
 
     _enterMode(mode) {
       if (this.phase !== 'battle') return;
-      if (!this.selected || (this.selected.moved && this.selected.attacked && this.selected.skilled)) return;
+      if (!this.selected || this._actorDone(this.selected)) return;
       const actor = this.selected;
       this.mode = mode;
       this.pendingSkillId = null;
@@ -1141,7 +1184,7 @@
 
     _finishActorAction() {
       const actor = this.selected;
-      if (actor && (!actor.moved || !actor.attacked || !actor.skilled)) {
+      if (actor && !this._actorDone(actor)) {
         // 还有剩余行动点，保持选中状态，仅刷新 UI
         this.mode = null;
         this.highlighted = [];
@@ -1196,7 +1239,7 @@
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => {
-          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; }
+          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; p.skillUsed = {}; }
           if (p.side === 'blue' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -1206,7 +1249,7 @@
         this.currentSide = 'red';
         this.turn += 1;
         this.pieces.forEach(p => {
-          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; }
+          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; p.skillUsed = {}; }
           if (p.side === 'red' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -1461,7 +1504,7 @@
         if (existing) existing.remove();
         if (piece) {
           const p = document.createElement('div');
-          const done = piece.moved && piece.attacked && piece.skilled;
+          const done = this._actorDone(piece);
           const lowHp = piece.hp / piece.maxHp <= 0.3;
           p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
 
@@ -1592,12 +1635,14 @@
       // 技能按钮
       const skillList = a.skills || (a.skill ? [a.skill] : []);
       a.cdMap = a.cdMap || {};
+      a.skillUsed = a.skillUsed || {};
       for (const sk of skillList) {
         if (sk.type === '被动') continue;
         const btn = document.createElement('button');
         btn.className = 'act-btn skill-btn';
         const cdLeft = a.cdMap[sk.id] || 0;
-        const usable = !a.skilled && cdLeft <= 0 && (!sk.filter || sk.filter(a));
+        // 独立判断：本技能是否已用过 + 冷却 + filter
+        const usable = !a.skillUsed[sk.id] && cdLeft <= 0 && (!sk.filter || sk.filter(a));
         let label = sk.name;
         if (sk.cooldown && cdLeft > 0) label += '(' + cdLeft + ')';
         btn.textContent = label;
@@ -1631,13 +1676,16 @@
           const li = document.createElement('li');
           if (this.phase === 'battle') {
             if (!p.alive) li.classList.add('dead');
-            else if (p.moved && p.attacked && p.skilled) li.classList.add('acted');
+            else if (this._actorDone(p)) li.classList.add('acted');
           }
           const nameSpan = document.createElement('span');
           let txt = p.name;
           if (this.phase === 'battle') txt += ' ' + (p.alive ? p.hp : '亡');
-          if (this.phase === 'battle' && (p.moved || p.attacked || p.skilled)) {
-            txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + (p.skilled ? '技' : '') + ']';
+          if (this.phase === 'battle' && (p.moved || p.attacked || this._hasUsedAnySkill(p))) {
+            const activeCount = (p.skills || []).filter(s => s && s.type !== '被动').length;
+            const usedCount = activeCount > 0 ? (p.skills || []).filter(s => s && s.type !== '被动' && p.skillUsed && p.skillUsed[s.id]).length : 0;
+            const skillTag = activeCount > 0 ? (usedCount + '/' + activeCount) : (this._hasUsedAnySkill(p) ? '技' : '');
+            txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + (skillTag ? '技' + skillTag : '') + ']';
           }
           nameSpan.textContent = txt;
           nameSpan.style.marginRight = '4px';
@@ -1934,7 +1982,7 @@
     _aiBattleStep() {
       const side = this.currentSide;
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
-      const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
+      const cand = myAlive.find(p => !this._actorDone(p));
       if (!cand) {
         // 所有人都已行动，解锁后调用 endTurn() 切换回合
         this._turnEnding = false;
@@ -1947,7 +1995,10 @@
       const action = this._aiPickBestAction(actor);
       if (!action) {
         // 没有可行行动，标记完成
-        actor.moved = true; actor.attacked = true; actor.skilled = true;
+        actor.moved = true; actor.attacked = true;
+        actor.skilled = true;
+        actor.skillUsed = actor.skillUsed || {};
+        if (actor.skills) actor.skills.forEach(s => { if (s && s.type !== '被动') actor.skillUsed[s.id] = true; });
         this._render(); this._renderBottom();
         this._scheduleNext();
         return;
@@ -1960,7 +2011,10 @@
       } else if (action.type === 'move') {
         this._aiExecuteMoveAndAttack(actor, action.dest);
       } else {
-        actor.moved = true; actor.attacked = true; actor.skilled = true;
+        actor.moved = true; actor.attacked = true;
+        actor.skilled = true;
+        actor.skillUsed = actor.skillUsed || {};
+        if (actor.skills) actor.skills.forEach(s => { if (s && s.type !== '被动') actor.skillUsed[s.id] = true; });
         this._render(); this._renderBottom();
         this._scheduleNext();
       }
@@ -1971,10 +2025,12 @@
       const side = actor.side;
       let best = { score: -1, type: 'wait' };
 
-      // 1) 评估所有可用主动技能
-      if (!actor.skilled && actor.skills) {
+      // 1) 评估所有可用主动技能（独立判断每个技能是否本回合已用）
+      actor.skillUsed = actor.skillUsed || {};
+      if (actor.skills) {
         for (const skill of actor.skills) {
           if (skill.type === '被动') continue;
+          if (actor.skillUsed[skill.id]) continue;  // 本回合已用
           actor.cdMap = actor.cdMap || {};
           if ((actor.cdMap[skill.id] || 0) > 0) continue;
           if (skill.filter && !skill.filter(actor)) continue;
@@ -2183,11 +2239,13 @@
       setTimeout(function () {
         if (self.over) { return; }
         if (!actor.alive || actor.attacked) { self._scheduleNext(); return; }
-        // 移动后再评估一次：可能有更好的技能可用
-        if (!actor.skilled && actor.skills) {
+        // 移动后再评估一次：可能有更好的技能可用（独立判断每个技能）
+        actor.skillUsed = actor.skillUsed || {};
+        if (actor.skills) {
           let bestSkill = null, bestScore = -1;
           for (const skill of actor.skills) {
             if (skill.type === '被动') continue;
+            if (actor.skillUsed[skill.id]) continue;  // 本回合已用
             actor.cdMap = actor.cdMap || {};
             if ((actor.cdMap[skill.id] || 0) > 0) continue;
             if (skill.filter && !skill.filter(actor)) continue;

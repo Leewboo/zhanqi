@@ -282,8 +282,28 @@
       actor.moved = false;
       actor.attacked = false;
       actor.skilled = false;
+      actor.skillUsed = {};
       if (global.Game) global.Game.log(actor.name + ' 恢复行动（可再次移动、攻击与使用技能）！', 'turn');
       return true;
+    },
+
+    // 标记武将的某个主动技本回合已使用（用于独立 skilled 系统）
+    // skillId 可以是字符串或技能对象
+    markSkillUsed(actor, skillId) {
+      if (!actor) return;
+      if (skillId && typeof skillId === 'object') skillId = skillId.id;
+      if (!skillId) return;
+      actor.skillUsed = actor.skillUsed || {};
+      actor.skillUsed[skillId] = true;
+      // 同步更新总和标记（向后兼容）
+      actor.skilled = true;
+    },
+
+    // 查询武将的某个主动技本回合是否已使用
+    isSkillUsed(actor, skillId) {
+      if (!actor || !actor.skillUsed) return false;
+      if (skillId && typeof skillId === 'object') skillId = skillId.id;
+      return !!actor.skillUsed[skillId];
     },
 
     // ========== AI 自动选择系统 ==========

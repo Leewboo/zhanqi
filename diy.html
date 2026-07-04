@@ -1501,16 +1501,30 @@
     <div class="collapsible">
       <div class="collapsible-head">▶ 主动技能示例<span class="arrow">›</span></div>
       <div class="collapsible-body">
-        <p>filter：<code>return actor &amp;&amp; actor.alive &amp;&amp; !actor.skilled;</code></p>
+        <p>filter：<code>return actor &amp;&amp; actor.alive &amp;&amp; !Effect.isSkillUsed(actor, skill.id);</code></p>
         <pre><code class="language-javascript">const target = await Effect.chooseEnemy(actor, {
   range: { shape: "+", n: 3 },
   hintText: "请选择敌人"
 });
 if (!target) return false;
-actor.skilled = true;
+Effect.markSkillUsed(actor, skill.id);  // 标记本技能已用（每个技能独立）
 Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });
 global.Game.log(actor.name + " 发动技能！");
 return true;</code></pre>
+        <p style="margin-top:8px;color:#888;font-size:12px;">提示：每个主动技独立计数，武将一回合可释放多个不同主动技。被动技无需调用 markSkillUsed。</p>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ 独立技能计数系统<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p><b>核心机制</b>：每个主动技本回合可独立释放一次。一个武将拥有多个主动技时，可以分别释放，互不影响。</p>
+        <p style="margin-top:6px;"><b>filter 中检查（推荐）</b>：</p>
+        <pre><code class="language-javascript">return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);</code></pre>
+        <p style="margin-top:6px;"><b>content 中标记（推荐）</b>：</p>
+        <pre><code class="language-javascript">Effect.markSkillUsed(actor, skill.id);</code></pre>
+        <p style="margin-top:6px;"><b>战报显示</b>：侧栏每个主动技显示「已用/总数」，如「技 1/2」表示本回合已用 1 个、共 2 个主动技。</p>
+        <p style="margin-top:6px;"><b>回合重置</b>：每个回合开始时所有主动技自动重置为「未使用」。</p>
+        <p style="margin-top:6px;color:#888;font-size:12px;">兼容说明：旧式 <code>actor.skilled = true</code> 仍可工作，引擎会自动转换为 <code>Effect.markSkillUsed</code>，仅禁用当前技能而非全部主动技。新代码请直接使用 <code>Effect.markSkillUsed</code>。</p>
       </div>
     </div>
     <div class="collapsible">
@@ -1571,6 +1585,8 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
           <div class="api-tag"><b>Effect.unmark(target, name)</b> — 移除标记</div>
           <div class="api-tag"><b>Effect.hasMark(target, name)</b> — 是否有某标记</div>
           <div class="api-tag"><b>Effect.modifyMoveRange(target, delta, turns)</b> — 增减移动力</div>
+          <div class="api-tag"><b>Effect.markSkillUsed(actor, skill.id)</b> — 标记本技能本回合已用（独立计数）</div>
+          <div class="api-tag"><b>Effect.isSkillUsed(actor, skill.id)</b> — 查询本技能本回合是否已用</div>
         </div>
       </div>
     </div>
@@ -1930,7 +1946,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                   <button class="fullscreen-btn" title="全屏编辑">⤢</button>
                 </div>
                 <div class="hl-layer"><pre><code></code></pre></div>
-                <textarea id="s-filter" class="code-input" spellcheck="false">return actor && actor.alive && !actor.skilled;</textarea>
+                <textarea id="s-filter" class="code-input" spellcheck="false">return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);</textarea>
               </div>
             </div>
 
@@ -2244,8 +2260,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       { sig: 'Effect.resetMove(actor)', desc: '仅恢复移动权限', isNew: true, insert: 'Effect.resetMove(actor);' },
       { sig: 'Effect.resetAttack(actor)', desc: '仅恢复攻击权限', isNew: true, insert: 'Effect.resetAttack(actor);' },
       { sig: 'Effect.resetSkill(actor, skillId)', desc: '仅恢复技能权限（可选：清除指定技能冷却）', isNew: true, insert: 'Effect.resetSkill(actor);\n// 或 Effect.resetSkill(actor, \'mySkillId\'); // 同时清冷却' },
-      { group: '状态标志' },
-      { sig: 'actor.skilled = true', desc: '标记技能已使用（主动技能必须设置）', insert: 'actor.skilled = true;' },
+      { group: '状态标志（独立技能计数）' },
+      { sig: 'Effect.markSkillUsed(actor, skill.id)', desc: '标记本技能已用（推荐·每技能独立计数）', insert: 'Effect.markSkillUsed(actor, skill.id);', isNew: true },
+      { sig: 'Effect.isSkillUsed(actor, skill.id)', desc: '查询本技能本回合是否已用（filter 推荐）', insert: '!Effect.isSkillUsed(actor, skill.id)', isNew: true },
+      { sig: 'actor.skilled = true', desc: '旧式总和标记（兼容；引擎会自动转换为 markSkillUsed，仅禁用本技能）', insert: 'actor.skilled = true;' },
       { sig: 'actor.moved = false', desc: '手动恢复移动标志', insert: 'actor.moved = false;' },
       { sig: 'actor.attacked = false', desc: '手动恢复攻击标志', insert: 'actor.attacked = false;' },
       { sig: 'actor.cdMap[sk.id] = 0', desc: '手动清除某技能的冷却', insert: 'actor.cdMap[actor.skills[0].id] = 0;' },
@@ -2275,7 +2293,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '  hintText: "【技能名】请选择敌人"',
         '});',
         'if (!target) return false;',
-        'actor.skilled = true;',
+        'Effect.markSkillUsed(actor, skill.id);',
         'Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });',
         'global.Game.log(actor.name + " 发动【技能名】！");',
         'return true;'
@@ -2290,7 +2308,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '  hintText: "【技能名】请选择落点"',
         '});',
         'if (!cell) return false;',
-        'actor.skilled = true;',
+        'Effect.markSkillUsed(actor, skill.id);',
         'Effect.teleport(actor, cell.x, cell.y);',
         'const cells = Range.cellsInRange("r", 1, actor.x, actor.y, { includeSelf: false });',
         'for (const c of cells) {',
@@ -2310,7 +2328,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '  hintText: "【链式】请选择初始目标"',
         '});',
         'if (!target) return false;',
-        'actor.skilled = true;',
+        'Effect.markSkillUsed(actor, skill.id);',
         '// 弹射 3 次，每次伤害衰减为 60%',
         'Effect.chain(actor, target, Effect.getEffectiveAttack(actor), 3, { decay: 0.6 });',
         'return true;'
@@ -2325,7 +2343,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '  hintText: "【换位毒】请选择目标"',
         '});',
         'if (!target) return false;',
-        'actor.skilled = true;',
+        'Effect.markSkillUsed(actor, skill.id);',
         'Effect.swap(actor, target);',
         'Effect.poison(target, 25, 3);',
         'return true;'
@@ -2340,7 +2358,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '  hintText: "【召唤】请选择落点"',
         '});',
         'if (!cell) return false;',
-        'actor.skilled = true;',
+        'Effect.markSkillUsed(actor, skill.id);',
         'Effect.summonUnit(actor, cell.x, cell.y, {',
         '  name: "召唤物",',
         '  hp: 80, atk: 20, def: 10,',
@@ -2710,7 +2728,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   // 技能卡片：动态添加/删除
   // ============================================================
   var skillIdx = 0;
-  var FILTER_DEFAULT = 'return actor && actor.alive && !actor.skilled;';
+  var FILTER_DEFAULT = 'return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);';
   var CONTENT_DEFAULT = [
     '// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害',
     'const target = await Effect.chooseEnemy(actor, {',
@@ -2718,7 +2736,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
     '  hintText: "请选择敌人"',
     '});',
     'if (!target) return false;',
-    'actor.skilled = true;',
+    'Effect.markSkillUsed(actor, skill.id);  // 标记本技能已用（每个技能独立）',
     'Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });',
     'global.Game.log(actor.name + " 发动技能！");',
     'return true;'
@@ -3323,7 +3341,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         $('sdesc').value = '';
         $('s-pv-shape').value = '';
         $('s-pv-n').value = '3';
-        $('s-filter').value = 'return actor && actor.alive && !actor.skilled;';
+        $('s-filter').value = 'return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);';
         $('s-content').value = '';
         $('btn-skill-submit').textContent = '✓ 提交技能';
         setupCodeEditor($('s-filter-editor'));
