@@ -1286,6 +1286,11 @@
           p.moved = true;
           p.attacked = true;
           p.skilled = true;
+          // 眩晕时同步把所有主动技标记为已用，避免独立计数系统留下未用技能
+          if (p.skills) {
+            p.skillUsed = p.skillUsed || {};
+            p.skills.forEach(s => { if (s && s.type !== '被动') p.skillUsed[s.id] = true; });
+          }
           this.log(p.name + ' 处于眩晕状态，跳过行动。', 'turn');
           // 眩晕回合数 -1
           for (const m of stunMarks) {
@@ -1594,7 +1599,14 @@
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
       if (a.attacked) stateParts.push('已攻击');
-      if (a.skilled) stateParts.push('已技能');
+      // 技能状态：显示已用/总数
+      const aActive = (a.skills || []).filter(s => s && s.type !== '被动');
+      if (aActive.length > 0) {
+        const aUsed = aActive.filter(s => a.skillUsed && a.skillUsed[s.id]).length;
+        stateParts.push('技 ' + aUsed + '/' + aActive.length);
+      } else if (a.skilled) {
+        stateParts.push('已技能');
+      }
       // 关键标记显示
       const marks = Effect ? Effect.getMarksOn(a) : [];
       const markLabels = [];
@@ -1702,7 +1714,7 @@
 
           if (this.phase === 'battle') {
             li.addEventListener('click', () => {
-              if (!p.alive || (p.moved && p.attacked && p.skilled)) return;
+              if (!p.alive || this._actorDone(p)) return;
               this.selected = p;
               this.mode = null;
               this.highlighted = [];

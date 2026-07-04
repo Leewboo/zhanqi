@@ -243,7 +243,7 @@ app.use(async (ctx, next) => {
           trigger:     s.trigger || null,
           desc:        String(s.desc || ''),
           preview:     s.preview ? validateRange(s.preview, null) : null,
-          filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
+          filterCode:  String(s.filterCode  || 'return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);'),
           contentCode: String(s.contentCode || ''),
           aiHint:     s.aiHint ? {
             type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
@@ -407,7 +407,7 @@ app.use(async (ctx, next) => {
       trigger:     skill.trigger || null,
       desc:        String(skill.desc || ''),
       preview:     skill.preview ? validateRange(skill.preview, null) : null,
-      filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
+      filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);'),
       contentCode: String(skill.contentCode || ''),
       aiHint:      skill.aiHint ? {
         type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(skill.aiHint.type) ? skill.aiHint.type : 'mixed',
