@@ -1872,9 +1872,11 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                   <span class="hint">被动技能必填</span>
                 </td>
               </tr>
-              <tr><th>冷却</th><td><input type="number" id="scd" value="2" min="0" max="20" /></td></tr>
+              <tr class="s-row-active" id="s-row-cd">
+                <th>冷却</th><td><input type="number" id="scd" value="2" min="0" max="20" /></td>
+              </tr>
               <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
-              <tr>
+              <tr class="s-row-active" id="s-row-preview">
                 <th>预览范围</th>
                 <td>
                   <select id="s-pv-shape">
@@ -1887,7 +1889,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                   半径 <input type="number" id="s-pv-n" value="3" min="1" max="10" style="width:60px;" />
                 </td>
               </tr>
-              <tr>
+              <tr class="s-row-active" id="s-row-ai">
                 <th>AI 提示</th>
                 <td>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1920,7 +1922,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             </table>
 
             <!-- 技能代码编辑器 -->
-            <div class="form-row">
+            <div class="form-row s-row-active" id="s-row-filter">
               <label>filter（判断是否可施放）</label>
               <div class="code-editor" id="s-filter-editor">
                 <div class="code-editor-header">
@@ -2761,7 +2763,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             '<th>id</th><td><input type="text" class="s-id" value="' + escapeHtmlAttr(p.id || '') + '" placeholder="skill1" /></td>' +
             '<th>name</th><td><input type="text" class="s-name" value="' + escapeHtmlAttr(p.name || '') + '" placeholder="技能名" /></td>' +
         '</tr>' +
-        '<tr class="s-new-fields">' +
+        '<tr class="s-new-fields s-active-only">' +
             '<th>type</th><td>' +
                 '<select class="s-type">' +
                   '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
@@ -2771,7 +2773,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
         '</tr>' +
         '<tr class="s-new-fields">' +
             '<th>trigger</th><td>' +
-                '<select class="s-trigger">' +
+                '<select class="s-trigger s-passive-field">' +
                   '<option value="">无（主动）</option>' +
                   '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
                   '<option value="onKilled"' + (p.trigger === 'onKilled' ? ' selected' : '') + '>onKilled（被击杀时）</option>' +
@@ -2785,7 +2787,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
                 '</select></td>' +
             '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td>' +
         '</tr>' +
-        '<tr class="s-new-fields"><th>AI</th><td colspan="3">' +
+        '<tr class="s-new-fields s-active-only"><th>AI</th><td colspan="3">' +
             '<select class="s-ai-type">' +
               '<option value="">不启用AI</option>' +
               '<option value="damage"' + (p.aiHint && p.aiHint.type === 'damage' ? ' selected' : '') + '>伤害</option>' +
@@ -2809,7 +2811,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             ' 威力 <input type="number" class="s-ai-power" value="' + (p.aiHint ? (p.aiHint.power || 50) : 50) + '" min="0" max="200" style="width:60px" />' +
             ' 优先级 <input type="number" class="s-ai-priority" value="' + (p.aiHint ? (p.aiHint.priority || 5) : 5) + '" min="1" max="10" style="width:50px" />' +
         '</td></tr>' +
-        '<tr class="s-new-fields"><th>预览范围</th><td colspan="3">' +
+        '<tr class="s-new-fields s-active-only"><th>预览范围</th><td colspan="3">' +
             '形状 <select class="s-pv-shape">' +
               '<option value="">不预览</option>' +
               '<option value="+"' + (p.previewShape === '+' ? ' selected' : '') + '>十字 +</option>' +
@@ -2820,7 +2822,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
             ' 半径 <input type="number" class="s-pv-n" value="' + ((p.previewN !== undefined && p.previewN !== null) ? p.previewN : 3) + '" min="1" max="12" style="width:72px" />' +
         '</td></tr>' +
       '</table>' +
-      '<div class="s-new-fields" style="margin-top: 12px;">' +
+      '<div class="s-new-fields s-active-only" style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>' +
         buildEditorBlock('filter', 's-filter', (p.filter !== undefined ? p.filter : FILTER_DEFAULT), 100) +
       '</div>' +
@@ -2831,7 +2833,33 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
 
     var modeSel = div.querySelector('.s-mode');
     var refSel = div.querySelector('.s-ref');
+    var typeSel = div.querySelector('.s-type');
     var newFields = div.querySelectorAll('.s-new-fields');
+    var activeOnlyEls = div.querySelectorAll('.s-active-only');
+    var passiveFields = div.querySelectorAll('.s-passive-field');
+
+    function toggleSkillType() {
+      var isPassive = typeSel.value === '被动';
+      activeOnlyEls.forEach(function (f) {
+        f.style.display = isPassive ? 'none' : '';
+      });
+      // 被动技能：trigger 必填且高亮；主动技能：trigger 隐藏选项提示
+      passiveFields.forEach(function (f) {
+        if (f.tagName === 'SELECT') {
+          // 被动时若 trigger 为空，提示选择触发时机
+          if (isPassive && !f.value) {
+            f.style.opacity = '0.6';
+          } else {
+            f.style.opacity = '';
+          }
+        }
+      });
+      // 被动技能：清空不应有的字段值，避免提交错误数据
+      if (isPassive) {
+        var cdInput = div.querySelector('.s-cd');
+        if (cdInput) cdInput.value = '0';
+      }
+    }
 
     function toggleSkillMode() {
       var mode = modeSel.value;
@@ -2839,8 +2867,10 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       newFields.forEach(function (f) {
         f.style.display = mode === 'new' ? '' : 'none';
       });
+      toggleSkillType();
     }
     modeSel.addEventListener('change', toggleSkillMode);
+    if (typeSel) typeSel.addEventListener('change', toggleSkillType);
     toggleSkillMode();
 
     fetch('/api/skill/list')
@@ -2882,6 +2912,26 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
   // 初始化：按钮绑定 + 默认技能卡片 + 教程区高亮
   // ============================================================
   function initDiyPage() {
+    // 独立技能表单：根据 type 切换字段显示
+    var stype = $('stype');
+    function toggleStype() {
+      if (!stype) return;
+      var isPassive = stype.value === '被动';
+      var activeRows = qsa('.s-row-active');
+      activeRows.forEach(function (el) {
+        el.style.display = isPassive ? 'none' : '';
+      });
+      // 被动技能：冷却置 0
+      if (isPassive) {
+        var scd = $('scd');
+        if (scd) scd.value = '0';
+      }
+    }
+    if (stype) {
+      stype.addEventListener('change', toggleStype);
+      toggleStype();
+    }
+
     // 悬浮教程面板 toggle
     var tutBtn = $('tutorial-toggle');
     var tutPanel = $('tutorial-panel');
@@ -3152,6 +3202,7 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
               $('sid').value = s.id.replace(/^skill_/, '');
               $('sname').value = s.name;
               $('stype').value = s.type === '被动' ? '被动' : '主动';
+              toggleStype();
               $('strigger').value = s.trigger || '';
               $('scd').value = s.cooldown || 2;
               $('sdesc').value = s.desc || '';
