@@ -44,8 +44,7 @@
       alive: true,
       moved: false,
       attacked: false,
-      skilled: false,        // 总和标记：本回合是否用过任意主动技（向后兼容）
-      skillUsed: {},         // 独立标记：{ [skillId]: true } 每个技能本回合是否已用
+      skilled: false,
       cd: 0,
       cdMap: {},
       atkBuff: 0,

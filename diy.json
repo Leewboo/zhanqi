@@ -55,8 +55,8 @@
           "trigger": null,
           "desc": "额外获得一次攻击机会并恢复30点体力",
           "preview": null,
-          "filterCode": "return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id);",
-          "contentCode": "actor.attacked = false;\nEffect.markSkillUsed(actor, skill.id);\nEffect.heal(actor, 30);\n",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "actor.attacked = false;\nactor.skilled = true;\nEffect.heal(actor, 30);\n",
           "aiHint": {
             "type": "damage",
             "target": "enemy",
@@ -72,8 +72,8 @@
           "trigger": null,
           "desc": "回复20点生命并提升20点防御",
           "preview": null,
-          "filterCode": "return actor && actor.alive && !Effect.isSkillUsed(actor, skill.id) && actor.hp < actor.maxHp;",
-          "contentCode": "Effect.heal(actor, 20);\nEffect.shield(actor, 20);\nEffect.markSkillUsed(actor, skill.id);\n",
+          "filterCode": "return actor && actor.alive && !actor.skilled && actor.hp < actor.maxHp;",
+          "contentCode": "Effect.heal(actor, 20);\nEffect.shield(actor, 20);\nactor.skilled = true;\n",
           "aiHint": {
             "type": "heal",
             "target": "self",
@@ -90,7 +90,7 @@
           "desc": "移动后立即对方形一范围内所有敌人造成20点伤害",
           "preview": null,
           "filterCode": "return actor && actor.alive",
-          "contentCode": "var cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: false });\n  }\n}\n",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = global.Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side) {\n    Effect.damage(actor, t, 20, { ignoreDef: false });\n  }\n}\n",
           "aiHint": null
         }
       ]

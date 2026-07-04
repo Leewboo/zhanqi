@@ -21,22 +21,18 @@
   function compileSkill(def) {
     if (!def || !def.id) return null;
 
-    // filter 接收 (actor, skill)，skill 为编译后的技能对象本身
-    // 这样 filter 内可使用 skill.id 进行独立计数判断
     const filterFn = new Function(
-      'actor', 'skill',
+      'actor',
       (def.filterCode || 'return actor && actor.alive;')
     );
 
     // content 需要 async，因为里面可以 await Effect.chooseEnemy 等
-    // content 内可通过 skill.id 调用 Effect.markSkillUsed
     const contentFn = new Function(
-      'actor', 'skill',
+      'actor',
       'return (async () => { ' + (def.contentCode || '') + ' \n})();'
     );
 
-    let compiled = null;
-    compiled = {
+    const compiled = {
       id: def.id,
       name: def.name || def.id,
       type: def.type === '被动' ? '被动' : '主动',
@@ -45,10 +41,10 @@
       desc: def.desc || '',
       preview: def.preview || null,
       aiHint: def.aiHint || null,
-      filter: function (actor) { return filterFn(actor, compiled); },
+      filter: filterFn,
       content: function (actor) {
         try {
-          return contentFn(actor, compiled);
+          return contentFn(actor);
         } catch (e) {
           console.error('[DIY 技能执行错误] ' + def.id, e);
           if (global.Game) global.Game.log('【' + (def.name || def.id) + '】脚本执行错误：' + e.message);
