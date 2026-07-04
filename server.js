@@ -406,7 +406,13 @@ app.use(async (ctx, next) => {
       desc:        String(skill.desc || ''),
       preview:     skill.preview ? validateRange(skill.preview, null) : null,
       filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
-      contentCode: String(skill.contentCode || '')
+      contentCode: String(skill.contentCode || ''),
+      aiHint:      skill.aiHint ? {
+        type:     ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(skill.aiHint.type) ? skill.aiHint.type : 'mixed',
+        target:   ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(skill.aiHint.target) ? skill.aiHint.target : 'enemy',
+        power:    Math.max(0, Math.min(200, parseInt(skill.aiHint.power) || 30)),
+        priority: Math.max(1, Math.min(10, parseInt(skill.aiHint.priority) || 5))
+      } : null
     };
 
     const store = readStore();
