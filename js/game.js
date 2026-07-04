@@ -992,13 +992,14 @@
         }
       }).catch(function (e) {
         console.error('[技能代码错误]', skill.name, e);
+        const errMsg = (e && e.message) ? e.message : String(e);
         // 技能代码抛出异常时，若已标记 skilled 则仍应用冷却并结束行动
         if (actor.skilled && !beforeSkilled) {
-          self.log(actor.name + ' 发动技能：' + skill.name + '（代码有误，见控制台）');
+          self.log(actor.name + ' 发动技能：' + skill.name + '（代码有误：' + errMsg + '）');
           if (cooldown) actor.cdMap[skill.id] = cooldown;
           self._finishActorAction();
         } else {
-          self.log('【' + skill.name + '】执行出错，请检查代码。');
+          self.log('【' + skill.name + '】执行出错：' + errMsg);
           self.pendingSkillId = null;
           self._render();
           self._renderBottom();

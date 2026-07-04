@@ -98,7 +98,6 @@ const CACHE_SHORT = 60 * 60;
 const EXT_LONG  = new Set(['.woff', '.woff2', '.ttf', '.otf', '.eot',
                             '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico',
                             '.mp3', '.ogg', '.wav']);
-const EXT_SHORT = new Set(['.js', '.css']);
 
 app.use(async (ctx, next) => {
   await next();
@@ -106,9 +105,8 @@ app.use(async (ctx, next) => {
   const ext = path.extname(ctx.path).toLowerCase();
   if (EXT_LONG.has(ext)) {
     ctx.set('Cache-Control', `public, max-age=${CACHE_LONG}, immutable`);
-  } else if (EXT_SHORT.has(ext)) {
-    ctx.set('Cache-Control', `public, max-age=${CACHE_SHORT}`);
   } else {
+    // .js / .css / .html 等代码文件一律不缓存，避免浏览器使用旧版导致新 API 失效
     ctx.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
 });
