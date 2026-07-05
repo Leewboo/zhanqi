@@ -4465,6 +4465,7 @@ async function content(actor) {
               name:         s.name || '',
               type:         s.type || '主动',
               cooldown:     s.cooldown != null ? s.cooldown : 0,
+              limited:      s.limited === true,
               trigger:      s.trigger || '',
               desc:         s.desc || '',
               aiHint:       s.aiHint || null,
