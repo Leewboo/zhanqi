@@ -192,7 +192,8 @@
             "n": 1
           },
           "skillIds": [
-            "diy_ganning_jinfan"
+            "diy_ganning_jinfan",
+            "diy_ganning_jieying"
           ],
           "portrait": "pt_mr7aoplspdtdbr.png"
         }
@@ -245,6 +246,33 @@
             "avoidSelf": true,
             "hpThreshold": 0,
             "notes": ""
+          }
+        },
+        {
+          "id": "diy_ganning_jieying",
+          "name": "劫营",
+          "type": "主动",
+          "limited": true,
+          "cooldown": 0,
+          "trigger": null,
+          "desc": "限定技。选择4格范围内一个空格突袭至该位置，对落点十字1格范围内所有敌人造成120%攻击力伤害。若本次击杀至少1名敌人，立即恢复全部行动（可再次移动、攻击、使用技能）。",
+          "preview": {
+            "shape": "r",
+            "n": 4
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const cell = await Effect.chooseCell(actor, {\n  range: { shape: \"r\", n: 4 },\n  mustEmpty: true,\n  hintText: \"选择突袭目标位置\"\n});\nif (!cell) return false;\nactor.skilled = true;\nEffect.teleport(actor, cell.x, cell.y);\nGame.log(actor.name + \" 夜袭敌营！\");\nconst aoeCells = Range.cellsInRange(\"+\", 1, cell.x, cell.y, { includeSelf: true });\nlet killCount = 0;\nfor (const c of aoeCells) {\n  const enemy = Game.pieceAt(c.x, c.y);\n  if (enemy && enemy.alive && enemy.side !== actor.side) {\n    const hpBefore = enemy.hp;\n    Effect.damage(actor, enemy, Effect.getEffectiveAttack(actor), { mul: 1.2 });\n    if (hpBefore > 0 && !enemy.alive) killCount++;\n  }\n}\nGame.log(\"【劫营】波及 \" + aoeCells.length + \" 格，击杀 \" + killCount + \" 人！\");\nif (killCount > 0) {\n  Effect.resetAction(actor);\n  Game.log(actor.name + \" 劫营得手，士气大振，恢复全部行动！\", \"turn\");\n}\nreturn true;",
+          "aiHint": {
+            "type": "aoe_damage",
+            "target": "cell",
+            "power": 80,
+            "priority": 8,
+            "condition": "has_target",
+            "preferTarget": "nearest",
+            "minTargets": 1,
+            "avoidSelf": true,
+            "hpThreshold": 0,
+            "notes": "优先突袭敌人密集区域，击杀可恢复行动"
           }
         }
       ]

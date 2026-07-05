@@ -1708,6 +1708,37 @@ global.Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ 限定技与临时技能<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p style="margin-top:8px;"><b>限定技 <code>limited</code></b>：在技能定义中设置 <code>limited: true</code> 即可将技能标记为限定技。限定技每局游戏只能使用一次，使用后按钮变为禁用状态并显示"已用"。</p>
+        <pre><code class="language-javascript">// DIY 技能定义示例
+{
+  id: "diy_ganning_jieying",
+  name: "劫营",
+  type: "主动",
+  limited: true,    // 限定技：本局仅一次
+  cooldown: 0,
+  desc: "限定技。突袭至目标位置..."
+}</code></pre>
+        <p style="margin-top:8px;"><b>临时技能 <code>Effect.gainTmpSkill</code></b>：给棋子临时添加一个技能，支持多种过期方式。</p>
+        <pre><code class="language-javascript">// 持续到下回合开始（回合开始时递减）
+Effect.gainTmpSkill(actor, 'skillId', { turnsAtStart: 1 });
+
+// 持续2回合（每回合结束时递减）
+Effect.gainTmpSkill(actor, 'skillId', { turns: 2 });
+
+// 使用技能后消失（触发 onSkillCast 事件时移除）
+Effect.gainTmpSkill(actor, 'skillId', { expiresOn: 'onSkillCast' });
+
+// 第5回合结束时消失
+Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });
+
+// 手动移除
+Effect.loseTmpSkill(actor, tmpId);
+Effect.loseAllTmpSkills(actor);</code></pre>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ 范围形状<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <p><code>{ shape: "+", n: 3 }</code> 十字形 · <code>{ shape: "square", n: 2 }</code> 方形 · <code>{ shape: "r", n: 2 }</code> 圆形 · <code>{ shape: "x", n: 2 }</code> X 形</p>
@@ -2232,6 +2263,9 @@ async function content(actor) {
               </tr>
               <tr id="s-row-cd">
                 <th>冷却</th><td><input type="number" id="scd" value="0" min="0" max="20" /></td>
+              </tr>
+              <tr>
+                <th>限定技</th><td><label style="font-size:12px;color:#666;"><input type="checkbox" id="slimited" /> 限定技（本局游戏只能使用一次）</label></td>
               </tr>
               <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
               <tr class="s-row-active" id="s-row-preview">
@@ -3366,6 +3400,9 @@ async function content(actor) {
             '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 0) + '" min="0" max="20" /></td>' +
         '</tr>' +
         '<tr class="s-new-fields">' +
+            '<th>限定技</th><td colspan="3"><label style="font-size:11px;color:#666;"><input type="checkbox" class="s-limited"' + (p.limited ? ' checked' : '') + ' /> 本局仅一次</label></td>' +
+        '</tr>' +
+        '<tr class="s-new-fields">' +
             '<th>trigger</th><td>' +
                 '<select class="s-trigger s-passive-field">' +
                   '<option value="">无（主动）</option>' +
@@ -3836,6 +3873,7 @@ async function content(actor) {
               toggleStype();
               $('strigger').value = s.trigger || '';
               $('scd').value = s.cooldown != null ? s.cooldown : 0;
+              $('slimited').checked = s.limited === true;
               $('sdesc').value = s.desc || '';
               if (s.preview && s.preview.shape) {
                 $('s-pv-shape').value = s.preview.shape;
@@ -3913,6 +3951,7 @@ async function content(actor) {
           type: $('stype').value,
           trigger: $('strigger').value || null,
           cooldown: parseInt($('scd').value) || 0,
+          limited: $('slimited').checked,
           desc: $('sdesc').value,
           preview: (function () {
             var sh = $('s-pv-shape').value;
@@ -4098,6 +4137,7 @@ async function content(actor) {
           name:        c.querySelector('.s-name').value.trim() || ('未命名技能 ' + (i + 1)),
           type:        c.querySelector('.s-type').value,
           cooldown:    parseInt(c.querySelector('.s-cd').value, 10) || 0,
+          limited:     c.querySelector('.s-limited') ? c.querySelector('.s-limited').checked : false,
           aiHint: c.querySelector('.s-ai-type') && c.querySelector('.s-ai-type').value ? {
             type:         c.querySelector('.s-ai-type').value,
             target:       c.querySelector('.s-ai-target').value,

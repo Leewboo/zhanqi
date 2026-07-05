@@ -37,6 +37,7 @@
       name: def.name || def.id,
       type: def.type === '被动' ? '被动' : '主动',
       cooldown: Math.max(0, parseInt(def.cooldown) || 0),
+      limited: def.limited === true,
       trigger: def.trigger || null,
       desc: def.desc || '',
       preview: def.preview || null,

@@ -206,6 +206,7 @@
       this.terrain = buildTerrain();
       this.pieces = [];
       Effect._tmpSkills = [];
+      this._limitedUsed = {};  // 限定技使用记录：{ skillId: true }
       this.turn = 1;
       this.currentSide = 'red';
       this.draftIndex = 0;
@@ -676,7 +677,7 @@
           row.style.gap = '4px';
           const l = document.createElement('span');
           l.className = 'label';
-          l.textContent = '【' + sk.name + '】' + (sk.type === '被动' ? '被动' : '主动') + (sk.cooldown ? ' · 冷却 ' + sk.cooldown + ' 回合' : '') + ((piece.cdMap[sk.id] || 0) > 0 ? '（剩余 ' + piece.cdMap[sk.id] + '）' : '');
+          l.textContent = '【' + sk.name + '】' + (sk.type === '被动' ? '被动' : '主动') + (sk.limited ? ' · 限定技' : '') + (sk.cooldown ? ' · 冷却 ' + sk.cooldown + ' 回合' : '') + ((piece.cdMap[sk.id] || 0) > 0 ? '（剩余 ' + piece.cdMap[sk.id] + '）' : '') + (sk.limited && global.Game && global.Game._limitedUsed && global.Game._limitedUsed[sk.id] ? '（已用）' : '');
           row.appendChild(l);
           if (sk.desc) {
             const d = document.createElement('span');
@@ -1000,6 +1001,10 @@
       if (!actor || actor.skilled) return;
       if (!skill || skill.type === '被动') return;
       actor.cdMap = actor.cdMap || {};
+      if (skill.limited && this._limitedUsed && this._limitedUsed[skill.id]) {
+        this.log('【' + skill.name + '】为限定技，本局已使用过。');
+        return;
+      }
       if ((actor.cdMap[skill.id] || 0) > 0) {
         this.log('【' + skill.name + '】冷却中（剩余 ' + actor.cdMap[skill.id] + ' 回合）。');
         return;
@@ -1021,6 +1026,10 @@
           Effect.trigger('onSkillCast', { actor, skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill });
           if (cooldown) actor.cdMap[skill.id] = cooldown;
+          if (skill.limited) {
+            self._limitedUsed = self._limitedUsed || {};
+            self._limitedUsed[skill.id] = true;
+          }
           self._finishActorAction();
         } else {
           // 技能未真正发动（选择非法目标或中途取消）
@@ -1657,12 +1666,15 @@
         const btn = document.createElement('button');
         btn.className = 'act-btn skill-btn';
         const cdLeft = a.cdMap[sk.id] || 0;
-        const usable = !a.skilled && cdLeft <= 0 && (!sk.filter || sk.filter(a));
+        const limitedUsed = sk.limited && this._limitedUsed && this._limitedUsed[sk.id];
+        const usable = !a.skilled && cdLeft <= 0 && !limitedUsed && (!sk.filter || sk.filter(a));
         let label = sk.name;
+        if (sk.limited) label = '限·' + label;
         if (sk.cooldown && cdLeft > 0) label += '(' + cdLeft + ')';
+        if (limitedUsed) label += '(已用)';
         btn.textContent = label;
         btn.disabled = !usable;
-        btn.title = '【' + sk.name + '】' + (sk.cooldown ? ' 冷却 ' + sk.cooldown + ' 回合' : '') + (sk.desc ? '\n' + sk.desc : '');
+        btn.title = '【' + sk.name + '】' + (sk.limited ? ' 限定技（本局仅一次）' : '') + (sk.cooldown ? ' 冷却 ' + sk.cooldown + ' 回合' : '') + (sk.desc ? '\n' + sk.desc : '');
         if (this.pendingSkillId === sk.id) btn.classList.add('pending');
         btn.onclick = () => self._onSkillButtonClick(sk);
         actionsEl.appendChild(btn);
@@ -2049,6 +2061,7 @@
         for (const skill of actor.skills) {
           if (skill.type === '被动') continue;
           if (skipped.includes(skill.id)) continue;
+          if (skill.limited && this._limitedUsed && this._limitedUsed[skill.id]) continue;
           actor.cdMap = actor.cdMap || {};
           if ((actor.cdMap[skill.id] || 0) > 0) continue;
           if (skill.filter && !skill.filter(actor)) continue;
@@ -2312,6 +2325,10 @@
           if (skill.cooldown) {
             actor.cdMap = actor.cdMap || {};
             actor.cdMap[skill.id] = skill.cooldown;
+          }
+          if (skill.limited) {
+            self._limitedUsed = self._limitedUsed || {};
+            self._limitedUsed[skill.id] = true;
           }
           self._render(); self._renderBottom();
           self._checkWin();
