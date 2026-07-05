@@ -229,12 +229,13 @@
           "id": "diy_ganning_jinfan",
           "name": "锦帆",
           "type": "主动",
+          "limited": false,
           "cooldown": 4,
           "trigger": "turnEnd",
-          "desc": "回合结束时若你本回合没有使用主动技能 ，立即选择自己r1范围内的一个敌人造成100%伤害，并获得该角色的一个被动技能（持续到下回合开始）",
+          "desc": "若你本回合没有使用主动技能 ，选择自己r1范围内的一个敌人造成100%伤害，并获得该角色的一个被动技能（持续到第二个回合开始）",
           "preview": null,
           "filterCode": "return actor && actor.alive && !actor.skilled;",
-          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"r\", n: 1 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul:1 });\nvar options=[]\nfor (s of target[\"skillIds\"]){\nvar skill=Effect.getSkill(target,s)\nif(skill.type==\"被动\")\noptions.push({label:skill.name,desc:skill.desc,value:skill.id})\n}\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '选择被动技能！',\n  options:options\n});\nif (!choice) return false;\nEffect.gainTmpSkill(actor, choice.value, { turnsAtStart: 1 });\nGame.log(actor.name + \" 发动技能！\");\nreturn true;\n",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"r\", n: 1 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul:1 });\nvar options=[]\nfor (s of target[\"skillIds\"]){\nvar skill=Effect.getSkill(target,s)\nif(skill.type==\"被动\")\noptions.push({label:skill.name,desc:skill.desc,value:skill.id})\n}\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '选择被动技能！',\n  options:options\n});\nif (!choice) return false;\nEffect.gainTmpSkill(actor, choice.value, { turnsAtStart: 2 });\nGame.log(actor.name + \" 发动技能！\");\nreturn true;\n",
           "aiHint": {
             "type": "debuff",
             "target": "enemy",
@@ -255,13 +256,13 @@
           "limited": true,
           "cooldown": 0,
           "trigger": null,
-          "desc": "限定技。选择4格范围内一个空格突袭至该位置，对落点十字1格范围内所有敌人造成120%攻击力伤害。若本次击杀至少1名敌人，立即恢复全部行动（可再次移动、攻击、使用技能）。",
+          "desc": "限定技。选择4格范围内一个空格突袭至该位置，对落点十字1格范围内所有敌人造成200%攻击力伤害。若本次击杀至少1名敌人，立即恢复全部行动（可再次移动、攻击、使用技能）。",
           "preview": {
             "shape": "r",
             "n": 4
           },
           "filterCode": "return actor && actor.alive && !actor.skilled;",
-          "contentCode": "const cell = await Effect.chooseCell(actor, {\n  range: { shape: \"r\", n: 4 },\n  mustEmpty: true,\n  hintText: \"选择突袭目标位置\"\n});\nif (!cell) return false;\nactor.skilled = true;\nEffect.teleport(actor, cell.x, cell.y);\nGame.log(actor.name + \" 夜袭敌营！\");\nconst aoeCells = Range.cellsInRange(\"+\", 1, cell.x, cell.y, { includeSelf: true });\nlet killCount = 0;\nfor (const c of aoeCells) {\n  const enemy = Game.pieceAt(c.x, c.y);\n  if (enemy && enemy.alive && enemy.side !== actor.side) {\n    const hpBefore = enemy.hp;\n    Effect.damage(actor, enemy, Effect.getEffectiveAttack(actor), { mul: 1.2 });\n    if (hpBefore > 0 && !enemy.alive) killCount++;\n  }\n}\nGame.log(\"【劫营】波及 \" + aoeCells.length + \" 格，击杀 \" + killCount + \" 人！\");\nif (killCount > 0) {\n  Effect.resetAction(actor);\n  Game.log(actor.name + \" 劫营得手，士气大振，恢复全部行动！\", \"turn\");\n}\nreturn true;",
+          "contentCode": "const cell = await Effect.chooseCell(actor, {\n  range: { shape: \"r\", n: 4 },\n  mustEmpty: true,\n  hintText: \"选择突袭目标位置\"\n});\nif (!cell) return false;\nactor.skilled = true;\nEffect.teleport(actor, cell.x, cell.y);\nGame.log(actor.name + \" 夜袭敌营！\");\nconst aoeCells = Range.cellsInRange(\"+\", 1, cell.x, cell.y, { includeSelf: true });\nlet killCount = 0;\nfor (const c of aoeCells) {\n  const enemy = Game.pieceAt(c.x, c.y);\n  if (enemy && enemy.alive && enemy.side !== actor.side) {\n    const hpBefore = enemy.hp;\n    Effect.damage(actor, enemy, Effect.getEffectiveAttack(actor), { mul: 2 });\n    if (hpBefore > 0 && !enemy.alive) killCount++;\n  }\n}\nGame.log(\"【劫营】波及 \" + aoeCells.length + \" 格，击杀 \" + killCount + \" 人！\");\nif (killCount > 0) {\n  Effect.resetAction(actor);\n  Game.log(actor.name + \" 劫营得手，士气大振，恢复全部行动！\", \"turn\");\n}\nreturn true;",
           "aiHint": {
             "type": "damage",
             "target": "aoe_enemy",

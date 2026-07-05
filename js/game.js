@@ -2369,6 +2369,7 @@
           for (const skill of actor.skills) {
             if (skill.type === '被动') continue;
             if (skipped.includes(skill.id)) continue;
+            if (skill.limited && self._limitedUsed && self._limitedUsed[skill.id]) continue;
             actor.cdMap = actor.cdMap || {};
             if ((actor.cdMap[skill.id] || 0) > 0) continue;
             if (skill.filter && !skill.filter(actor)) continue;
