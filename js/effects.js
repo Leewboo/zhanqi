@@ -1112,7 +1112,8 @@
     // actor: 目标棋子
     // skillDef: 技能定义（字符串ID/DIY对象/已编译技能）
     // opts: {
-    //   turns: 持续回合数（结束回合时递减，为0时移除）
+    //   turns: 持续回合数（每回合结束时递减，为0时移除）
+    //   turnsAtStart: 持续回合数（每回合开始时递减，为0时移除），例如 1 表示"到下回合开始"
     //   expiresOn: 过期触发时机（如 'onSkillCast', 'onMove', 'onAttacked', 'onKilled' 等）
     //   expiresAtTurn: 过期回合数（绝对回合数，到达时移除）
     //   name: 临时技能显示名称（可选，默认用原技能名）
@@ -1153,14 +1154,21 @@
         expiresAtTurn: opts.expiresAtTurn || null,
         expiresOnEvent: opts.expiresOn || null,
         eventHandler: null,
-        turnsRemaining: opts.turns || null
+        turnsRemaining: opts.turns || null,
+        turnsAtStartRemaining: opts.turnsAtStart || null
       };
 
       if (opts.expiresOn) {
         entry.eventHandler = (context) => {
           const evtActor = context.actor || context.target || context.victim;
-          if (evtActor && evtActor.generalId === actor.generalId) {
-            Effect._removeTmpSkill(entry);
+          if (evtActor) {
+            if (evtActor.generalId === actor.generalId) {
+              Effect._removeTmpSkill(entry);
+            }
+          } else if (context.side !== undefined) {
+            if (actor.side === context.side && actor.alive) {
+              Effect._removeTmpSkill(entry);
+            }
           }
         };
         Effect.on(opts.expiresOn, entry.eventHandler);
@@ -1170,7 +1178,8 @@
 
       if (global.Game) {
         const expireInfo = [];
-        if (opts.turns) expireInfo.push(opts.turns + '回合');
+        if (opts.turns) expireInfo.push(opts.turns + '回合(末)');
+        if (opts.turnsAtStart) expireInfo.push(opts.turnsAtStart + '回合(始)');
         if (opts.expiresOn) expireInfo.push('触发' + opts.expiresOn);
         if (opts.expiresAtTurn) expireInfo.push('第' + opts.expiresAtTurn + '回合');
         global.Game.log(actor.name + ' 获得临时技能【' + tmpSkill.name + '】' + (expireInfo.length ? '（' + expireInfo.join('，') + '后消失）' : '') + '。');
@@ -1221,9 +1230,11 @@
       }
     },
 
-    // 检查并移除过期的临时技能（每回合结束时调用）
-    _checkTmpSkillExpiry(context) {
+    // 检查并移除过期的临时技能
+    // phase: 'turnEnd'（回合结束）或 'turnStart'（回合开始）
+    _checkTmpSkillExpiry(context, phase) {
       const turn = context && context.turn ? context.turn : (global.Game && global.Game.turn ? global.Game.turn : 0);
+      phase = phase || 'turnEnd';
 
       const expired = [];
       for (const entry of this._tmpSkills) {
@@ -1237,9 +1248,16 @@
           continue;
         }
 
-        if (entry.turnsRemaining !== null) {
+        if (phase === 'turnEnd' && entry.turnsRemaining !== null) {
           entry.turnsRemaining--;
           if (entry.turnsRemaining <= 0) {
+            expired.push(entry);
+          }
+        }
+
+        if (phase === 'turnStart' && entry.turnsAtStartRemaining !== null) {
+          entry.turnsAtStartRemaining--;
+          if (entry.turnsAtStartRemaining <= 0) {
             expired.push(entry);
           }
         }

@@ -1259,6 +1259,7 @@
 
       // 回合开始事件（处理状态递减（在刷新 UI 之后触发 turnStart 事件
       Effect.trigger('turnStart', { side: this.currentSide, turn: this.turn });
+      Effect._checkTmpSkillExpiry({ turn: this.turn, side: this.currentSide }, 'turnStart');
 
       // 处理眩晕：眩晕
       this._handleTurnStartBuffs();

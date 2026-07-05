@@ -230,10 +230,10 @@
           "type": "主动",
           "cooldown": 4,
           "trigger": "turnEnd",
-          "desc": "回合结束时若你本回合没有使用主动技能 ，立即选择自己r1范围内的一个敌人造成100%伤害，并获得该角色的一个被动技能",
+          "desc": "回合结束时若你本回合没有使用主动技能 ，立即选择自己r1范围内的一个敌人造成100%伤害，并获得该角色的一个被动技能（持续到下回合开始）",
           "preview": null,
           "filterCode": "return actor && actor.alive && !actor.skilled;",
-          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"r\", n: 1 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul:1 });\nvar options=[]\nfor (s of target[\"skillIds\"]){\nvar skill=Effect.getSkill(target,s)\nif(skill.type==\"被动\")\noptions.push({label:skill.name,desc:skill.desc,value:skill.id})\n}\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '选择被动技能！',\n  options:options\n});\nif (!choice) return false;\nEffect.gainSkill(actor,choice.value)\n//Effect.on(\"turnStart\",function(actor))\nGame.log(actor.name + \" 发动技能！\");\nreturn true;\n",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"r\", n: 1 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul:1 });\nvar options=[]\nfor (s of target[\"skillIds\"]){\nvar skill=Effect.getSkill(target,s)\nif(skill.type==\"被动\")\noptions.push({label:skill.name,desc:skill.desc,value:skill.id})\n}\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '选择被动技能！',\n  options:options\n});\nif (!choice) return false;\nEffect.gainTmpSkill(actor, choice.value, { turnsAtStart: 1 });\nGame.log(actor.name + \" 发动技能！\");\nreturn true;\n",
           "aiHint": {
             "type": "debuff",
             "target": "enemy",
