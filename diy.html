@@ -1469,93 +1469,115 @@
   }
 
   /* ============================================================
-     认证遮罩层
+     认证登录区（内联显示，非悬浮遮罩）
   ============================================================ */
   #auth-gate {
-    position: fixed; inset: 0; z-index: 9999;
-    background: #0d1117;
+    min-height: 100vh;
+    min-height: 100dvh;
     display: flex; align-items: center; justify-content: center;
+    padding: 40px 20px;
     font-family: 'Noto Serif SC', serif;
   }
   #auth-gate.hidden { display: none; }
+
   .auth-box {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 36px 40px 28px;
-    width: 340px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    position: relative;
+    background: #fffdf7;
+    border: 1px solid #d4c9a8;
+    border-radius: 4px;
+    padding: 40px 36px 32px;
+    width: 360px;
+    max-width: 100%;
+    box-shadow: 0 4px 24px rgba(120,100,60,0.15), 0 1px 4px rgba(0,0,0,0.06);
   }
+  /* 顶部装饰条 */
+  .auth-box::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #b08d57, #c0392b, #b08d57);
+    border-radius: 4px 4px 0 0;
+  }
+
+  .auth-seal {
+    width: 56px; height: 56px; margin: 0 auto 16px;
+    background: #c0392b; color: #fff; font-size: 24px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; letter-spacing: 0;
+    box-shadow: 0 2px 8px rgba(192,57,43,0.3);
+    font-family: 'Noto Serif SC', serif;
+    line-height: 1;
+  }
+
   .auth-box h2 {
-    text-align: center; color: #c9d1d9; font-size: 20px; margin: 0 0 8px;
-    letter-spacing: 2px;
+    text-align: center; color: #5a4a2e; font-size: 22px; margin: 0 0 6px;
+    letter-spacing: 4px; font-weight: 700;
   }
   .auth-box .subtitle {
-    text-align: center; color: #8b949e; font-size: 12px; margin: 0 0 24px;
+    text-align: center; color: #9a8a6a; font-size: 12px; margin: 0 0 28px;
+    letter-spacing: 1px;
   }
-  .auth-tabs { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 20px; }
-  .auth-tab {
-    flex: 1; padding: 8px 0; text-align: center; cursor: pointer;
-    color: #8b949e; font-size: 14px; border-bottom: 2px solid transparent;
-    transition: all 0.15s; user-select: none;
+  .auth-field { margin-bottom: 16px; }
+  .auth-field label {
+    display: block; color: #6b5d3e; font-size: 12px; margin-bottom: 5px;
+    letter-spacing: 1px; font-weight: 600;
   }
-  .auth-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-  .auth-panel { display: none; }
-  .auth-panel.active { display: block; }
-  .auth-field { margin-bottom: 14px; }
-  .auth-field label { display: block; color: #8b949e; font-size: 12px; margin-bottom: 4px; }
   .auth-field input {
     width: 100%; box-sizing: border-box;
-    background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
-    color: #c9d1d9; font-size: 14px; padding: 8px 10px;
-    outline: none; transition: border-color 0.15s;
+    background: #faf8f0; border: 1px solid #d4c9a8; border-radius: 3px;
+    color: #3a3320; font-size: 14px; padding: 9px 12px;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
   }
-  .auth-field input:focus { border-color: #58a6ff; }
-  .auth-submit {
-    width: 100%; padding: 10px 0; background: #238636; color: #fff;
-    border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
-    letter-spacing: 1px; transition: background 0.15s; margin-top: 4px;
+  .auth-field input:focus {
+    border-color: #b08d57;
+    box-shadow: 0 0 0 2px rgba(176,141,87,0.15);
   }
-  .auth-submit:hover { background: #2ea043; }
-  .auth-error {
-    color: #f85149; font-size: 12px; min-height: 18px;
-    text-align: center; margin-top: 8px;
-  }
+  .auth-field input::placeholder { color: #c4b898; }
   .auth-pwd-wrap {
     position: relative; display: flex; align-items: center;
   }
-  .auth-pwd-wrap input { flex: 1; padding-right: 38px; }
+  .auth-pwd-wrap input { flex: 1; padding-right: 40px; }
   .auth-eye-btn {
-    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
     background: none; border: none; cursor: pointer; font-size: 16px;
-    padding: 0 4px; opacity: 0.6; transition: opacity 0.15s;
+    padding: 0 4px; opacity: 0.5; transition: opacity 0.15s;
     line-height: 1;
   }
   .auth-eye-btn:hover { opacity: 1; }
+  .auth-submit {
+    width: 100%; padding: 11px 0; background: #b08d57; color: #fff;
+    border: none; border-radius: 3px; font-size: 15px; cursor: pointer;
+    letter-spacing: 4px; transition: background 0.15s; margin-top: 6px;
+    font-family: 'Noto Serif SC', serif; font-weight: 600;
+  }
+  .auth-submit:hover { background: #9a7a48; }
+  .auth-submit:active { transform: translateY(1px); }
   .auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .auth-error {
+    color: #c0392b; font-size: 12px; min-height: 18px;
+    text-align: center; margin-top: 10px;
+  }
   .auth-tip {
-    text-align: center; color: #6e7681; font-size: 11px;
-    margin: 14px 0 0; line-height: 1.7;
+    text-align: center; color: #aaa080; font-size: 11px;
+    margin: 16px 0 0; line-height: 1.7;
+    padding-top: 14px; border-top: 1px dashed #e0d8c0;
   }
   .auth-user-bar {
-    position: fixed; top: 8px; right: 60px; z-index: 8888;
-    display: flex; align-items: center; gap: 10px;
-    background: rgba(22,27,34,0.92); border: 1px solid #30363d;
-    border-radius: 4px; padding: 4px 12px 4px 10px;
-    font-size: 12px; color: #8b949e;
-    backdrop-filter: blur(4px);
+    display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+    background: transparent; border: none;
+    padding: 8px 0 4px;
+    font-size: 12px; color: #6b5d3e;
   }
   .auth-user-bar .admin-badge {
-    background: #b08d57; color: #fff; font-size: 10px; font-weight: 700;
+    background: #c0392b; color: #fff; font-size: 10px; font-weight: 700;
     padding: 1px 7px; border-radius: 10px; letter-spacing: 1px;
   }
-  .auth-user-bar .user-name { color: #58a6ff; font-weight: bold; }
+  .auth-user-bar .user-name { color: #b08d57; font-weight: bold; }
   .auth-user-bar .logout-btn {
-    background: none; border: 1px solid #30363d; border-radius: 3px;
-    color: #8b949e; font-size: 11px; padding: 2px 8px; cursor: pointer;
+    background: none; border: 1px solid #d4c9a8; border-radius: 3px;
+    color: #6b5d3e; font-size: 11px; padding: 2px 8px; cursor: pointer;
     transition: all 0.15s;
   }
-  .auth-user-bar .logout-btn:hover { border-color: #f85149; color: #f85149; }
+  .auth-user-bar .logout-btn:hover { border-color: #c0392b; color: #c0392b; }
 
   /* 用户管理面板 */
   .user-mgr-card {
@@ -1940,7 +1962,38 @@ async function content(actor) {
   <div id="fs-api-overlay-bg" onclick="window._fsApiClose()"></div>
 </div>
 
-<div class="diy-wrap">
+<!-- ============================================================
+     认证登录区（未登录时显示，内联非遮罩）
+============================================================ -->
+<div id="auth-gate" class="hidden">
+  <div class="auth-box">
+    <div class="auth-seal">帥</div>
+    <h2>三國戰棋</h2>
+    <p class="subtitle">DIY 設計台 · 管理員專屬</p>
+    <div class="auth-field">
+      <label>帳 號</label>
+      <input type="text" id="login-username" placeholder="請輸入管理員帳號" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label>密 碼</label>
+      <div class="auth-pwd-wrap">
+        <input type="password" id="login-password" placeholder="請輸入密碼" autocomplete="current-password">
+        <button type="button" class="auth-eye-btn" id="login-eye" onclick="authToggleEye('login-password','login-eye')" title="显示/隐藏密码">👁</button>
+      </div>
+    </div>
+    <button class="auth-submit" id="login-submit-btn" onclick="authDoLogin()">登 入</button>
+    <div class="auth-error" id="login-error"></div>
+    <p class="auth-tip">非管理員帳號無法進入此頁面<br>如需權限，請聯繫超級管理員</p>
+  </div>
+</div>
+
+<div class="diy-wrap" style="display:none">
+  <!-- 已登录状态栏（内联在顶部） -->
+  <div class="auth-user-bar" id="auth-user-bar" style="display:none">
+    <span class="admin-badge">管理员</span>
+    <span class="user-name" id="auth-username-display"></span>
+    <button class="logout-btn" onclick="authDoLogout()">退出登录</button>
+  </div>
   <!-- 顶部标题栏 -->
   <div class="diy-header">
     <div class="diy-header-left">
@@ -2392,38 +2445,6 @@ async function content(actor) {
   </div><!-- end .diy-main -->
 </div><!-- end .diy-wrap -->
 
-<!-- ============================================================
-     认证遮罩层（仅管理员可登录）
-============================================================ -->
-<div id="auth-gate">
-  <div class="auth-box">
-    <h2>三国战棋·DIY</h2>
-    <p class="subtitle">🔐 此页面仅限管理员使用</p>
-    <!-- 登录表单 -->
-    <div class="auth-field">
-      <label>用户名</label>
-      <input type="text" id="login-username" placeholder="管理员用户名" autocomplete="username">
-    </div>
-    <div class="auth-field">
-      <label>密码</label>
-      <div class="auth-pwd-wrap">
-        <input type="password" id="login-password" placeholder="密码" autocomplete="current-password">
-        <button type="button" class="auth-eye-btn" id="login-eye" onclick="authToggleEye('login-password','login-eye')" title="显示/隐藏密码">👁</button>
-      </div>
-    </div>
-    <button class="auth-submit" id="login-submit-btn" onclick="authDoLogin()">登 录</button>
-    <div class="auth-error" id="login-error"></div>
-    <p class="auth-tip">非管理员账号无法进入此页面。<br>如需权限，请联系超级管理员。</p>
-  </div>
-</div>
-
-<!-- 已登录状态栏（认证后显示） -->
-<div class="auth-user-bar" id="auth-user-bar" style="display:none">
-  <span class="admin-badge">管理员</span>
-  <span class="user-name" id="auth-username-display"></span>
-  <button class="logout-btn" onclick="authDoLogout()">退出登录</button>
-</div>
-
 <script>
   // ============================================================
   // 认证系统
@@ -2444,11 +2465,15 @@ async function content(actor) {
 
   function authShowGate() {
     var g = document.getElementById('auth-gate');
+    var w = document.querySelector('.diy-wrap');
     if (g) g.classList.remove('hidden');
+    if (w) w.style.display = 'none';
   }
   function authHideGate() {
     var g = document.getElementById('auth-gate');
+    var w = document.querySelector('.diy-wrap');
     if (g) g.classList.add('hidden');
+    if (w) w.style.display = '';
   }
   function authShowUserBar(username) {
     var bar = document.getElementById('auth-user-bar');
@@ -2483,7 +2508,7 @@ async function content(actor) {
     var btn = document.getElementById('login-submit-btn');
     if (!btn) return;
     btn.disabled = loading;
-    btn.textContent = loading ? '登录中…' : '登 录';
+    btn.textContent = loading ? '登入中…' : '登 入';
   }
 
   function authDoLogin() {
@@ -3977,6 +4002,7 @@ async function content(actor) {
     _tryInitCount++;
     if (window.hljs || _tryInitCount > 37) {
       initDiyPage();
+      authCheck();
     } else {
       setTimeout(tryInit, 80);
     }
