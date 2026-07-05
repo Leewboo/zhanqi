@@ -460,9 +460,13 @@
       for (const sk of allSkills) {
         if (sk.type !== '被动' || !sk.trigger) continue;
         const handler = (context) => {
-          // 被动技能作用于所有己方存活的、有此技能的棋子
-          const myPieces = this.pieces.filter(p => p.alive && p.side === this.currentSide);
-          for (const p of myPieces) {
+          // 如果事件携带触发者 actor，只对该棋子执行（避免触发其他持有同技能的棋子）
+          // 如果没有 actor（全局事件），则遍历己方所有存活棋子
+          const candidates = (context && context.actor)
+            ? [context.actor]
+            : this.pieces.filter(p => p.alive && p.side === this.currentSide);
+          for (const p of candidates) {
+            if (!p.alive) continue;
             const hasSkill = (p.skills || []).some(s => s.id === sk.id);
             if (hasSkill && (!sk.filter || sk.filter(p))) {
               const skill = (p.skills || []).find(s => s.id === sk.id);
@@ -594,7 +598,8 @@
       };
 
       addRow('生命', piece.hp + ' / ' + piece.maxHp + (piece.shield ? '（护盾 +' + piece.shield + '）' : ''));
-      addRow('攻击', piece.atk + (piece.atkBuff ? ' (+' + piece.atkBuff + ')' : ''));
+      const effAtk = Effect.getEffectiveAttack(piece);
+      addRow('攻击', piece.atk + (effAtk !== piece.atk ? ' (+' + (effAtk - piece.atk) + ')' : ''));
       addRow('防御', piece.def + (piece.defBuff ? ' (+' + piece.defBuff + ')' : ''));
       function rangeText(r) {
         const map = { '+': '十字 ', 'r': '圆形 ', 'square': '方形 ', 'x': '斜角 ' };
@@ -1144,7 +1149,6 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
-      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.mode = null;
       this.highlighted = [];
       if (actor.attacked) {
@@ -1231,7 +1235,7 @@
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => {
-          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; }
+          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; }
           if (p.side === 'blue' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -1241,7 +1245,7 @@
         this.currentSide = 'red';
         this.turn += 1;
         this.pieces.forEach(p => {
-          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; }
+          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; }
           if (p.side === 'red' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -1314,12 +1318,13 @@
           }
         }
 
-        // 攻击 buff 回合递减
-        if (p.atkBuffTurns !== undefined && p.atkBuffTurns > 0) {
-          p.atkBuffTurns -= 1;
-          if (p.atkBuffTurns <= 0) {
-            p.atkBuff = 0;
-            p.atkBuffTurns = 0;
+        // 攻击 buff 回合递减（标记系统管理）
+        const atkBuffMarks = marks.filter(m => m.modifiers && m.modifiers.atkBuff !== undefined && m.data && typeof m.data.turns === 'number');
+        for (const m of atkBuffMarks) {
+          m.data.turns -= 1;
+          if (m.data.turns <= 0) {
+            Effect.unmark(p, m.name);
+            this.log(p.name + ' 的攻击' + (m.data.delta > 0 ? '增益' : '减益') + '结束。', 'turn');
           }
         }
 
@@ -1500,6 +1505,22 @@
           const lowHp = piece.hp / piece.maxHp <= 0.3;
           p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
 
+          // 立绘（有则显示，覆盖棋子主体）
+          const portraitUrl = this._getPortraitUrl(piece.generalId);
+          if (portraitUrl) {
+            p.classList.add('has-portrait');
+            const img = document.createElement('img');
+            img.className = 'p-portrait';
+            img.src = portraitUrl;
+            img.alt = '';
+            img.draggable = false;
+            img.onerror = function () {
+              p.classList.remove('has-portrait');
+              this.remove();
+            };
+            p.appendChild(img);
+          }
+
           // 姓名
           const nameSpan = document.createElement('span');
           nameSpan.className = 'p-name';
@@ -1581,7 +1602,8 @@
       nameEl.textContent = a.name + '（' + (a.side === 'red' ? '红' : '蓝') + '）';
       const parts = [];
       parts.push('生命' + a.hp + '/' + a.maxHp + (a.shield ? ' 盾+' + a.shield : ''));
-      parts.push('攻' + a.atk + (a.atkBuff ? '+' + a.atkBuff : ''));
+      const effAtkVal = Effect.getEffectiveAttack(a);
+      parts.push('攻' + a.atk + (effAtkVal !== a.atk ? '+' + (effAtkVal - a.atk) : ''));
       parts.push('防' + a.def + (a.defBuff ? '+' + a.defBuff : ''));
       const stateParts = [];
       if (a.moved) stateParts.push('已移动');
@@ -2016,12 +2038,14 @@
     // ========== AI 决策核心：评估所有可选行动，返回得分最高的 ==========
     _aiPickBestAction(actor) {
       const side = actor.side;
-      let best = { score: -1, type: 'wait' };
+      let best = { score: -Infinity, type: 'wait' };
 
-      // 1) 评估所有可用主动技能
+      // 1) 评估所有可用主动技能（跳过本回合已放弃过的技能，防止死循环）
       if (!actor.skilled && actor.skills) {
+        const skipped = actor._aiSkippedSkills || [];
         for (const skill of actor.skills) {
           if (skill.type === '被动') continue;
+          if (skipped.includes(skill.id)) continue;
           actor.cdMap = actor.cdMap || {};
           if ((actor.cdMap[skill.id] || 0) > 0) continue;
           if (skill.filter && !skill.filter(actor)) continue;
@@ -2244,18 +2268,20 @@
       if (!emptyMoves.length) return null;
       let best = null, bestScore = -Infinity;
       for (const m of emptyMoves) {
-        // 距离最近敌人的曼哈顿距离（越近越好）
+        // 距离最近敌人的曼哈顿距离（落点越近越好）
         const dist = Math.abs(m.x - nearest.x) + Math.abs(m.y - nearest.y);
-        let score = -dist * 10;
-        // 若落点能攻击到任何敌人，大幅加分
+        // 基础分：始终为正，确保"向敌人靠近"永远优于"等待"
+        // 最大距离约 22（12×12 棋盘），min 10 保证必胜过无目标等待
+        let score = Math.max(10, 60 - dist * 3);
+        // 若落点能攻击到敌人，大幅加分（反映移动后立即能出手的价值）
         const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
           pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
         });
         for (const ac of atkCells) {
           const p = this.pieceAt(ac.x, ac.y);
           if (p && p.alive && p.side !== side) {
-            score += Effect._aiThreat(p) * 0.5;
-            if (p.hp <= Effect.getEffectiveAttack(actor)) score += 50;  // 移动后能击杀
+            score += Effect._aiThreat(p) * 0.8;
+            if (p.hp <= Effect.getEffectiveAttack(actor)) score += 60;  // 移动后能击杀
           }
         }
         if (score > bestScore) { bestScore = score; best = { x: m.x, y: m.y, score }; }
@@ -2286,14 +2312,24 @@
           }
           self._render(); self._renderBottom();
           self._checkWin();
-        } else if (result === false) {
-          // content 明确返回 false：技能未使用，不应用冷却，AI 继续评估其他行动
+        } else {
+          // 技能未实际发动（无目标、返回 false、或未设置 skilled）
+          // 将此技能加入本回合"已跳过"列表，防止 _aiPickBestAction 反复选同一技能造成死循环
+          actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+          if (!actor._aiSkippedSkills.includes(skill.id)) {
+            actor._aiSkippedSkills.push(skill.id);
+          }
           self.log(actor.name + ' 放弃使用【' + skill.name + '】。');
         }
         self._scheduleNext();
       }).catch(function (e) {
         Effect._aiContext = null;
         console.error('[AI 技能错误]', skill.name, e);
+        // 出错的技能同样加入跳过列表
+        actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+        if (!actor._aiSkippedSkills.includes(skill.id)) {
+          actor._aiSkippedSkills.push(skill.id);
+        }
         self.log('【' + skill.name + '】AI 执行出错：' + e.message);
         self._scheduleNext();
       });
@@ -2309,8 +2345,10 @@
         // 移动后再评估一次：可能有更好的技能可用
         if (!actor.skilled && actor.skills) {
           let bestSkill = null, bestScore = -1;
+          const skipped = actor._aiSkippedSkills || [];
           for (const skill of actor.skills) {
             if (skill.type === '被动') continue;
+            if (skipped.includes(skill.id)) continue;
             actor.cdMap = actor.cdMap || {};
             if ((actor.cdMap[skill.id] || 0) > 0) continue;
             if (skill.filter && !skill.filter(actor)) continue;
@@ -2352,7 +2390,6 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
-      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.highlighted = [];
       this.mode = null;
       this._render();
@@ -2382,6 +2419,22 @@
       return true;
     }
   };
+
+  // 页面启动时立即预拉取 DIY 武将，确保用户点击「开始游戏」时武将已注册
+  (function preloadDiy() {
+    fetch('/api/diy/list').then(function(r) { return r.json(); }).then(function(data) {
+      if (!data.ok) return;
+      if (window.SkillsAPI && data.skills && data.skills.length) {
+        window.SkillsAPI.registerSkills(data.skills);
+      }
+      if (data.generals && data.generals.length && window.Generals) {
+        data.generals.forEach(function(g) {
+          var gDef = Object.assign({}, g, { skills: g.skillIds || g.skills || [] });
+          window.Generals.registerGeneral(gDef);
+        });
+      }
+    }).catch(function() {});
+  })();
 
   document.addEventListener('DOMContentLoaded', () => {
     const loadingScreen = document.getElementById('loading-screen');

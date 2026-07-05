@@ -23,7 +23,26 @@
           "skillIds": [
             "diy_guanyu_wusheng"
           ],
-          "portrait": null
+          "portrait": "pt_mr6ihva2avt2ga.png"
+        },
+        {
+          "id": "diy_maochao",
+          "name": "马超",
+          "hp": 230,
+          "atk": 55,
+          "def": 40,
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_maochao_tuci"
+          ],
+          "portrait": "pt_mr6j6pt0jc64nh.png"
         },
         {
           "id": "diy_zhaoyun",
@@ -43,7 +62,7 @@
             "diy_zhaoyun_chongzhen",
             "diy_zhaoyun_danyong"
           ],
-          "portrait": null
+          "portrait": "pt_mr6ii55lyqus1p.png"
         }
       ],
       "skills": [
@@ -61,19 +80,51 @@
             "type": "damage",
             "target": "enemy",
             "power": 50,
-            "priority": 5
+            "priority": 5,
+            "condition": "always",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0,
+            "notes": ""
+          }
+        },
+        {
+          "id": "diy_maochao_tuci",
+          "name": "突刺",
+          "type": "主动",
+          "cooldown": 4,
+          "trigger": null,
+          "desc": "选择十字四范围内一个目标，在选择其为中心的十字一格范围为落点，造成50点真实伤害 ，并击退一格",
+          "preview": {
+            "shape": "+",
+            "n": 4
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n    range: { shape: \"+\", n: 4 },\n    hintText: \"请选择敌人\"\n  });\nif (!target) return false;\nconst cell = await Effect.chooseCell(target, {\n    range: { shape: '+', n: 1 },\n    mustEmpty: true,\n    passThrough: true,\n    hintText: '请选择目标格'\n  });\nif (!cell) return false;\nEffect.teleport(actor, cell.x, cell.y);\nvar dir = [Math.sign(target.x-actor.x)||1, Math.sign(target.y-actor.y)||0];\nEffect.push(actor, target, dir, 1);\nactor.skilled = true;\nEffect.damage(actor, target, 50, { ignoreDef: true, mul: 1 });\nGame.log(actor.name + \" 发动技能！\");\nreturn true;",
+          "aiHint": {
+            "type": "teleport",
+            "target": "self",
+            "power": 50,
+            "priority": 5,
+            "condition": "enemy_near",
+            "preferTarget": "high_threat",
+            "minTargets": 1,
+            "avoidSelf": true,
+            "hpThreshold": 0,
+            "notes": ""
           }
         },
         {
           "id": "diy_zhaoyun_chongzhen",
           "name": "冲阵",
           "type": "被动",
-          "cooldown": 2,
+          "cooldown": 0,
           "trigger": "onMove",
           "desc": "移动后造成20无视防御的伤害",
           "preview": null,
-          "filterCode": "return actor && actor.alive && !actor.skilled;",
-          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side)\n    Effect.damage(actor, t, 20, { ignoreDef: true });\n}\nreturn true;\n",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side)\n  Effect.damage(actor, t, 20, { ignoreDef: true ,mul:1});\n}\nreturn true;\n",
           "aiHint": null
         },
         {
@@ -85,16 +136,113 @@
           "desc": "选择回血或加伤",
           "preview": null,
           "filterCode": "return actor && actor.alive && !actor.skilled;",
-          "contentCode": "const choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '强攻', desc: '+30 攻击', value: 'atk', aiScore: 60 },\n    { label: '治疗', desc: '回 50 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.5; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') Effect.modifyAttack(actor, 30, 2);\nelse if (choice.value === 'heal') Effect.heal(actor, 50);\nactor.skilled = true;\nreturn true;\n",
+          "contentCode": "const choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '强攻', desc: '+30 攻击', value: 'atk', aiScore: 60 },\n    { label: '治疗', desc: '回 50 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.5; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') Effect.modifyAttack(actor, 30, 1);\nelse if (choice.value === 'heal') Effect.heal(actor, 50);\nactor.skilled = true;\nreturn true;\n",
           "aiHint": {
-            "type": "heal",
-            "target": "self",
+            "type": "damage",
+            "target": "enemy",
             "power": 50,
-            "priority": 5,
-            "condition": "always",
+            "priority": 10,
+            "condition": "has_target",
             "preferTarget": "",
             "minTargets": 0,
             "avoidSelf": false,
+            "hpThreshold": 0,
+            "notes": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "ext_mr7796i1q24",
+      "name": "东吴",
+      "desc": "",
+      "enabled": true,
+      "generals": [
+        {
+          "id": "diy_sunquan",
+          "name": "孙权",
+          "hp": 200,
+          "atk": 50,
+          "def": 30,
+          "moveRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_sunquan_zhiheng"
+          ],
+          "portrait": "pt_mr77nohusimd7m.webp"
+        },
+        {
+          "id": "diy_ganning",
+          "name": "甘宁",
+          "hp": 230,
+          "atk": 50,
+          "def": 40,
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_ganning_jinfan"
+          ],
+          "portrait": "pt_mr7aoplspdtdbr.png"
+        }
+      ],
+      "skills": [
+        {
+          "id": "diy_sunquan_zhiheng",
+          "name": "制衡",
+          "type": "主动",
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "你可以交换r3范围内2个友方的位置",
+          "preview": {
+            "shape": "r",
+            "n": 3
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const ally1 = await Effect.chooseAlly(actor, {\n    range: { shape: 'r', n: 3 },\n    passThrough: true,\n    hintText: '请选择友方1'\n  });\nif (!ally1) return false;\nconst ally2 = await Effect.chooseAlly(actor, {\n    range: { shape: 'r', n: 3 },\n    passThrough: true,\n    hintText: '请选择友方2',\n    filter:function (cell,piece){\n      return piece!=ally1\n    }\n  });\nif (!ally2) return false;\nEffect.swap(ally1, ally2);\nactor.skilled = true;\n\n\n",
+          "aiHint": {
+            "type": "teleport",
+            "target": "aoe_ally",
+            "power": 50,
+            "priority": 9,
+            "condition": "has_target",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": true,
+            "hpThreshold": 0,
+            "notes": ""
+          }
+        },
+        {
+          "id": "diy_ganning_jinfan",
+          "name": "锦帆",
+          "type": "主动",
+          "cooldown": 4,
+          "trigger": "turnEnd",
+          "desc": "回合结束时若你本回合没有使用主动技能 ，立即选择自己r1范围内的一个敌人造成100%伤害，并获得该角色的一个被动技能",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"r\", n: 1 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul:1 });\nvar options=[]\nfor (s of target[\"skillIds\"]){\nvar skill=Effect.getSkill(target,s)\nif(skill.type==\"被动\")\noptions.push({label:skill.name,desc:skill.desc,value:skill.id})\n}\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '选择被动技能！',\n  options:options\n});\nif (!choice) return false;\nEffect.gainSkill(actor,choice.value)\n//Effect.on(\"turnStart\",function(actor))\nGame.log(actor.name + \" 发动技能！\");\nreturn true;\n",
+          "aiHint": {
+            "type": "debuff",
+            "target": "enemy",
+            "power": 50,
+            "priority": 5,
+            "condition": "enemy_near",
+            "preferTarget": "high_threat",
+            "minTargets": 0,
+            "avoidSelf": true,
             "hpThreshold": 0,
             "notes": ""
           }

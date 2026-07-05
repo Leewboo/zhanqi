@@ -307,7 +307,7 @@
     _aiThreat(piece) {
       if (!piece || !piece.alive) return 0;
       const hpFactor = piece.hp / (piece.maxHp || 200);  // 血量越低越值得补刀
-      const atk = (piece.atk || 0) + (piece.atkBuff || 0);
+      const atk = Effect.getEffectiveAttack(piece);
       return (atk * 2 + (piece.def || 0)) * (2 - hpFactor);  // 低血量目标威胁度调高（值得补刀）
     },
 
@@ -336,6 +336,7 @@
         if (options.mustEnemy && (!p || p.alive === false || p.side === actor.side)) continue;
         if (options.mustAlly && (!p || p.alive === false || p.side !== actor.side)) continue;
         if (options.mustSelf && (c.x !== actor.x || c.y !== actor.y)) continue;
+        if (typeof options.filter === 'function' && !options.filter({ x: c.x, y: c.y }, p)) continue;
         valid.push({ x: c.x, y: c.y, piece: p });
       }
       if (!valid.length) return null;
@@ -453,6 +454,7 @@
           if (options.mustEnemy && (!p || p.alive === false || p.side === actor.side)) continue;
           if (options.mustAlly && (!p || p.alive === false || p.side !== actor.side)) continue;
           if (options.mustSelf && (c.x !== actor.x || c.y !== actor.y)) continue;
+          if (typeof options.filter === 'function' && !options.filter({ x: c.x, y: c.y }, p)) continue;
           valid.push(c);
         }
         if (!valid.length) return resolve(null);
@@ -629,11 +631,10 @@
     modifyAttack(target, delta, turns) {
       turns = turns || 1;
       if (!target || !target.alive) return 0;
-      target.atkBuff = (target.atkBuff || 0) + delta;
       const key = 'atk_' + (delta > 0 ? 'up' : 'down') + '_' + Math.abs(delta);
       Effect.mark(target, key, {
         display: (delta > 0 ? '攻+' : '攻') + delta,
-        modifiers: { atkBuff: 0 },
+        modifiers: { atkBuff: delta },
         data: { delta, turns }
       });
       if (global.Game) global.Game.log(target.name + ' 攻击力 ' + (delta > 0 ? '+' : '') + delta + '（' + turns + '回合）。');
@@ -687,7 +688,7 @@
     _optionResolve: null,
 
     _aiChooseOption(actor, opts) {
-      const list = (opts.options || []).slice();
+      const list = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
       if (!list.length) return null;
 
       // 1. 自定义 aiPicker 优先
@@ -747,7 +748,9 @@
         const body = document.createElement('div');
         body.style.cssText = 'padding:12px;overflow-y:auto;flex:1;';
 
-        opts.options.forEach(function (opt, idx) {
+        const displayOptions = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
+        if (!displayOptions.length) return resolve(null);
+        displayOptions.forEach(function (opt, idx) {
           const item = document.createElement('div');
           item.style.cssText = 'padding:12px;margin-bottom:8px;border:1px solid #e3d9c4;border-radius:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
           item.innerHTML =

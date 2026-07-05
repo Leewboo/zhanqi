@@ -1467,6 +1467,154 @@
     outline: none;
     border-color: #c0392b;
   }
+
+  /* ============================================================
+     认证遮罩层
+  ============================================================ */
+  #auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #0d1117;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Noto Serif SC', serif;
+  }
+  #auth-gate.hidden { display: none; }
+  .auth-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 36px 40px 28px;
+    width: 340px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .auth-box h2 {
+    text-align: center; color: #c9d1d9; font-size: 20px; margin: 0 0 8px;
+    letter-spacing: 2px;
+  }
+  .auth-box .subtitle {
+    text-align: center; color: #8b949e; font-size: 12px; margin: 0 0 24px;
+  }
+  .auth-tabs { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 20px; }
+  .auth-tab {
+    flex: 1; padding: 8px 0; text-align: center; cursor: pointer;
+    color: #8b949e; font-size: 14px; border-bottom: 2px solid transparent;
+    transition: all 0.15s; user-select: none;
+  }
+  .auth-tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+  .auth-panel { display: none; }
+  .auth-panel.active { display: block; }
+  .auth-field { margin-bottom: 14px; }
+  .auth-field label { display: block; color: #8b949e; font-size: 12px; margin-bottom: 4px; }
+  .auth-field input {
+    width: 100%; box-sizing: border-box;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+    color: #c9d1d9; font-size: 14px; padding: 8px 10px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .auth-field input:focus { border-color: #58a6ff; }
+  .auth-submit {
+    width: 100%; padding: 10px 0; background: #238636; color: #fff;
+    border: none; border-radius: 4px; font-size: 14px; cursor: pointer;
+    letter-spacing: 1px; transition: background 0.15s; margin-top: 4px;
+  }
+  .auth-submit:hover { background: #2ea043; }
+  .auth-error {
+    color: #f85149; font-size: 12px; min-height: 18px;
+    text-align: center; margin-top: 8px;
+  }
+  .auth-pwd-wrap {
+    position: relative; display: flex; align-items: center;
+  }
+  .auth-pwd-wrap input { flex: 1; padding-right: 38px; }
+  .auth-eye-btn {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    padding: 0 4px; opacity: 0.6; transition: opacity 0.15s;
+    line-height: 1;
+  }
+  .auth-eye-btn:hover { opacity: 1; }
+  .auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .auth-tip {
+    text-align: center; color: #6e7681; font-size: 11px;
+    margin: 14px 0 0; line-height: 1.7;
+  }
+  .auth-user-bar {
+    position: fixed; top: 8px; right: 60px; z-index: 8888;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(22,27,34,0.92); border: 1px solid #30363d;
+    border-radius: 4px; padding: 4px 12px 4px 10px;
+    font-size: 12px; color: #8b949e;
+    backdrop-filter: blur(4px);
+  }
+  .auth-user-bar .admin-badge {
+    background: #b08d57; color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 7px; border-radius: 10px; letter-spacing: 1px;
+  }
+  .auth-user-bar .user-name { color: #58a6ff; font-weight: bold; }
+  .auth-user-bar .logout-btn {
+    background: none; border: 1px solid #30363d; border-radius: 3px;
+    color: #8b949e; font-size: 11px; padding: 2px 8px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .auth-user-bar .logout-btn:hover { border-color: #f85149; color: #f85149; }
+
+  /* 用户管理面板 */
+  .user-mgr-card {
+    background: #fff; border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .user-mgr-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid #eee; background: #fafafa;
+    font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #333;
+  }
+  .user-mgr-body { padding: 14px 16px; }
+  .user-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .user-table th {
+    text-align: left; padding: 7px 10px; background: #f5f5f5;
+    color: #666; font-weight: 600; font-size: 12px; letter-spacing: 1px;
+    border-bottom: 2px solid #eee;
+  }
+  .user-table td {
+    padding: 9px 10px; border-bottom: 1px solid #f0ece0; vertical-align: middle;
+  }
+  .user-table tr:last-child td { border-bottom: none; }
+  .user-table tr:hover td { background: #fafaf7; }
+  .role-badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 1px 8px; border-radius: 10px; letter-spacing: 1px;
+  }
+  .role-badge.admin { background: #b08d57; color: #fff; }
+  .role-badge.env { background: #c0392b; color: #fff; }
+  .role-badge.normal { background: #e0e0e0; color: #666; }
+  .user-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .user-actions button {
+    font-size: 11px; padding: 3px 10px; border-radius: 3px; cursor: pointer;
+    border: 1px solid #d0cabb; background: #fff; color: #333;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .user-actions button:hover { background: #f0ece0; }
+  .user-actions button.danger { border-color: #e74c3c; color: #e74c3c; }
+  .user-actions button.danger:hover { background: #fdf0ef; }
+  .user-actions button.promote { border-color: #2e7d32; color: #2e7d32; }
+  .user-actions button.promote:hover { background: #e8f5e9; }
+  .create-user-form {
+    display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px;
+    align-items: end;
+  }
+  .create-user-form .form-group label {
+    display: block; font-size: 11px; color: #888; margin-bottom: 3px;
+  }
+  .create-user-form .form-group input {
+    width: 100%; box-sizing: border-box;
+  }
+  .create-user-form .form-group.check-group {
+    display: flex; align-items: center; gap: 6px; padding-bottom: 8px;
+    font-size: 12px; color: #555; white-space: nowrap;
+  }
+  .create-user-form .form-group.check-group input[type=checkbox] {
+    width: auto; min-height: auto;
+  }
 </style>
 
   <!-- 顶部：一键全屏切换 -->
@@ -1789,8 +1937,8 @@ async function content(actor) {
       <div class="fs-api-content" id="fs-api-content"></div>
     </div>
   </div>
+  <div id="fs-api-overlay-bg" onclick="window._fsApiClose()"></div>
 </div>
-<div id="fs-api-overlay-bg" onclick="window._fsApiClose()"></div>
 
 <div class="diy-wrap">
   <!-- 顶部标题栏 -->
@@ -1803,6 +1951,7 @@ async function content(actor) {
     <div class="diy-nav-tabs">
       <button class="diy-nav-tab active" data-tab="general">武将编辑</button>
       <button class="diy-nav-tab" data-tab="skill">独立技能</button>
+      <button class="diy-nav-tab" data-tab="usermgr">用户管理</button>
     </div>
     <div class="diy-steps" id="diy-steps">
       <div class="diy-step active" data-step="1">
@@ -2028,8 +2177,8 @@ async function content(actor) {
                   <span class="hint">被动技能必填</span>
                 </td>
               </tr>
-              <tr class="s-row-active" id="s-row-cd">
-                <th>冷却</th><td><input type="number" id="scd" value="2" min="0" max="20" /></td>
+              <tr id="s-row-cd">
+                <th>冷却</th><td><input type="number" id="scd" value="0" min="0" max="20" /></td>
               </tr>
               <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
               <tr class="s-row-active" id="s-row-preview">
@@ -2142,7 +2291,7 @@ async function content(actor) {
             </table>
 
             <!-- 技能代码编辑器 -->
-            <div class="form-row s-row-active" id="s-row-filter">
+            <div class="form-row" id="s-row-filter">
               <label>filter（判断是否可施放）</label>
               <div class="code-editor" id="s-filter-editor">
                 <div class="code-editor-header">
@@ -2194,10 +2343,207 @@ async function content(actor) {
         </div>
       </div>
     </div><!-- end .diy-tab.skill -->
+
+    <!-- ===== 用户管理面板 ===== -->
+    <div class="diy-tab hidden" data-tab="usermgr">
+      <div style="max-width:860px; margin: 0 auto;">
+
+        <!-- 创建用户 -->
+        <div class="user-mgr-card">
+          <div class="user-mgr-head">
+            ➕ 创建新用户
+          </div>
+          <div class="user-mgr-body">
+            <div class="create-user-form">
+              <div class="form-group">
+                <label>用户名（3-20位字母/数字/下划线）</label>
+                <input type="text" id="new-user-name" placeholder="username" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label>初始密码（至少6位）</label>
+                <input type="password" id="new-user-pwd" placeholder="password" autocomplete="new-password">
+              </div>
+              <div class="form-group check-group">
+                <input type="checkbox" id="new-user-admin">
+                <label for="new-user-admin" style="margin:0;color:#555;">设为管理员</label>
+              </div>
+              <div class="form-group" style="padding-bottom:8px;">
+                <button id="btn-create-user" class="btn" style="width:100%;min-height:34px;background:#c0392b;color:#fff;border:none;border-radius:3px;font-size:13px;letter-spacing:1px;cursor:pointer;">创建用户</button>
+              </div>
+            </div>
+            <div id="create-user-msg" style="font-size:12px;margin-top:6px;min-height:18px;"></div>
+          </div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="user-mgr-card">
+          <div class="user-mgr-head">
+            <span>👥 用户列表</span>
+            <button id="btn-refresh-users" style="font-size:11px;padding:3px 10px;border:1px solid #d0cabb;border-radius:3px;background:#fff;cursor:pointer;">刷新</button>
+          </div>
+          <div class="user-mgr-body" id="user-list-body">
+            <p style="color:#aaa;font-size:13px;">加载中…</p>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- end .diy-tab.usermgr -->
+
   </div><!-- end .diy-main -->
 </div><!-- end .diy-wrap -->
 
+<!-- ============================================================
+     认证遮罩层（仅管理员可登录）
+============================================================ -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <h2>三国战棋·DIY</h2>
+    <p class="subtitle">🔐 此页面仅限管理员使用</p>
+    <!-- 登录表单 -->
+    <div class="auth-field">
+      <label>用户名</label>
+      <input type="text" id="login-username" placeholder="管理员用户名" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label>密码</label>
+      <div class="auth-pwd-wrap">
+        <input type="password" id="login-password" placeholder="密码" autocomplete="current-password">
+        <button type="button" class="auth-eye-btn" id="login-eye" onclick="authToggleEye('login-password','login-eye')" title="显示/隐藏密码">👁</button>
+      </div>
+    </div>
+    <button class="auth-submit" id="login-submit-btn" onclick="authDoLogin()">登 录</button>
+    <div class="auth-error" id="login-error"></div>
+    <p class="auth-tip">非管理员账号无法进入此页面。<br>如需权限，请联系超级管理员。</p>
+  </div>
+</div>
+
+<!-- 已登录状态栏（认证后显示） -->
+<div class="auth-user-bar" id="auth-user-bar" style="display:none">
+  <span class="admin-badge">管理员</span>
+  <span class="user-name" id="auth-username-display"></span>
+  <button class="logout-btn" onclick="authDoLogout()">退出登录</button>
+</div>
+
 <script>
+  // ============================================================
+  // 认证系统
+  // ============================================================
+  var AUTH_TOKEN_KEY = 'sgzq_token';
+
+  function authGetToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+  function authSetToken(t) { if (t) localStorage.setItem(AUTH_TOKEN_KEY, t); else localStorage.removeItem(AUTH_TOKEN_KEY); }
+
+  // 替代 fetch()：自动携带 Authorization Bearer token
+  function apiFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    var tok = authGetToken();
+    if (tok) opts.headers['Authorization'] = 'Bearer ' + tok;
+    return fetch(url, opts);
+  }
+
+  function authShowGate() {
+    var g = document.getElementById('auth-gate');
+    if (g) g.classList.remove('hidden');
+  }
+  function authHideGate() {
+    var g = document.getElementById('auth-gate');
+    if (g) g.classList.add('hidden');
+  }
+  function authShowUserBar(username) {
+    var bar = document.getElementById('auth-user-bar');
+    var nm  = document.getElementById('auth-username-display');
+    if (bar) bar.style.display = '';
+    if (nm)  nm.textContent = username;
+  }
+  function authHideUserBar() {
+    var bar = document.getElementById('auth-user-bar');
+    if (bar) bar.style.display = 'none';
+  }
+
+  function authSetError(id, msg) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = msg || '';
+  }
+
+  function authToggleEye(inputId, btnId) {
+    var inp = document.getElementById(inputId);
+    var btn = document.getElementById(btnId);
+    if (!inp) return;
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      if (btn) btn.textContent = '🙈';
+    } else {
+      inp.type = 'password';
+      if (btn) btn.textContent = '👁';
+    }
+  }
+
+  function authSetLoading(loading) {
+    var btn = document.getElementById('login-submit-btn');
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.textContent = loading ? '登录中…' : '登 录';
+  }
+
+  function authDoLogin() {
+    authSetError('login-error', '');
+    var u = (document.getElementById('login-username').value || '').trim();
+    var p = (document.getElementById('login-password').value || '');
+    if (!u || !p) { authSetError('login-error', '请输入用户名和密码'); return; }
+    authSetLoading(true);
+    apiFetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      authSetLoading(false);
+      if (!d.ok) { authSetError('login-error', d.error || '登录失败'); return; }
+      if (!d.isAdmin) { authSetError('login-error', '该账号不是管理员，无权访问此页面'); return; }
+      authSetToken(d.token);
+      authHideGate();
+      authShowUserBar(d.username);
+      authRunPage();
+    }).catch(function() { authSetLoading(false); authSetError('login-error', '网络错误，请重试'); });
+  }
+
+  function authDoLogout() {
+    apiFetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + authGetToken() }
+    }).catch(function() {});
+    authSetToken('');
+    authHideUserBar();
+    authShowGate();
+  }
+
+  // 检查 token 是否有效（服务器验证），决定是直接进页面还是显示登录框
+  function authCheck() {
+    var tok = authGetToken();
+    if (!tok) { authShowGate(); return; }
+    apiFetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + tok } })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok && d.user && d.user.isAdmin) {
+          authHideGate();
+          authShowUserBar(d.user.username);
+          authRunPage();
+        } else {
+          authSetToken('');
+          authShowGate();
+        }
+      })
+      .catch(function() { authShowGate(); });
+  }
+
+  // 按回车快捷键登录
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var gate = document.getElementById('auth-gate');
+    if (!gate || gate.classList.contains('hidden')) return;
+    authDoLogin();
+  });
+
   // ============================================================
   // 工具函数
   // ============================================================
@@ -2986,13 +3332,13 @@ async function content(actor) {
             '<th>id</th><td><input type="text" class="s-id" value="' + escapeHtmlAttr(p.id || '') + '" placeholder="skill1" /></td>' +
             '<th>name</th><td><input type="text" class="s-name" value="' + escapeHtmlAttr(p.name || '') + '" placeholder="技能名" /></td>' +
         '</tr>' +
-        '<tr class="s-new-fields s-active-only">' +
+        '<tr class="s-new-fields">' +
             '<th>type</th><td>' +
                 '<select class="s-type">' +
                   '<option value="主动"' + ((p.type !== '被动') ? ' selected' : '') + '>主动</option>' +
                   '<option value="被动"' + ((p.type === '被动') ? ' selected' : '') + '>被动</option>' +
                 '</select></td>' +
-            '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 2) + '" min="0" max="20" /></td>' +
+            '<th>cooldown</th><td><input type="number" class="s-cd" value="' + ((p.cooldown !== undefined && p.cooldown !== null) ? p.cooldown : 0) + '" min="0" max="20" /></td>' +
         '</tr>' +
         '<tr class="s-new-fields">' +
             '<th>trigger</th><td>' +
@@ -3069,7 +3415,7 @@ async function content(actor) {
             ' 半径 <input type="number" class="s-pv-n" value="' + ((p.previewN !== undefined && p.previewN !== null) ? p.previewN : 3) + '" min="1" max="12" style="width:72px" />' +
         '</td></tr>' +
       '</table>' +
-      '<div class="s-new-fields s-active-only" style="margin-top: 12px;">' +
+      '<div class="s-new-fields" style="margin-top: 12px;">' +
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">filter(actor) — 返回 true 表示当前可以施放</label>' +
         buildEditorBlock('filter', 's-filter', (p.filter !== undefined ? p.filter : FILTER_DEFAULT), 100) +
       '</div>' +
@@ -3101,11 +3447,6 @@ async function content(actor) {
           }
         }
       });
-      // 被动技能：清空不应有的字段值，避免提交错误数据
-      if (isPassive) {
-        var cdInput = div.querySelector('.s-cd');
-        if (cdInput) cdInput.value = '0';
-      }
     }
 
     function toggleSkillMode() {
@@ -3120,7 +3461,7 @@ async function content(actor) {
     if (typeSel) typeSel.addEventListener('change', toggleSkillType);
     toggleSkillMode();
 
-    fetch('/api/skill/list')
+    apiFetch('/api/skill/list')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.ok && data.skills && data.skills.length) {
@@ -3168,11 +3509,6 @@ async function content(actor) {
       activeRows.forEach(function (el) {
         el.style.display = isPassive ? 'none' : '';
       });
-      // 被动技能：冷却置 0
-      if (isPassive) {
-        var scd = $('scd');
-        if (scd) scd.value = '0';
-      }
     }
     if (stype) {
       stype.addEventListener('change', toggleStype);
@@ -3339,6 +3675,11 @@ async function content(actor) {
         if (steps) {
           steps.style.display = tabName === 'general' ? 'flex' : 'none';
         }
+        var projBtns = qs('.diy-project-btns');
+        if (projBtns) {
+          projBtns.style.display = tabName === 'usermgr' ? 'none' : '';
+        }
+        if (tabName === 'usermgr') { loadUserList(); }
       });
     });
 
@@ -3372,7 +3713,7 @@ async function content(actor) {
       btnCreateExt.addEventListener('click', function () {
         var name = $('new-ext-name').value.trim() || '未命名拓展';
         var desc = $('new-ext-desc').value.trim();
-        fetch('/api/ext/create', {
+        apiFetch('/api/ext/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: name, desc: desc })
@@ -3408,7 +3749,7 @@ async function content(actor) {
         if (!file) return;
         var fd = new FormData();
         fd.append('zip', file, file.name);
-        fetch('/api/project/import', { method: 'POST', body: fd })
+        apiFetch('/api/project/import', { method: 'POST', body: fd })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.ok) {
@@ -3426,7 +3767,7 @@ async function content(actor) {
     // ========== 独立技能管理 ==========
 
     function loadIndepSkills() {
-      fetch('/api/skill/list')
+      apiFetch('/api/skill/list')
         .then(function (r) { return r.json(); })
         .then(function (data) {
           var container = $('indep-skill-list-container');
@@ -3459,7 +3800,7 @@ async function content(actor) {
       qsa('.edit-indep-skill').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var id = this.dataset.id;
-          fetch('/api/skill/detail?id=' + encodeURIComponent(id))
+          apiFetch('/api/skill/detail?id=' + encodeURIComponent(id))
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (!data.ok) { alert(data.error || '获取失败'); return; }
@@ -3469,7 +3810,7 @@ async function content(actor) {
               $('stype').value = s.type === '被动' ? '被动' : '主动';
               toggleStype();
               $('strigger').value = s.trigger || '';
-              $('scd').value = s.cooldown || 2;
+              $('scd').value = s.cooldown != null ? s.cooldown : 0;
               $('sdesc').value = s.desc || '';
               if (s.preview && s.preview.shape) {
                 $('s-pv-shape').value = s.preview.shape;
@@ -3509,7 +3850,7 @@ async function content(actor) {
         btn.addEventListener('click', function () {
           var id = this.dataset.id;
           if (!confirm('确定删除技能「' + this.parentElement.previousElementSibling.previousElementSibling.previousElementSibling.textContent + '」？')) return;
-          fetch('/api/skill/delete', {
+          apiFetch('/api/skill/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: id })
@@ -3546,7 +3887,7 @@ async function content(actor) {
           name: sname,
           type: $('stype').value,
           trigger: $('strigger').value || null,
-          cooldown: parseInt($('scd').value) || 2,
+          cooldown: parseInt($('scd').value) || 0,
           desc: $('sdesc').value,
           preview: (function () {
             var sh = $('s-pv-shape').value;
@@ -3568,7 +3909,7 @@ async function content(actor) {
           } : null
         };
 
-        fetch('/api/skill/create', {
+        apiFetch('/api/skill/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ skill: skill, extId: extId, extName: extName })
@@ -3756,7 +4097,7 @@ async function content(actor) {
 
     function doSubmit(portraitValue) {
       if (portraitValue !== undefined) general.portrait = portraitValue;
-      fetch('/api/diy/submit', {
+      apiFetch('/api/diy/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ general: general, skills: skills, extId: extId || undefined, extName: extName || '默认拓展' })
@@ -3783,7 +4124,7 @@ async function content(actor) {
     if (portraitState.pending) {
       var fd = new FormData();
       fd.append('file', portraitState.pending);
-      fetch('/api/portrait/upload', { method: 'POST', body: fd })
+      apiFetch('/api/portrait/upload', { method: 'POST', body: fd })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (!d.ok) { showMsg('✗ 立绘上传失败：' + (d.error || '未知错误'), 'error'); return; }
@@ -3808,7 +4149,7 @@ async function content(actor) {
     var skillExtSel = $('s-ext');
     var prevVal   = extSel ? extSel.value : '';
 
-    fetch('/api/ext/list')
+    apiFetch('/api/ext/list')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         // 更新下拉选择框（武将编辑）
@@ -3938,7 +4279,7 @@ async function content(actor) {
     if (toggleBtn) {
       var extId   = toggleBtn.dataset.extId;
       var enabled = toggleBtn.dataset.enabled !== '1';
-      fetch('/api/ext/toggle', {
+      apiFetch('/api/ext/toggle', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extId: extId, enabled: enabled })
       }).then(function (r) { return r.json(); }).then(function (d) {
@@ -3952,7 +4293,7 @@ async function content(actor) {
     if (exportBtn) {
       var extId   = exportBtn.dataset.extId;
       var extName = exportBtn.dataset.extName || 'extension';
-      fetch('/api/project/export', {
+      apiFetch('/api/project/export', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extId: extId })
       }).then(function (r) {
@@ -3972,7 +4313,7 @@ async function content(actor) {
     if (deleteExtBtn) {
       var extName = deleteExtBtn.dataset.extName;
       if (!confirm('确定删除整个拓展「' + extName + '」及其所有武将？此操作不可撤销。')) return;
-      fetch('/api/ext/delete', {
+      apiFetch('/api/ext/delete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extId: deleteExtBtn.dataset.extId })
       }).then(function (r) { return r.json(); }).then(function (d) {
@@ -3995,7 +4336,7 @@ async function content(actor) {
     if (delGenBtn) {
       var gid = delGenBtn.dataset.gid;
       if (!confirm('确定删除武将 ' + gid + '？')) return;
-      fetch('/api/diy/delete', {
+      apiFetch('/api/diy/delete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: gid })
       }).then(function (r) { return r.json(); }).then(function (d) {
@@ -4009,7 +4350,7 @@ async function content(actor) {
   // 编辑武将：从服务器拉取数据，回填表单 + 技能列表
   // ============================================================
   function loadGeneralForEdit(gid, extId) {
-    fetch('/api/diy/detail?id=' + encodeURIComponent(gid))
+    apiFetch('/api/diy/detail?id=' + encodeURIComponent(gid))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.ok) { alert('无法加载武将数据：' + (data.error || '未知错误')); return; }
@@ -4057,7 +4398,7 @@ async function content(actor) {
               id:           shortId,
               name:         s.name || '',
               type:         s.type || '主动',
-              cooldown:     s.cooldown !== undefined ? s.cooldown : 2,
+              cooldown:     s.cooldown != null ? s.cooldown : 0,
               trigger:      s.trigger || '',
               desc:         s.desc || '',
               aiHint:       s.aiHint || null,
@@ -4108,6 +4449,138 @@ async function content(actor) {
     var overlay = e.target.closest('.modal-overlay');
     if (overlay && e.target === overlay) { overlay.classList.add('hidden'); }
   });
+
+  // ============================================================
+  // authRunPage：登录成功后调用，初始化用户管理面板
+  // ============================================================
+  function authRunPage() {
+    loadExtensions();
+    initUserMgr();
+  }
+
+  // ============================================================
+  // 用户管理功能
+  // ============================================================
+  function initUserMgr() {
+    var btnRefresh = document.getElementById('btn-refresh-users');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', function () { loadUserList(); });
+    }
+    var btnCreate = document.getElementById('btn-create-user');
+    if (btnCreate) {
+      btnCreate.addEventListener('click', function () { doCreateUser(); });
+    }
+    loadUserList();
+  }
+
+  function loadUserList() {
+    var body = document.getElementById('user-list-body');
+    if (!body) return;
+    body.innerHTML = '<p style="color:#aaa;font-size:13px;">加载中…</p>';
+    apiFetch('/api/admin/users')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { body.innerHTML = '<p style="color:#c0392b;font-size:13px;">加载失败：' + (d.error || '') + '</p>'; return; }
+        if (!d.users || !d.users.length) {
+          body.innerHTML = '<p style="color:#aaa;font-size:13px;">暂无用户。</p>'; return;
+        }
+        var html = '<table class="user-table"><thead><tr><th>用户名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+        d.users.forEach(function (u) {
+          var badge;
+          if (u.envAdmin) {
+            badge = '<span class="role-badge env">超级管理员</span>';
+          } else if (u.isAdmin) {
+            badge = '<span class="role-badge admin">管理员</span>';
+          } else {
+            badge = '<span class="role-badge normal">普通用户</span>';
+          }
+          var date = u.createdAt ? u.createdAt.slice(0, 10) : '—';
+          var actions = '';
+          if (!u.envAdmin) {
+            if (u.isAdmin) {
+              actions += '<button class="danger" onclick="userSetAdmin(\'' + escapeHtmlAttr(u.username) + '\',false)">撤销管理员</button>';
+            } else {
+              actions += '<button class="promote" onclick="userSetAdmin(\'' + escapeHtmlAttr(u.username) + '\',true)">授予管理员</button>';
+            }
+            actions += '<button onclick="userResetPwd(\'' + escapeHtmlAttr(u.username) + '\')">重置密码</button>';
+            actions += '<button class="danger" onclick="userDelete(\'' + escapeHtmlAttr(u.username) + '\')">删除</button>';
+          } else {
+            actions = '<span style="color:#aaa;font-size:11px;">环境变量管理员</span>';
+          }
+          html += '<tr><td><strong>' + escapeHtmlAttr(u.username) + '</strong></td><td>' + badge + '</td><td>' + date + '</td><td><div class="user-actions">' + actions + '</div></td></tr>';
+        });
+        html += '</tbody></table>';
+        body.innerHTML = html;
+      })
+      .catch(function () { body.innerHTML = '<p style="color:#c0392b;font-size:13px;">网络错误，请重试。</p>'; });
+  }
+
+  function userSetAdmin(username, makeAdmin) {
+    var action = makeAdmin ? '授予管理员权限' : '撤销管理员权限';
+    if (!confirm('确定要' + action + '给用户「' + username + '」？')) return;
+    apiFetch('/api/admin/user/setadmin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, isAdmin: makeAdmin })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { alert('操作失败：' + (d.error || '')); return; }
+      loadUserList();
+    }).catch(function () { alert('网络错误，请重试'); });
+  }
+
+  function userDelete(username) {
+    if (!confirm('确定要删除用户「' + username + '」？此操作不可恢复。')) return;
+    apiFetch('/api/admin/user/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { alert('删除失败：' + (d.error || '')); return; }
+      loadUserList();
+    }).catch(function () { alert('网络错误，请重试'); });
+  }
+
+  function userResetPwd(username) {
+    var newPwd = prompt('请输入用户「' + username + '」的新密码（至少6位）：');
+    if (!newPwd) return;
+    if (newPwd.length < 6) { alert('密码至少 6 位'); return; }
+    apiFetch('/api/admin/user/resetpwd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: newPwd })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) { alert('重置失败：' + (d.error || '')); return; }
+      alert('密码已重置成功');
+    }).catch(function () { alert('网络错误，请重试'); });
+  }
+
+  function doCreateUser() {
+    var name = (document.getElementById('new-user-name').value || '').trim();
+    var pwd  = document.getElementById('new-user-pwd').value || '';
+    var isAdmin = document.getElementById('new-user-admin').checked;
+    var msg = document.getElementById('create-user-msg');
+    if (!name || !pwd) {
+      if (msg) { msg.style.color = '#c0392b'; msg.textContent = '请填写用户名和密码'; }
+      return;
+    }
+    apiFetch('/api/admin/user/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: name, password: pwd, isAdmin: isAdmin })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) {
+        if (msg) { msg.style.color = '#c0392b'; msg.textContent = '创建失败：' + (d.error || ''); }
+        return;
+      }
+      if (msg) { msg.style.color = '#27ae60'; msg.textContent = '用户「' + name + '」已创建成功！'; }
+      document.getElementById('new-user-name').value = '';
+      document.getElementById('new-user-pwd').value = '';
+      document.getElementById('new-user-admin').checked = false;
+      loadUserList();
+    }).catch(function () {
+      if (msg) { msg.style.color = '#c0392b'; msg.textContent = '网络错误，请重试'; }
+    });
+  }
 </script>
 
 </body>

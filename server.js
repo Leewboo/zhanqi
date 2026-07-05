@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const Koa = require('koa');
 const serve = require('koa-static');
 const JSZip = require('jszip');
@@ -82,6 +83,115 @@ function validateRange(r, fallback) {
 }
 
 // ============================================================
+// 认证系统
+// ============================================================
+
+const USERS_FILE  = path.join(ROOT, 'users.json');
+// 环境变量 ADMIN_USERS 指定的用户名，始终拥有管理员权限（逗号分隔，默认 admin）
+const ADMIN_USERS_ENV = new Set(
+  (process.env.ADMIN_USERS || 'admin').split(',').map(s => s.trim()).filter(Boolean)
+);
+
+function readUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const d = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+      return Array.isArray(d.users) ? d.users : [];
+    }
+  } catch (e) {}
+  return [];
+}
+function writeUsers(users) {
+  try { fs.writeFileSync(USERS_FILE, JSON.stringify({ users }, null, 2), 'utf-8'); return true; }
+  catch (e) { return false; }
+}
+function hashPassword(password, salt) {
+  return crypto.createHash('sha256').update(salt + ':' + password).digest('hex');
+}
+// 判断某用户是否为管理员（环境变量 OR 数据库中 isAdmin 字段）
+function isAdminUser(userObj) {
+  if (!userObj) return false;
+  return ADMIN_USERS_ENV.has(userObj.username) || userObj.isAdmin === true;
+}
+
+// 持久化会话（服务重启后仍有效，token 存入 sessions.json）
+const SESSIONS_FILE = path.join(__dirname, 'sessions.json');
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
+
+function readSessions() {
+  try {
+    const raw = fs.readFileSync(SESSIONS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (_) { return {}; }
+}
+function writeSessions(obj) {
+  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(obj, null, 2), 'utf8'); } catch (_) {}
+}
+
+// 启动时清理过期 session
+const _sessionsObj = readSessions();
+let _sessionsDirty = false;
+for (const tok of Object.keys(_sessionsObj)) {
+  if (Date.now() - (_sessionsObj[tok].createdAt || 0) > SESSION_TTL_MS) {
+    delete _sessionsObj[tok];
+    _sessionsDirty = true;
+  }
+}
+if (_sessionsDirty) writeSessions(_sessionsObj);
+
+function createSession(username) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const obj = readSessions();
+  obj[token] = { username, createdAt: Date.now() };
+  writeSessions(obj);
+  return token;
+}
+function getSession(token) {
+  if (!token) return null;
+  const obj = readSessions();
+  const s = obj[token];
+  if (!s) return null;
+  if (Date.now() - (s.createdAt || 0) > SESSION_TTL_MS) {
+    delete obj[token];
+    writeSessions(obj);
+    return null;
+  }
+  return s;
+}
+function extractToken(ctx) {
+  const auth = String(ctx.headers['authorization'] || '');
+  return auth.startsWith('Bearer ') ? auth.slice(7).trim() : null;
+}
+// 通过 token 获取用户对象（含管理员状态）
+function getSessionUser(ctx) {
+  const session = getSession(extractToken(ctx));
+  if (!session) return null;
+  const user = readUsers().find(u => u.username === session.username);
+  return user || null;
+}
+
+// 初始化：若管理员账号不存在则自动创建（密码来自 ADMIN_PASSWORD 环境变量，默认 admin123）
+// 同时将 ADMIN_USERS_ENV 中的账号在数据库里标记 isAdmin:true
+(function initAdmin() {
+  const users = readUsers();
+  let changed = false;
+  for (const name of ADMIN_USERS_ENV) {
+    const existing = users.find(u => u.username === name);
+    if (!existing) {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const pwd  = process.env.ADMIN_PASSWORD || 'admin123';
+      users.push({ username: name, salt, hash: hashPassword(pwd, salt), isAdmin: true, createdAt: new Date().toISOString() });
+      console.log(`[auth] 初始化管理员账号: ${name}，密码: ${pwd}`);
+      changed = true;
+    } else if (!existing.isAdmin) {
+      existing.isAdmin = true;
+      changed = true;
+    }
+  }
+  if (changed) writeUsers(users);
+})();
+
+// ============================================================
 // 静态资源 + 缓存策略
 // ============================================================
 
@@ -112,6 +222,192 @@ app.use(async (ctx, next) => {
 });
 
 app.use(serve(ROOT, { index: 'index.html', maxage: 0, hidden: false, defer: false, extensions: [] }));
+
+// ============================================================
+// 认证接口  /api/auth/*
+// ============================================================
+app.use(async (ctx, next) => {
+  if (!ctx.path.startsWith('/api/auth/')) return next();
+  ctx.type = 'application/json; charset=utf-8';
+
+  // GET /api/auth/me — 返回当前登录用户信息
+  if (ctx.path === '/api/auth/me' && ctx.method === 'GET') {
+    const session = getSession(extractToken(ctx));
+    if (!session) { ctx.body = { ok: true, user: null }; return; }
+    const user = readUsers().find(u => u.username === session.username);
+    ctx.body = { ok: true, user: { username: session.username, isAdmin: isAdminUser(user) } };
+    return;
+  }
+
+  // POST /api/auth/register — 注册新用户
+  if (ctx.path === '/api/auth/register' && ctx.method === 'POST') {
+    const { username, password } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    const p = String(password || '');
+    if (!u || !/^[a-zA-Z0-9_]{3,20}$/.test(u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '用户名需 3-20 位字母/数字/下划线' }; return;
+    }
+    if (!p || p.length < 6) {
+      ctx.status = 400; ctx.body = { ok: false, error: '密码至少 6 位' }; return;
+    }
+    const users = readUsers();
+    if (users.find(x => x.username === u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '用户名已存在' }; return;
+    }
+    const salt = crypto.randomBytes(16).toString('hex');
+    const newUser = { username: u, salt, hash: hashPassword(p, salt), isAdmin: false, createdAt: new Date().toISOString() };
+    users.push(newUser);
+    writeUsers(users);
+    const token = createSession(u);
+    ctx.body = { ok: true, token, username: u, isAdmin: isAdminUser(newUser) };
+    return;
+  }
+
+  // POST /api/auth/login — 登录
+  if (ctx.path === '/api/auth/login' && ctx.method === 'POST') {
+    const { username, password } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    const p = String(password || '');
+    const user = readUsers().find(x => x.username === u);
+    if (!user || user.hash !== hashPassword(p, user.salt)) {
+      ctx.status = 401; ctx.body = { ok: false, error: '用户名或密码错误' }; return;
+    }
+    const token = createSession(u);
+    ctx.body = { ok: true, token, username: u, isAdmin: isAdminUser(user) };
+    return;
+  }
+
+  // POST /api/auth/logout — 登出
+  if (ctx.path === '/api/auth/logout' && ctx.method === 'POST') {
+    const token = extractToken(ctx);
+    if (token) { const obj = readSessions(); delete obj[token]; writeSessions(obj); }
+    ctx.body = { ok: true };
+    return;
+  }
+
+  await next();
+});
+
+// ============================================================
+// 管理员守卫：除公开读取接口外，所有 /api/* 均需管理员 token
+// 公开接口：GET /api/diy/list、GET /api/skill/list（游戏加载用）
+// ============================================================
+app.use(async (ctx, next) => {
+  if (!ctx.path.startsWith('/api/')) return next();
+  if (ctx.path.startsWith('/api/auth/')) return next();
+  if (ctx.method === 'GET' && (ctx.path === '/api/diy/list' || ctx.path === '/api/skill/list')) return next();
+
+  const user = getSessionUser(ctx);
+  if (!isAdminUser(user)) {
+    ctx.status = 401;
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: false, error: '需要管理员权限，请先登录' };
+    return;
+  }
+  return next();
+});
+
+// ============================================================
+// 管理员用户管理接口  /api/admin/*
+// ============================================================
+app.use(async (ctx, next) => {
+  if (!ctx.path.startsWith('/api/admin/')) return next();
+  ctx.type = 'application/json; charset=utf-8';
+
+  // GET /api/admin/users  — 获取所有用户列表
+  if (ctx.path === '/api/admin/users' && ctx.method === 'GET') {
+    const users = readUsers();
+    ctx.body = {
+      ok: true,
+      users: users.map(u => ({
+        username: u.username,
+        isAdmin:  isAdminUser(u),
+        envAdmin: ADMIN_USERS_ENV.has(u.username),
+        createdAt: u.createdAt || ''
+      }))
+    };
+    return;
+  }
+
+  // POST /api/admin/user/create  — 管理员创建新账号
+  if (ctx.path === '/api/admin/user/create' && ctx.method === 'POST') {
+    const { username, password, isAdmin: makeAdmin } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    const p = String(password || '');
+    if (!u || !/^[a-zA-Z0-9_]{3,20}$/.test(u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '用户名需 3-20 位字母/数字/下划线' }; return;
+    }
+    if (!p || p.length < 6) {
+      ctx.status = 400; ctx.body = { ok: false, error: '密码至少 6 位' }; return;
+    }
+    const users = readUsers();
+    if (users.find(x => x.username === u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '用户名已存在' }; return;
+    }
+    const salt = crypto.randomBytes(16).toString('hex');
+    const newUser = {
+      username: u, salt, hash: hashPassword(p, salt),
+      isAdmin: !!makeAdmin, createdAt: new Date().toISOString()
+    };
+    users.push(newUser);
+    writeUsers(users);
+    ctx.body = { ok: true, username: u, isAdmin: isAdminUser(newUser) };
+    return;
+  }
+
+  // POST /api/admin/user/setadmin  — 授予/撤销管理员权限
+  if (ctx.path === '/api/admin/user/setadmin' && ctx.method === 'POST') {
+    const { username, isAdmin: makeAdmin } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    if (!u) { ctx.status = 400; ctx.body = { ok: false, error: '缺少用户名' }; return; }
+    if (ADMIN_USERS_ENV.has(u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '环境变量指定的管理员不可修改' }; return;
+    }
+    const users = readUsers();
+    const user = users.find(x => x.username === u);
+    if (!user) { ctx.status = 404; ctx.body = { ok: false, error: '用户不存在' }; return; }
+    user.isAdmin = !!makeAdmin;
+    writeUsers(users);
+    ctx.body = { ok: true, username: u, isAdmin: isAdminUser(user) };
+    return;
+  }
+
+  // POST /api/admin/user/delete  — 删除用户（不可删除环境变量管理员）
+  if (ctx.path === '/api/admin/user/delete' && ctx.method === 'POST') {
+    const { username } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    if (!u) { ctx.status = 400; ctx.body = { ok: false, error: '缺少用户名' }; return; }
+    if (ADMIN_USERS_ENV.has(u)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '不可删除环境变量指定的管理员账号' }; return;
+    }
+    const users = readUsers();
+    const before = users.length;
+    const filtered = users.filter(x => x.username !== u);
+    if (filtered.length === before) { ctx.status = 404; ctx.body = { ok: false, error: '用户不存在' }; return; }
+    writeUsers(filtered);
+    ctx.body = { ok: true };
+    return;
+  }
+
+  // POST /api/admin/user/resetpwd  — 重置用户密码
+  if (ctx.path === '/api/admin/user/resetpwd' && ctx.method === 'POST') {
+    const { username, password } = ctx.request.body || {};
+    const u = String(username || '').trim();
+    const p = String(password || '');
+    if (!u) { ctx.status = 400; ctx.body = { ok: false, error: '缺少用户名' }; return; }
+    if (!p || p.length < 6) { ctx.status = 400; ctx.body = { ok: false, error: '密码至少 6 位' }; return; }
+    const users = readUsers();
+    const user = users.find(x => x.username === u);
+    if (!user) { ctx.status = 404; ctx.body = { ok: false, error: '用户不存在' }; return; }
+    user.salt = crypto.randomBytes(16).toString('hex');
+    user.hash = hashPassword(p, user.salt);
+    writeUsers(users);
+    ctx.body = { ok: true };
+    return;
+  }
+
+  await next();
+});
 
 // ============================================================
 // 立绘接口  /api/portrait/*
@@ -237,7 +533,7 @@ app.use(async (ctx, next) => {
           id:          fullSid,
           name:        String(s.name),
           type:        s.type === '被动' ? '被动' : '主动',
-          cooldown:    Math.max(0, Math.min(20, parseInt(s.cooldown) || 2)),
+          cooldown:    Math.max(0, Math.min(20, parseInt(s.cooldown) || 0)),
           trigger:     s.trigger || null,
           desc:        String(s.desc || ''),
           preview:     s.preview ? validateRange(s.preview, null) : null,
@@ -407,7 +703,7 @@ app.use(async (ctx, next) => {
       id:          fullSid,
       name:        sname,
       type:        skill.type === '被动' ? '被动' : '主动',
-      cooldown:    Math.max(0, Math.min(20, parseInt(skill.cooldown) || 2)),
+      cooldown:    Math.max(0, Math.min(20, parseInt(skill.cooldown) || 0)),
       trigger:     skill.trigger || null,
       desc:        String(skill.desc || ''),
       preview:     skill.preview ? validateRange(skill.preview, null) : null,
