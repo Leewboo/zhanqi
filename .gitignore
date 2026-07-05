@@ -8,3 +8,8 @@ yarn-error.log*
 .vscode/
 .idea/
 *.log
+.replit
+replit.nix
+users.json
+sessions.json
+project.zip
