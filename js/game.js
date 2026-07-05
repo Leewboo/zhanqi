@@ -205,6 +205,7 @@
       this.boardEl = document.getElementById('board');
       this.terrain = buildTerrain();
       this.pieces = [];
+      Effect._tmpSkills = [];
       this.turn = 1;
       this.currentSide = 'red';
       this.draftIndex = 0;
@@ -1231,6 +1232,7 @@
 
       // 回合结束时触发全局事件（如威震被动效果）
       Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
+      Effect._checkTmpSkillExpiry({ turn: this.turn });
 
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';

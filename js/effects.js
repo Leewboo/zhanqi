@@ -1101,6 +1101,153 @@
         actor.cdMap[id] = Math.max(0, (actor.cdMap[id] || 0) - amt);
       }
       return true;
+    },
+
+    // ========== 临时技能系统 ==========
+    // 管理临时技能的生命周期（定时机/定回合数过期）
+    // _tmpSkills: [{ actor, skill, tmpId, expiresAtTurn, expiresOnEvent, eventHandler, turnsRemaining }]
+    _tmpSkills: [],
+
+    // 获得临时技能
+    // actor: 目标棋子
+    // skillDef: 技能定义（字符串ID/DIY对象/已编译技能）
+    // opts: {
+    //   turns: 持续回合数（结束回合时递减，为0时移除）
+    //   expiresOn: 过期触发时机（如 'onSkillCast', 'onMove', 'onAttacked', 'onKilled' 等）
+    //   expiresAtTurn: 过期回合数（绝对回合数，到达时移除）
+    //   name: 临时技能显示名称（可选，默认用原技能名）
+    // }
+    // 返回临时技能的唯一ID（用于手动移除）
+    gainTmpSkill(actor, skillDef, opts) {
+      if (!actor || !skillDef) return null;
+      opts = opts || {};
+
+      let skill = null;
+      if (typeof skillDef === 'string') {
+        skill = (global.Skills && global.Skills[skillDef]) || (global.SkillsAPI && global.SkillsAPI.getSkill(skillDef));
+      } else if (typeof skillDef === 'object') {
+        if (typeof skillDef.content === 'function') {
+          skill = skillDef;
+        } else if (typeof skillDef.contentCode === 'string' && global.SkillsAPI) {
+          skill = global.SkillsAPI.registerSkill(skillDef);
+        }
+      }
+      if (!skill) return null;
+
+      const tmpId = 'tmp_' + skill.id + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      const tmpSkill = Object.assign({}, skill, {
+        id: tmpId,
+        _isTmpSkill: true,
+        _originalId: skill.id
+      });
+      if (opts.name) tmpSkill.name = opts.name;
+
+      actor.skills = actor.skills || [];
+      actor.skills.push(tmpSkill);
+
+      const entry = {
+        actor,
+        skill: tmpSkill,
+        tmpId,
+        originalId: skill.id,
+        expiresAtTurn: opts.expiresAtTurn || null,
+        expiresOnEvent: opts.expiresOn || null,
+        eventHandler: null,
+        turnsRemaining: opts.turns || null
+      };
+
+      if (opts.expiresOn) {
+        entry.eventHandler = (context) => {
+          const evtActor = context.actor || context.target || context.victim;
+          if (evtActor && evtActor.generalId === actor.generalId) {
+            Effect._removeTmpSkill(entry);
+          }
+        };
+        Effect.on(opts.expiresOn, entry.eventHandler);
+      }
+
+      this._tmpSkills.push(entry);
+
+      if (global.Game) {
+        const expireInfo = [];
+        if (opts.turns) expireInfo.push(opts.turns + '回合');
+        if (opts.expiresOn) expireInfo.push('触发' + opts.expiresOn);
+        if (opts.expiresAtTurn) expireInfo.push('第' + opts.expiresAtTurn + '回合');
+        global.Game.log(actor.name + ' 获得临时技能【' + tmpSkill.name + '】' + (expireInfo.length ? '（' + expireInfo.join('，') + '后消失）' : '') + '。');
+      }
+
+      return tmpId;
+    },
+
+    // 移除临时技能
+    loseTmpSkill(actor, tmpId) {
+      if (!actor || !tmpId) return false;
+      const entry = this._tmpSkills.find(e => e.tmpId === tmpId && e.actor.generalId === actor.generalId);
+      if (entry) {
+        this._removeTmpSkill(entry);
+        return true;
+      }
+      return false;
+    },
+
+    // 移除所有临时技能
+    loseAllTmpSkills(actor) {
+      if (!actor) return;
+      const entries = this._tmpSkills.filter(e => e.actor.generalId === actor.generalId);
+      for (const entry of entries) {
+        this._removeTmpSkill(entry);
+      }
+    },
+
+    // 内部：移除临时技能
+    _removeTmpSkill(entry) {
+      if (entry.eventHandler) {
+        Effect.off(entry.expiresOnEvent, entry.eventHandler);
+      }
+
+      const idx = entry.actor.skills.findIndex(s => s.id === entry.tmpId);
+      if (idx >= 0) {
+        entry.actor.skills.splice(idx, 1);
+      }
+
+      const tmpIdx = this._tmpSkills.findIndex(e => e.tmpId === entry.tmpId);
+      if (tmpIdx >= 0) {
+        this._tmpSkills.splice(tmpIdx, 1);
+      }
+
+      if (global.Game) {
+        global.Game.log(entry.actor.name + ' 的临时技能【' + entry.skill.name + '】消失。');
+        global.Game._render();
+      }
+    },
+
+    // 检查并移除过期的临时技能（每回合结束时调用）
+    _checkTmpSkillExpiry(context) {
+      const turn = context && context.turn ? context.turn : (global.Game && global.Game.turn ? global.Game.turn : 0);
+
+      const expired = [];
+      for (const entry of this._tmpSkills) {
+        if (!entry.actor.alive) {
+          expired.push(entry);
+          continue;
+        }
+
+        if (entry.expiresAtTurn !== null && turn >= entry.expiresAtTurn) {
+          expired.push(entry);
+          continue;
+        }
+
+        if (entry.turnsRemaining !== null) {
+          entry.turnsRemaining--;
+          if (entry.turnsRemaining <= 0) {
+            expired.push(entry);
+          }
+        }
+      }
+
+      for (const entry of expired) {
+        this._removeTmpSkill(entry);
+      }
     }
   };
 
