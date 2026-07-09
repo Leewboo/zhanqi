@@ -8,11 +8,13 @@
   // 游戏设置（从 localStorage 读取）
   const GameSettings = {
     picksPerSide: DEFAULT_PICKS,
-    gameMode: 'local', // local | ai
+    gameMode: 'local', // local | ai | online
     aiSide: 'blue',    // AI 控制的阵营：'blue'（玩家先手）| 'red'（AI先手）
     cellSize: DEFAULT_CELL_SIZE,       // 棋盘格子大小（px）
     draftPoolSize: DEFAULT_DRAFT_POOL_SIZE, // 选将阶段最多显示武将数（0 = 全部）
     showPortraitInDraft: true,         // 选将时显示立绘
+    onlineMode: null,   // 联机模式：'3v3' | '5v5'
+    onlineSide: null,   // 联机执方：'red' | 'blue'
 
     load() {
       try {
@@ -218,6 +220,9 @@
       this.highlighted = [];
       this.over = false;
       this.aiMode = (mode === 'ai');
+      this.onlineMode = (mode === 'online');
+      this._onlineSide = this.onlineMode ? GameSettings.onlineSide : null;
+      this._onlineAction = false;  // 标记正在回放远端操作，避免重复发送
       this.aiSide = this.aiMode ? GameSettings.aiSide : 'blue';
       this._buildDom();
       this._bind();
@@ -237,6 +242,10 @@
         } else {
           this.log('你先手。', 'turn');
         }
+      }
+      if (this.onlineMode) {
+        const mySideName = this._onlineSide === 'red' ? '红' : '蓝';
+        this.log('联机对战：你执' + mySideName + '方。', 'turn');
       }
       this.log('红方先选。', 'turn');
       this._maybeAiAct();
@@ -361,6 +370,11 @@
       else this.pickedBlue.push(generalDef);
       this.log((side === 'red' ? '红' : '蓝') + '方选走 ' + generalDef.name + '。');
       this.draftIndex += 1;
+
+      // 联机同步：本地操作发送给对方
+      if (this.onlineMode && side === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'pick', generalId: generalDef.id });
+      }
 
       const maxPerSide = Math.floor(Generals.list.length / 2);
       const effective = Math.min(PICKS_PER_SIDE, maxPerSide);
@@ -820,6 +834,12 @@
       piece.generalId = this.deploySelected.id;
       this.pieces.push(piece);
       this.log((this.deploySide === 'red' ? '红方' : '蓝方') + ' ' + this.deploySelected.name + ' 部署到 (' + x + ',' + y + ')。');
+
+      // 联机同步：本地布阵发送给对方
+      if (this.onlineMode && this.deploySide === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'place', generalId: this.deploySelected.id, x, y });
+      }
+
       this.deploySelected = null;
       this.highlighted = [];
 
@@ -1154,11 +1174,19 @@
         return;
       }
       const actor = this.selected;
+      const fromX = actor.x;
+      const fromY = actor.y;
       actor.x = x;
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
+
+      // 联机同步
+      if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'move', fromX, fromY, toX: x, toY: y });
+      }
+
       this.mode = null;
       this.highlighted = [];
       if (actor.attacked) {
@@ -1181,6 +1209,12 @@
       const actor = this.selected;
       const target = this.pieceAt(x, y);
       actor.attacked = true;
+
+      // 联机同步
+      if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'attack', actorX: actor.x, actorY: actor.y, targetX: x, targetY: y });
+      }
+
       // 攻击力由 Effect.getEffectiveAttack 计算（含 buff、标记）
       // 防御由 Effect.damage 内部处理（含 buff、地形、标记 zeroDef）
       const atkVal = Effect.getEffectiveAttack(actor);
@@ -1239,6 +1273,8 @@
       const endBtn = document.getElementById('btn-end');
       if (endBtn) endBtn.disabled = true;
 
+      const prevSide = this.currentSide;
+
       // 回合结束时触发全局事件（如威震被动效果）
       Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
       Effect._checkTmpSkillExpiry({ turn: this.turn });
@@ -1273,7 +1309,12 @@
       // 处理眩晕：眩晕
       this._handleTurnStartBuffs();
 
-      if (!this.aiMode) {
+      // 联机同步：只有本地玩家主动结束时才发送
+      if (this.onlineMode && prevSide === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'endTurn' });
+      }
+
+      if (!this.aiMode && !this.onlineMode) {
         this._turnEnding = false;
         const endBtn2 = document.getElementById('btn-end');
         if (endBtn2) endBtn2.disabled = false;
@@ -1922,7 +1963,27 @@
     },
 
     _maybeAiAct() {
-      if (!this.aiMode || this.over) return;
+      if (this.over) return;
+
+      // 联机模式：控制本地玩家的操作权限
+      if (this.onlineMode) {
+        let myTurn = false;
+        if (this.phase === 'draft') {
+          const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+          if (side === this._onlineSide) myTurn = true;
+        } else if (this.phase === 'deploy') {
+          if (this.deploySide === this._onlineSide) myTurn = true;
+        } else if (this.phase === 'battle') {
+          if (this.currentSide === this._onlineSide) myTurn = true;
+        }
+        this._turnEnding = false;
+        this._aiActing = false;
+        const endBtn = document.getElementById('btn-end');
+        if (endBtn) endBtn.disabled = !myTurn;
+        return;
+      }
+
+      if (!this.aiMode) return;
       let aiShouldAct = false;
       if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
@@ -2758,13 +2819,234 @@
 
     // 主页按钮
     const localBtn = document.getElementById('btn-local');
+    const onlineBtn = document.getElementById('btn-online');
     const aiBtn = document.getElementById('btn-ai');
     const diyBtn = document.getElementById('btn-diy');
     const homeBtn = document.getElementById('btn-home');
     if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('local'); });
+    if (onlineBtn) onlineBtn.addEventListener('click', () => { showOnlineScreen(); });
     if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('ai'); });
     if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
+
+    // ========== 联机模式界面逻辑 ==========
+    let selectedOnlineMode = '3v3';
+
+    function showOnlineScreen() {
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('online-screen').classList.remove('hidden');
+      document.getElementById('room-screen').classList.add('hidden');
+      selectedOnlineMode = '3v3';
+      updateOnlineModeSelection();
+      document.getElementById('online-name').value = localStorage.getItem('zhanqi_online_name') || '';
+      document.getElementById('online-room-id').value = '';
+      document.getElementById('online-status').textContent = '等待操作...';
+      document.getElementById('online-join-input').classList.add('hidden');
+      Online.disconnect();
+    }
+
+    function hideOnlineScreen() {
+      document.getElementById('online-screen').classList.add('hidden');
+      document.getElementById('room-screen').classList.add('hidden');
+      document.getElementById('home-screen').classList.remove('hidden');
+      Online.disconnect();
+    }
+
+    function showRoomScreen() {
+      document.getElementById('online-screen').classList.add('hidden');
+      document.getElementById('room-screen').classList.remove('hidden');
+    }
+
+    function updateOnlineModeSelection() {
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.getAttribute('data-mode') === selectedOnlineMode);
+      });
+    }
+
+    // 模式选择
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedOnlineMode = btn.getAttribute('data-mode');
+        updateOnlineModeSelection();
+      });
+    });
+
+    // 创建房间
+    const btnCreateRoom = document.getElementById('btn-create-room');
+    if (btnCreateRoom) {
+      btnCreateRoom.addEventListener('click', () => {
+        const name = document.getElementById('online-name').value.trim() || '玩家';
+        localStorage.setItem('zhanqi_online_name', name);
+        document.getElementById('online-status').textContent = '正在创建房间...';
+        btnCreateRoom.disabled = true;
+        Online.createRoom(selectedOnlineMode, name);
+      });
+    }
+
+    // 加入房间
+    const btnJoinRoom = document.getElementById('btn-join-room');
+    const btnDoJoin = document.getElementById('btn-do-join');
+    const onlineJoinInput = document.getElementById('online-join-input');
+    if (btnJoinRoom) {
+      btnJoinRoom.addEventListener('click', () => {
+        onlineJoinInput.classList.toggle('hidden');
+      });
+    }
+    if (btnDoJoin) {
+      btnDoJoin.addEventListener('click', () => {
+        const roomId = document.getElementById('online-room-id').value.trim();
+        const name = document.getElementById('online-name').value.trim() || '玩家';
+        if (!roomId) {
+          document.getElementById('online-status').textContent = '请输入房间号';
+          return;
+        }
+        localStorage.setItem('zhanqi_online_name', name);
+        document.getElementById('online-status').textContent = '正在加入房间...';
+        btnDoJoin.disabled = true;
+        Online.joinRoom(roomId, name);
+      });
+    }
+
+    // 返回主页
+    const btnOnlineBack = document.getElementById('btn-online-back');
+    if (btnOnlineBack) btnOnlineBack.addEventListener('click', hideOnlineScreen);
+
+    // 房间界面
+    const btnRoomReady = document.getElementById('btn-room-ready');
+    const btnRoomCancel = document.getElementById('btn-room-cancel');
+    if (btnRoomReady) {
+      btnRoomReady.addEventListener('click', () => {
+        btnRoomReady.textContent = '准备中...';
+        btnRoomReady.disabled = true;
+        Online.ready(Online.roomId);
+      });
+    }
+    if (btnRoomCancel) {
+      btnRoomCancel.addEventListener('click', () => {
+        Online.disconnect();
+        document.getElementById('room-screen').classList.add('hidden');
+        document.getElementById('online-screen').classList.remove('hidden');
+        btnRoomReady.textContent = '准备就绪';
+        btnRoomReady.disabled = false;
+      });
+    }
+
+    // ========== Online 事件监听 ==========
+    Online.on('roomCreated', (data) => {
+      document.getElementById('room-id-display').textContent = data.roomId;
+      document.getElementById('room-mode-display').textContent = data.mode === '3v3' ? '3v3 对战' : '5v5 对战';
+      document.getElementById('player-red-name').textContent = localStorage.getItem('zhanqi_online_name') || '玩家';
+      document.getElementById('player-red-ready').textContent = '未准备';
+      document.getElementById('player-blue-name').textContent = '等待中...';
+      document.getElementById('player-blue-ready').textContent = '未准备';
+      btnRoomReady.textContent = '准备就绪';
+      btnRoomReady.disabled = false;
+      btnCreateRoom.disabled = false;
+      showRoomScreen();
+    });
+
+    Online.on('roomJoined', (data) => {
+      document.getElementById('room-id-display').textContent = data.roomId;
+      document.getElementById('room-mode-display').textContent = data.mode === '3v3' ? '3v3 对战' : '5v5 对战';
+      document.getElementById('player-blue-name').textContent = localStorage.getItem('zhanqi_online_name') || '玩家';
+      document.getElementById('player-blue-ready').textContent = '未准备';
+      if (data.players && data.players.length >= 1) {
+        const redPlayer = data.players.find(p => p.side === 'red');
+        if (redPlayer) document.getElementById('player-red-name').textContent = redPlayer.name;
+      }
+      btnRoomReady.textContent = '准备就绪';
+      btnRoomReady.disabled = false;
+      btnDoJoin.disabled = false;
+      showRoomScreen();
+    });
+
+    Online.on('joinFailed', (data) => {
+      document.getElementById('online-status').textContent = '加入失败：' + (data.error || '未知错误');
+      btnDoJoin.disabled = false;
+    });
+
+    Online.on('playerJoined', (data) => {
+      document.getElementById('player-blue-name').textContent = data.player.name;
+      document.getElementById('player-blue-ready').textContent = '未准备';
+    });
+
+    Online.on('playerLeft', () => {
+      document.getElementById('player-blue-name').textContent = '已离开';
+      document.getElementById('player-blue-ready').textContent = '未准备';
+    });
+
+    Online.on('playerReady', (data) => {
+      const myId = Online.socket ? Online.socket.id : '';
+      if (Online.side === 'red') {
+        if (data.playerId === myId) {
+          document.getElementById('player-red-ready').textContent = '已准备';
+        } else {
+          document.getElementById('player-blue-ready').textContent = '已准备';
+        }
+      } else {
+        if (data.playerId === myId) {
+          document.getElementById('player-blue-ready').textContent = '已准备';
+        } else {
+          document.getElementById('player-red-ready').textContent = '已准备';
+        }
+      }
+    });
+
+    Online.on('gameStart', (data) => {
+      GameSettings.onlineMode = data.mode;
+      GameSettings.onlineSide = Online.side;
+      GameSettings.picksPerSide = data.mode === '3v3' ? 3 : 5;
+      GameSettings.draftPoolSize = data.mode === '3v3' ? 6 : 10;
+      GameSettings.save();
+
+      document.getElementById('room-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      tryPlayBgm(true);
+      Game.init('online');
+    });
+
+    // 联机游戏操作回放
+    Online.on('gameAction', (data) => {
+      if (!Game.onlineMode) return;
+      if (data.fromSide === Game._onlineSide) return;  // 忽略自己发出的操作
+
+      Game._onlineAction = true;  // 标记正在回放，避免重复发送
+
+      if (data.type === 'pick') {
+        const general = Generals.list.find(g => g.id === data.generalId);
+        if (general) Game._pickGeneral(general);
+      } else if (data.type === 'place') {
+        const general = Generals.list.find(g => g.id === data.generalId);
+        if (general) {
+          Game._selectForDeploy(general);
+          Game._tryPlacePiece(data.x, data.y);
+        }
+      } else if (data.type === 'move') {
+        const piece = Game.pieceAt(data.fromX, data.fromY);
+        if (piece) {
+          Game.selected = piece;
+          Game._tryMove(data.toX, data.toY);
+        }
+      } else if (data.type === 'attack') {
+        const actor = Game.pieceAt(data.actorX, data.actorY);
+        if (actor) {
+          Game.selected = actor;
+          Game._tryAttack(data.targetX, data.targetY);
+        }
+      } else if (data.type === 'endTurn') {
+        Game.endTurn();
+      }
+
+      Game._onlineAction = false;
+    });
+
+    Online.on('connectionLost', () => {
+      alert('与服务器断开连接');
+      Online.disconnect();
+      document.getElementById('room-screen').classList.add('hidden');
+      document.getElementById('online-screen').classList.add('hidden');
+      document.getElementById('home-screen').classList.remove('hidden');
+    });
 
     // ========== 设置面板（含全屏）==========
     const settingsBtn = document.getElementById('btn-settings');

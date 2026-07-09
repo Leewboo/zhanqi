@@ -1130,8 +1130,119 @@ app.on('error', (err, ctx) => {
   console.error('[server]', err.message, ctx && ctx.path);
 });
 
-app.listen(PORT, () => {
-  console.log(`\n  三国战棋 · Koa 服务已启动`);
+// ============================================================
+// Socket.io 联机系统
+// ============================================================
+const http = require('http');
+const { Server } = require('socket.io');
+const httpServer = http.createServer(app.callback());
+const io = new Server(httpServer, {
+  cors: { origin: '*' },
+  transports: ['websocket', 'polling']
+});
+
+const rooms = {};
+
+function generateRoomId() {
+  let id;
+  do {
+    id = Math.floor(100000 + Math.random() * 900000).toString();
+  } while (rooms[id]);
+  return id;
+}
+
+io.on('connection', (socket) => {
+  console.log('[socket] 玩家连接:', socket.id);
+
+  socket.on('createRoom', (opts) => {
+    const roomId = generateRoomId();
+    const mode = opts.mode || '3v3';
+    const draftPoolSize = mode === '3v3' ? 6 : 10;
+    const playerCount = mode === '3v3' ? 3 : 5;
+
+    rooms[roomId] = {
+      id: roomId,
+      mode: mode,
+      draftPoolSize: draftPoolSize,
+      playerCount: playerCount,
+      players: [{ id: socket.id, name: opts.name || '玩家1', side: 'red', ready: false }],
+      phase: 'waiting'
+    };
+
+    socket.join(roomId);
+    socket.emit('roomCreated', {
+      roomId, mode, draftPoolSize, playerCount,
+      side: 'red', players: rooms[roomId].players
+    });
+    console.log('[socket] 创建房间:', roomId, '模式:', mode);
+  });
+
+  socket.on('joinRoom', (opts) => {
+    const roomId = String(opts.roomId || '').trim();
+    const room = rooms[roomId];
+    if (!room) { socket.emit('joinFailed', { error: '房间不存在' }); return; }
+    if (room.players.length >= 2) { socket.emit('joinFailed', { error: '房间已满' }); return; }
+    if (room.phase !== 'waiting') { socket.emit('joinFailed', { error: '游戏已开始' }); return; }
+
+    room.players.push({ id: socket.id, name: opts.name || '玩家2', side: 'blue', ready: false });
+    socket.join(roomId);
+    socket.emit('roomJoined', {
+      roomId, mode: room.mode, draftPoolSize: room.draftPoolSize,
+      playerCount: room.playerCount, side: 'blue', players: room.players
+    });
+    io.to(roomId).emit('playerJoined', {
+      player: { id: socket.id, name: opts.name || '玩家2', side: 'blue' },
+      players: room.players
+    });
+    console.log('[socket] 加入房间:', roomId, '玩家:', socket.id);
+  });
+
+  socket.on('ready', (roomId) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
+    player.ready = true;
+    io.to(roomId).emit('playerReady', { playerId: socket.id, side: player.side });
+
+    if (room.players.length >= 2 && room.players.every(p => p.ready)) {
+      room.phase = 'draft';
+      io.to(roomId).emit('gameStart', {
+        mode: room.mode, draftPoolSize: room.draftPoolSize,
+        playerCount: room.playerCount, players: room.players
+      });
+      console.log('[socket] 游戏开始:', roomId);
+    }
+  });
+
+  socket.on('gameAction', (data) => {
+    const room = rooms[data.roomId];
+    if (!room) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
+    io.to(data.roomId).emit('gameAction', { ...data, fromSide: player.side });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('[socket] 玩家断开:', socket.id);
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const idx = room.players.findIndex(p => p.id === socket.id);
+      if (idx >= 0) {
+        room.players.splice(idx, 1);
+        if (room.players.length === 0) {
+          delete rooms[roomId];
+        } else {
+          io.to(roomId).emit('playerLeft', { playerId: socket.id });
+        }
+        break;
+      }
+    }
+  });
+});
+
+httpServer.listen(PORT, () => {
+  console.log(`\n  三国战棋 · Koa + Socket.io 服务已启动`);
   console.log(`  本地访问: http://localhost:${PORT}/`);
   console.log(`  DIY 提交: http://localhost:${PORT}/diy.html`);
   console.log(`  工作目录: ${ROOT}\n`);
