@@ -224,7 +224,12 @@
       this.onlineMode = (mode === 'online');
       this._onlineSide = this.onlineMode ? GameSettings.onlineSide : null;
       this._onlineAction = false;  // 标记正在回放远端操作，避免重复发送
+      this._onlineSkillReplay = false;  // 标记正在异步回放远端技能（贯穿 content 的 await）
       this.aiSide = this.aiMode ? GameSettings.aiSide : 'blue';
+      // 统一同步模块级 PICKS_PER_SIDE：联机 gameStart/rejoined 只更新了 GameSettings.picksPerSide，
+      // 此处同步确保选将人数与服务端 playerCount 一致（3v3=3，5v5=5），避免客户端按旧值
+      // （如本地默认 5）多选导致第 4 选起被服务端拒绝、双方选将阶段不同步。
+      PICKS_PER_SIDE = GameSettings.picksPerSide;
       // 随机数种子：联机对战使用服务器下发的统一种子，保证双端结果一致；
       // 本机/人机对战使用本地随机种子即可
       RNG.seed(this.onlineMode ? opts.seed : RNG.randomSeed());
@@ -1064,11 +1069,20 @@
       }
       this.pendingSkillId = null;
       const beforeSkilled = !!actor.skilled;
+      // 记录技能发动前的位置：技能可能移动施法者，接收方需据此定位棋子
+      const actorStartX = actor.x;
+      const actorStartY = actor.y;
+      // 联机技能同步：本地释放时累积目标/选项选择；回放时注入对方已选定的目标
+      const isOnlineReplay = !!this._onlineAction;
+      if (this.onlineMode) {
+        this._onlineSkillReplay = isOnlineReplay;
+        if (!isOnlineReplay) Effect._onlineRecorded = [];
+      }
       const promise = skill.content(actor);
       this.mode = null;
       const self = this;
       const cooldown = skill.cooldown;
-      Promise.resolve(promise).then(function (result) {
+      return Promise.resolve(promise).then(function (result) {
         const actuallyUsed = actor.skilled && !beforeSkilled;
         if (actuallyUsed) {
           self.log(actor.name + ' 发动技能：' + skill.name);
@@ -1079,6 +1093,19 @@
             self._limitedUsed = self._limitedUsed || {};
             self._limitedUsed[skill.id] = true;
           }
+          // 联机同步：本地玩家技能真正发动后，把技能动作 + 目标序列发给对方
+          if (self.onlineMode && actor.side === self._onlineSide && !isOnlineReplay) {
+            const recorded = Effect._onlineRecorded || [];
+            try {
+              Online.sendAction({
+                type: 'skill',
+                actorX: actorStartX,
+                actorY: actorStartY,
+                skillId: skill.id,
+                targets: JSON.stringify(recorded)
+              });
+            } catch (e) { console.error('[online] 技能同步发送失败:', e); }
+          }
           self._finishActorAction();
         } else {
           // 技能未真正发动（选择非法目标或中途取消）
@@ -1088,6 +1115,7 @@
           self._renderBottom();
           self._checkWin();
         }
+        self._cleanupOnlineSkillState();
       }).catch(function (e) {
         console.error('[技能代码错误]', skill.name, e);
         const errMsg = (e && e.message) ? e.message : String(e);
@@ -1102,7 +1130,19 @@
           self._render();
           self._renderBottom();
         }
+        self._cleanupOnlineSkillState();
       });
+    },
+
+    // 清理联机技能回放/记录状态（技能执行结束——成功、取消或出错——后调用）
+    _cleanupOnlineSkillState() {
+      this._onlineSkillReplay = false;
+      this._onlineAction = false;  // 异步技能回放结束，解除"回放中"标记
+      if (typeof Effect !== 'undefined') {
+        Effect._onlineRecorded = null;
+        Effect._onlineTargetQueue = null;
+        Effect._onlineOptionQueue = null;
+      }
     },
 
     _onSkillButtonClick(skill) {
@@ -1928,7 +1968,15 @@
       if (this.phase === 'draft') {
         panel.style.display = 'block';
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
-        status.innerHTML = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · <b>' + (side === 'red' ? '红' : '蓝') + '方</b> · 点击武将卡挑选';
+        const sideName = side === 'red' ? '红' : '蓝';
+        // 联机模式下，未轮到自己时提示"等待对方选将"，避免误导玩家点击
+        let suffix = ' · 点击武将卡挑选';
+        if (this.onlineMode && side !== this._onlineSide) {
+          suffix = ' · 等待对方选将...';
+        } else if (this.aiMode && side === this.aiSide) {
+          suffix = ' · AI 思考中...';
+        }
+        status.innerHTML = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · <b>' + sideName + '方</b>' + suffix;
         cards.innerHTML = '';
         const pool = Generals.list.filter(g =>
           !this.pickedRed.find(p => p.id === g.id) &&
@@ -1954,6 +2002,12 @@
         const pending = picked.filter(g => !placedIds.includes(g.id));
         let tip = '';
         if (this.deploySelected) tip = ' · 已选中【' + this.deploySelected.name + '】，点棋盘空格放置';
+        // 联机模式下未轮到自己布阵时提示等待
+        if (this.onlineMode && side !== this._onlineSide) {
+          tip = ' · 等待对方布阵...';
+        } else if (this.aiMode && side === this.aiSide) {
+          tip = ' · AI 布阵中...';
+        }
         status.innerHTML = '布阵 · <b>' + (side === 'red' ? '红' : '蓝') + '方</b> · 剩余 ' + pending.length + ' 将' + tip;
         cards.innerHTML = '';
         const self = this;
@@ -3047,7 +3101,9 @@
       Game.init('online', { seed: data.seed });
     });
 
-    // 应用一条远端（或历史回放）操作，复用于实时对局与断线重连回放
+    // 应用一条远端（或历史回放）操作，复用于实时对局与断线重连回放。
+    // 返回 Promise：同步动作立即 resolve；异步动作（技能）在 content 执行完毕后 resolve。
+    // 这样调用方可串行排队，避免多条远端动作并发回放导致局面错乱。
     Game._applyRemoteAction = function (data) {
       Game._onlineAction = true;  // 标记正在回放，避免重复发送
 
@@ -3072,18 +3128,90 @@
           Game.selected = actor;
           Game._tryAttack(data.targetX, data.targetY);
         }
+      } else if (data.type === 'skill') {
+        // 技能异步执行：由 _castSkill 内部维护 _onlineSkillReplay 标记，
+        // 贯穿 content 的 await 过程，结束后在 .then()/.catch() 的 _cleanupOnlineSkillState 中复位 _onlineAction。
+        const actor = Game.pieceAt(data.actorX, data.actorY);
+        let skillPromise = null;
+        if (actor) {
+          const skill = (actor.skills || []).find(s => s.id === data.skillId);
+          if (skill) {
+            // 解析目标/选项序列，分别装入对应队列供 chooseCell/chooseOption 依次取用
+            Effect._onlineTargetQueue = [];
+            Effect._onlineOptionQueue = [];
+            try {
+              const recorded = data.targets ? JSON.parse(data.targets) : [];
+              (recorded || []).forEach(function (r) {
+                if (r === null) {
+                  Effect._onlineTargetQueue.push(null);           // chooseCell 取消
+                } else if (typeof r === 'object') {
+                  if ('opt' in r) {
+                    Effect._onlineOptionQueue.push(r.opt);        // chooseOption 选择
+                  } else if ('x' in r) {
+                    Effect._onlineTargetQueue.push({ x: r.x, y: r.y }); // chooseCell 目标
+                  }
+                }
+              });
+            } catch (e) {
+              Effect._onlineTargetQueue = [];
+              Effect._onlineOptionQueue = [];
+            }
+            Game.selected = actor;
+            skillPromise = Game._castSkill(skill);  // 返回 Promise（_cleanupOnlineSkillState 会复位 _onlineAction）
+          }
+        }
+        // 异步技能：等其结束后再 resolve，保证串行回放
+        return Promise.resolve(skillPromise).then(function () {
+          if (Game._onlineAction) Game._onlineAction = false;  // 兜底复位（actor/skill 缺失时）
+        });
       } else if (data.type === 'endTurn') {
         Game.endTurn();
       }
 
       Game._onlineAction = false;
+      return Promise.resolve();
+    };
+
+    // 远端动作串行队列：避免异步技能回放期间下一条动作并发执行
+    Game._remoteQueue = [];
+    Game._remoteBusy = false;
+    Game._remoteDrainWaiters = null;
+    Game._drainRemoteQueue = function () {
+      if (Game._remoteBusy) return;
+      const next = Game._remoteQueue.shift();
+      if (!next) {
+        // 队列空：唤醒所有等待"回放排空"的回调（如重连回放完成提示）
+        if (Game._remoteDrainWaiters) {
+          const ws = Game._remoteDrainWaiters; Game._remoteDrainWaiters = null;
+          ws.forEach(function (fn) { try { fn(); } catch (e) {} });
+        }
+        return;
+      }
+      Game._remoteBusy = true;
+      Promise.resolve(Game._applyRemoteAction(next)).then(function () {
+        Game._remoteBusy = false;
+        Game._drainRemoteQueue();
+      }).catch(function (e) {
+        console.error('[online] 远端动作回放出错:', e);
+        Game._remoteBusy = false;
+        Game._drainRemoteQueue();
+      });
+    };
+    // 返回 Promise：在当前队列全部回放完毕后 resolve（用于重连后等待状态稳定）
+    Game._waitRemoteDrain = function () {
+      return new Promise(function (resolve) {
+        if (!Game._remoteBusy && !Game._remoteQueue.length) { resolve(); return; }
+        Game._remoteDrainWaiters = Game._remoteDrainWaiters || [];
+        Game._remoteDrainWaiters.push(resolve);
+      });
     };
 
     // 联机游戏操作回放（实时）
     Online.on('gameAction', (data) => {
       if (!Game.onlineMode) return;
       if (data.fromSide === Game._onlineSide) return;  // 忽略自己发出的操作
-      Game._applyRemoteAction(data);
+      Game._remoteQueue.push(data);
+      Game._drainRemoteQueue();
     });
 
     // 断线重连：用完整操作日志重放出当前局面
@@ -3100,9 +3228,20 @@
       tryPlayBgm(true);
       showConnBanner('正在重新连接对局...');
       Game.init('online', { seed: data.seed });
-      (data.actionLog || []).forEach(entry => Game._applyRemoteAction(entry));
-      hideConnBanner();
-      Game.log('已重新连接对局。', 'turn');
+      // 重置队列状态，把完整操作日志依次入队（与实时 gameAction 共用同一串行队列，
+      // 避免重连回放期间收到实时动作时并发回放导致局面错乱）
+      Game._remoteQueue = (data.actionLog || []).slice();
+      Game._remoteBusy = false;
+      Game._remoteDrainWaiters = null;
+      Game._drainRemoteQueue();
+      Game._waitRemoteDrain().then(function () {
+        hideConnBanner();
+        Game.log('已重新连接对局。', 'turn');
+      }).catch(function (e) {
+        console.error('[online] 重连回放出错:', e);
+        hideConnBanner();
+        Game.log('已重新连接对局（部分回放失败）。', 'turn');
+      });
     });
 
     Online.on('rejoinFailed', () => {
