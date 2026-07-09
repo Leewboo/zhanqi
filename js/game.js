@@ -320,19 +320,22 @@
       return '/portraits/' + g.portrait;
     },
 
+    startGame(mode) {
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      this.init(mode);
+    },
+
     goHome() {
       document.getElementById('banner').classList.add('hidden');
       document.getElementById('report-modal').classList.add('hidden');
       document.getElementById('detail-modal').classList.add('hidden');
       document.getElementById('app').classList.add('hidden');
+      document.getElementById('online-screen').classList.add('hidden');
+      document.getElementById('room-screen').classList.add('hidden');
       document.getElementById('home-screen').classList.remove('hidden');
       document.getElementById('log').innerHTML = '';
-    },
-
-    startGame(mode) {
-      document.getElementById('home-screen').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-      this.init(mode);
+      Online.disconnect();
     },
 
     _highlightDeployZones(side) {
@@ -2539,11 +2542,14 @@
       updateProgress(999, '加载完成');
       setTimeout(() => {
         if (loadingScreen) loadingScreen.classList.add('hidden');
-        // 页面加载时显示主页；点击「本机对战 / 人机对战」后再调用 init
         const home = document.getElementById('home-screen');
         const app = document.getElementById('app');
+        const onlineScreen = document.getElementById('online-screen');
+        const roomScreen = document.getElementById('room-screen');
         if (home) home.classList.remove('hidden');
         if (app) app.classList.add('hidden');
+        if (onlineScreen) onlineScreen.classList.add('hidden');
+        if (roomScreen) roomScreen.classList.add('hidden');
       }, 200);
     }
 
@@ -3163,7 +3169,11 @@
     if (settingRestart) {
       settingRestart.addEventListener('click', () => {
         closeSettings();
-        Game.startGame(GameSettings.gameMode);
+        if (GameSettings.gameMode === 'online') {
+          showOnlineScreen();
+        } else {
+          Game.startGame(GameSettings.gameMode);
+        }
       });
     }
 
