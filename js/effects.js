@@ -149,7 +149,7 @@
       const dodgeMarks = this.getMarksOn(target).filter(m => m.modifiers && m.modifiers.dodgeChance);
       if (dodgeMarks.length > 0) {
         const maxChance = Math.max(...dodgeMarks.map(m => m.modifiers.dodgeChance));
-        if (Math.random() < maxChance) {
+        if (global.RNG.chance(maxChance)) {
           // 闪避成功，移除所有闪避标记
           dodgeMarks.forEach(m => Effect.unmark(target, m.name));
           if (global.Game) {
@@ -717,7 +717,7 @@
         if (s > maxScore) maxScore = s;
       }
       const tops = valid.filter(o => (typeof o.aiScore === 'number' ? o.aiScore : 0) === maxScore);
-      return tops[Math.floor(Math.random() * tops.length)];
+      return global.RNG.pick(tops);
     },
 
     chooseOption(actor, opts) {
@@ -820,13 +820,12 @@
       return global.Game.pieces.filter(p => p.alive && p.side !== actor.side);
     },
 
-    // 随机数工具
+    // 随机数工具（统一走可播种 RNG，联机对战下双端结果一致）
     random(min, max) {
-      if (max === undefined) { max = min; min = 0; }
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+      return global.RNG.randInt(min, max);
     },
     chance(p) {
-      return Math.random() < p;
+      return global.RNG.chance(p);
     },
 
     // ========== 单独恢复行动 ==========
@@ -965,7 +964,7 @@
       var cells = Range.cellsInRange('r', range, actor.x, actor.y, { includeSelf: false });
       var empty = cells.filter(function (c) { return !g.pieceAt(c.x, c.y); });
       if (!empty.length) return false;
-      var dest = empty[Math.floor(Math.random() * empty.length)];
+      var dest = global.RNG.pick(empty);
       actor.x = dest.x; actor.y = dest.y;
       g.log(actor.name + ' 随机传送至 (' + dest.x + ',' + dest.y + ')！');
       return true;

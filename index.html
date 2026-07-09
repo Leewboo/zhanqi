@@ -123,11 +123,75 @@
       <p class="home-subtitle">三 国 · 策 略 · 对 战</p>
       <div class="home-buttons">
         <button id="btn-local" class="home-btn primary">本机对战</button>
+        <button id="btn-online" class="home-btn">联机对战</button>
         <button id="btn-ai" class="home-btn">人机对战</button>
         <button id="btn-diy" class="home-btn" style="margin-top:6px;background:#fafafa;color:#555;border-color:#c9bf9e;">DIY 武将（脚本）</button>
       </div>
       <div class="home-foot">
         双人轮流操作棋盘 &nbsp;·&nbsp; 选择武将 · 布阵 · 战斗 · 攻防
+      </div>
+    </div>
+  </section>
+
+  <section id="online-screen" class="online-screen hidden">
+    <div class="online-inner">
+      <h1 class="online-title">联机对战</h1>
+      <p class="online-subtitle">选择对战模式</p>
+      <div class="online-mode-select">
+        <button class="mode-btn selected" data-mode="3v3">
+          <div class="mode-name">3v3 对战</div>
+          <div class="mode-desc">6将选3 · 快节奏</div>
+        </button>
+        <button class="mode-btn" data-mode="5v5">
+          <div class="mode-name">5v5 对战</div>
+          <div class="mode-desc">10将选5 · 策略战</div>
+        </button>
+      </div>
+      <div class="online-name-input">
+        <label>你的昵称</label>
+        <input type="text" id="online-name" placeholder="输入昵称" maxlength="10" />
+      </div>
+      <div class="online-actions">
+        <button id="btn-create-room" class="online-btn primary">创建房间</button>
+        <button id="btn-join-room" class="online-btn">加入房间</button>
+      </div>
+      <div class="online-join-input hidden">
+        <label>房间号</label>
+        <input type="text" id="online-room-id" placeholder="输入6位房间号" maxlength="6" />
+        <button id="btn-do-join" class="online-btn small">确认加入</button>
+      </div>
+      <div class="online-status" id="online-status">等待操作...</div>
+      <button id="btn-online-back" class="online-back">返回主页</button>
+    </div>
+  </section>
+
+  <section id="room-screen" class="room-screen hidden">
+    <div class="room-inner">
+      <h1 class="room-title">房间</h1>
+      <div class="room-info">
+        <div class="room-id">房间号: <span id="room-id-display"></span></div>
+        <div class="room-mode" id="room-mode-display">3v3 对战</div>
+      </div>
+      <div class="room-players">
+        <div class="player-slot red">
+          <div class="player-avatar">红</div>
+          <div class="player-name" id="player-red-name">等待中...</div>
+          <div class="player-ready" id="player-red-ready">未准备</div>
+        </div>
+        <div class="vs-text">VS</div>
+        <div class="player-slot blue">
+          <div class="player-avatar">蓝</div>
+          <div class="player-name" id="player-blue-name">等待中...</div>
+          <div class="player-ready" id="player-blue-ready">未准备</div>
+        </div>
+      </div>
+      <div class="room-actions">
+        <button id="btn-room-ready" class="room-btn">准备就绪</button>
+        <button id="btn-room-cancel" class="room-btn ghost">退出房间</button>
+      </div>
+      <div class="room-tips">
+        <p>将房间号发送给好友，等待对方加入</p>
+        <p>双方点击"准备就绪"后开始游戏</p>
       </div>
     </div>
   </section>
@@ -212,10 +276,13 @@
     </section>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/rng.js?v=1"></script>
   <script src="js/range.js?v=3"></script>
-  <script src="js/effects.js?v=4"></script>
+  <script src="js/effects.js?v=5"></script>
   <script src="js/skills.js?v=4"></script>
   <script src="js/generals.js?v=4"></script>
-  <script src="js/game.js?v=6"></script>
+  <script src="js/online.js?v=1"></script>
+  <script src="js/game.js?v=7"></script>
 </body>
 </html>
