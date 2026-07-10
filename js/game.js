@@ -1235,13 +1235,17 @@
     },
 
     _tryMove(x, y) {
-      const hit = this.highlighted.find(h => h.x === x && h.y === y && h.kind === 'move');
-      if (!hit) {
-        this.mode = null;
-        this.highlighted = [];
-        this._render();
-        this._renderBottom();
-        return;
+      // 联机回放时跳过 highlighted 校验：目标坐标已由远端权威确认，
+      // 本地无需再校验可达性（此时 highlighted 通常为空，不跳过会导致回放静默失败、双方棋盘不同步）
+      if (!this._onlineAction) {
+        const hit = this.highlighted.find(h => h.x === x && h.y === y && h.kind === 'move');
+        if (!hit) {
+          this.mode = null;
+          this.highlighted = [];
+          this._render();
+          this._renderBottom();
+          return;
+        }
       }
       const actor = this.selected;
       if (!this._onlineCanAct(actor.side, this._onlineAction)) return;
@@ -1269,13 +1273,16 @@
     },
 
     _tryAttack(x, y) {
-      const hit = this.highlighted.find(h => h.x === x && h.y === y && h.kind === 'attack');
-      if (!hit) {
-        this.mode = null;
-        this.highlighted = [];
-        this._render();
-        this._renderBottom();
-        return;
+      // 联机回放时跳过 highlighted 校验：目标坐标已由远端权威确认（同 _tryMove）
+      if (!this._onlineAction) {
+        const hit = this.highlighted.find(h => h.x === x && h.y === y && h.kind === 'attack');
+        if (!hit) {
+          this.mode = null;
+          this.highlighted = [];
+          this._render();
+          this._renderBottom();
+          return;
+        }
       }
       const actor = this.selected;
       if (!this._onlineCanAct(actor.side, this._onlineAction)) return;
