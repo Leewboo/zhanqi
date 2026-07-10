@@ -149,7 +149,7 @@
       const dodgeMarks = this.getMarksOn(target).filter(m => m.modifiers && m.modifiers.dodgeChance);
       if (dodgeMarks.length > 0) {
         const maxChance = Math.max(...dodgeMarks.map(m => m.modifiers.dodgeChance));
-        if (Math.random() < maxChance) {
+        if (global.RNG.chance(maxChance)) {
           // 闪避成功，移除所有闪避标记
           dodgeMarks.forEach(m => Effect.unmark(target, m.name));
           if (global.Game) {
@@ -292,6 +292,15 @@
     // _aiContext = { mode: true, actor, skill, hint }
     _aiContext: null,
 
+    // ========== 联机技能同步系统 ==========
+    // 回放远端技能时，把对方已选定的目标/选项按序注入：
+    //  - _onlineTargetQueue: [{x,y}, ...]  供 chooseCell/chooseEnemy/chooseAlly 依次取用
+    //  - _onlineOptionQueue: [idx, ...]     供 chooseOption 依次取用
+    // 本地释放技能时，_onlineRecorded 累积玩家实际选择，用于发送给对方。
+    _onlineTargetQueue: null,
+    _onlineOptionQueue: null,
+    _onlineRecorded: null,
+
     // 查询当前是否处于 AI 模式（content 代码可调用以分支处理）
     // 返回 _aiContext 对象（含 actor/skill/hint）或 null
     aiContext() {
@@ -426,6 +435,16 @@
 
     chooseCell(actor, options) {
       options = options || {};
+      // 联机回放：直接返回远端已选定的目标格子，不进入交互
+      if (Effect._onlineTargetQueue && Effect._onlineTargetQueue.length) {
+        const t = Effect._onlineTargetQueue.shift();
+        if (t === null) return Promise.resolve(null);
+        return Promise.resolve({ x: t.x, y: t.y });
+      }
+      // 联机回放但目标队列已空（脱同步兜底）：不进入交互等待，直接返回 null
+      if (global.Game && global.Game.onlineMode && global.Game._onlineSkillReplay) {
+        return Promise.resolve(null);
+      }
       // AI 模式：自动选择最优格子，不进入交互
       if (Effect._aiContext && Effect._aiContext.mode) {
         return Promise.resolve(Effect._aiChooseCell(actor, options));
@@ -459,6 +478,11 @@
         }
         if (!valid.length) return resolve(null);
         global.Game.awaitingCell = (cell) => {
+          // 联机本地操作：记录玩家选择的目标，用于同步给对方
+          if (global.Game.onlineMode && !global.Game._onlineAction && !global.Game._onlineSkillReplay) {
+            Effect._onlineRecorded = Effect._onlineRecorded || [];
+            Effect._onlineRecorded.push(cell ? { x: cell.x, y: cell.y } : null);
+          }
           resolve(cell);
         };
         global.Game.highlighted = valid.map(c => ({ x: c.x, y: c.y, kind: options.hint || 'skill' }));
@@ -717,11 +741,24 @@
         if (s > maxScore) maxScore = s;
       }
       const tops = valid.filter(o => (typeof o.aiScore === 'number' ? o.aiScore : 0) === maxScore);
-      return tops[Math.floor(Math.random() * tops.length)];
+      return global.RNG.pick(tops);
     },
 
     chooseOption(actor, opts) {
       opts = opts || {};
+      // 联机回放：直接返回远端已选定的选项（按下标重建）
+      if (Effect._onlineOptionQueue && Effect._onlineOptionQueue.length) {
+        const idx = Effect._onlineOptionQueue.shift();
+        if (idx === null) return Promise.resolve(null);
+        const displayOptions = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
+        const picked = displayOptions[idx] ? Object.assign({}, displayOptions[idx], { _index: idx }) : null;
+        if (global.Game) global.Game.log(actor.name + ' 选择了：' + ((picked && picked.label) || ('选项 ' + (idx + 1))) + '。');
+        return Promise.resolve(picked);
+      }
+      // 联机回放但选项队列已空（脱同步兜底）：不弹出模态框，直接返回 null
+      if (global.Game && global.Game.onlineMode && global.Game._onlineSkillReplay) {
+        return Promise.resolve(null);
+      }
       // AI 模式：自动选择
       if (Effect._aiContext && Effect._aiContext.mode) {
         return Promise.resolve(Effect._aiChooseOption(actor, opts));
@@ -768,6 +805,11 @@
             const picked = Object.assign({}, opt, { _index: idx });
             g.log(actor.name + ' 选择了：' + (opt.label || ('选项 ' + (idx + 1))) + '。');
             Effect._closeOptionModal();
+            // 联机本地操作：记录所选选项下标，用于同步给对方
+            if (g.onlineMode && !g._onlineAction && !g._onlineSkillReplay) {
+              Effect._onlineRecorded = Effect._onlineRecorded || [];
+              Effect._onlineRecorded.push({ opt: idx });
+            }
             resolve(picked);
           });
           body.appendChild(item);
@@ -781,6 +823,10 @@
         cancelBtn.style.cssText = 'padding:6px 16px;font-size:13px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer;border-radius:3px;';
         cancelBtn.addEventListener('click', function () {
           Effect._closeOptionModal();
+          if (g.onlineMode && !g._onlineAction && !g._onlineSkillReplay) {
+            Effect._onlineRecorded = Effect._onlineRecorded || [];
+            Effect._onlineRecorded.push({ opt: null });
+          }
           resolve(null);
         });
         foot.appendChild(cancelBtn);
@@ -793,6 +839,10 @@
         mask.addEventListener('click', function (e) {
           if (e.target === mask) {
             Effect._closeOptionModal();
+            if (g.onlineMode && !g._onlineAction && !g._onlineSkillReplay) {
+              Effect._onlineRecorded = Effect._onlineRecorded || [];
+              Effect._onlineRecorded.push({ opt: null });
+            }
             resolve(null);
           }
         });
@@ -820,13 +870,12 @@
       return global.Game.pieces.filter(p => p.alive && p.side !== actor.side);
     },
 
-    // 随机数工具
+    // 随机数工具（统一走可播种 RNG，联机对战下双端结果一致）
     random(min, max) {
-      if (max === undefined) { max = min; min = 0; }
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+      return global.RNG.randInt(min, max);
     },
     chance(p) {
-      return Math.random() < p;
+      return global.RNG.chance(p);
     },
 
     // ========== 单独恢复行动 ==========
@@ -965,7 +1014,7 @@
       var cells = Range.cellsInRange('r', range, actor.x, actor.y, { includeSelf: false });
       var empty = cells.filter(function (c) { return !g.pieceAt(c.x, c.y); });
       if (!empty.length) return false;
-      var dest = empty[Math.floor(Math.random() * empty.length)];
+      var dest = global.RNG.pick(empty);
       actor.x = dest.x; actor.y = dest.y;
       g.log(actor.name + ' 随机传送至 (' + dest.x + ',' + dest.y + ')！');
       return true;

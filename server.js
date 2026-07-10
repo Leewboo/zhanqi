@@ -1142,6 +1142,23 @@ const io = new Server(httpServer, {
 });
 
 const rooms = {};
+const RECONNECT_GRACE_MS = 90 * 1000; // 断线后 90 秒内可重连，否则视为退出
+const ROOM_IDLE_MS = 2 * 60 * 60 * 1000; // 房间超过 2 小时无任何操作，视为已结束/遗弃，自动清理
+
+function touchRoom(room) {
+  room.lastActivity = Date.now();
+}
+
+// 定期清理长时间无活动的房间，避免内存无限增长
+setInterval(() => {
+  const now = Date.now();
+  for (const roomId in rooms) {
+    const room = rooms[roomId];
+    if (now - (room.lastActivity || 0) > ROOM_IDLE_MS) {
+      closeRoom(roomId, '长时间无活动');
+    }
+  }
+}, 10 * 60 * 1000).unref();
 
 function generateRoomId() {
   let id;
@@ -1149,6 +1166,25 @@ function generateRoomId() {
     id = Math.floor(100000 + Math.random() * 900000).toString();
   } while (rooms[id]);
   return id;
+}
+
+function generateToken() {
+  return require('crypto').randomBytes(16).toString('hex');
+}
+
+function publicPlayers(room) {
+  // 不把 token 下发给所有客户端，只返回展示所需字段
+  return room.players.map(p => ({ id: p.id, name: p.name, side: p.side, ready: p.ready, connected: p.connected !== false }));
+}
+
+function closeRoom(roomId, reason) {
+  const room = rooms[roomId];
+  if (!room) return;
+  if (room.players.some(p => p.disconnectTimer)) {
+    room.players.forEach(p => { if (p.disconnectTimer) clearTimeout(p.disconnectTimer); });
+  }
+  delete rooms[roomId];
+  console.log('[socket] 关闭房间:', roomId, reason || '');
 }
 
 io.on('connection', (socket) => {
@@ -1159,20 +1195,24 @@ io.on('connection', (socket) => {
     const mode = opts.mode || '3v3';
     const draftPoolSize = mode === '3v3' ? 6 : 10;
     const playerCount = mode === '3v3' ? 3 : 5;
+    const token = generateToken();
 
     rooms[roomId] = {
       id: roomId,
       mode: mode,
       draftPoolSize: draftPoolSize,
       playerCount: playerCount,
-      players: [{ id: socket.id, name: opts.name || '玩家1', side: 'red', ready: false }],
-      phase: 'waiting'
+      players: [{ id: socket.id, token, name: opts.name || '玩家1', side: 'red', ready: false, connected: true }],
+      phase: 'waiting',
+      seed: null,
+      actionLog: [],
+      lastActivity: Date.now()
     };
 
     socket.join(roomId);
     socket.emit('roomCreated', {
       roomId, mode, draftPoolSize, playerCount,
-      side: 'red', players: rooms[roomId].players
+      side: 'red', token, players: publicPlayers(rooms[roomId])
     });
     console.log('[socket] 创建房间:', roomId, '模式:', mode);
   });
@@ -1184,15 +1224,17 @@ io.on('connection', (socket) => {
     if (room.players.length >= 2) { socket.emit('joinFailed', { error: '房间已满' }); return; }
     if (room.phase !== 'waiting') { socket.emit('joinFailed', { error: '游戏已开始' }); return; }
 
-    room.players.push({ id: socket.id, name: opts.name || '玩家2', side: 'blue', ready: false });
+    const token = generateToken();
+    room.players.push({ id: socket.id, token, name: opts.name || '玩家2', side: 'blue', ready: false, connected: true });
+    touchRoom(room);
     socket.join(roomId);
     socket.emit('roomJoined', {
       roomId, mode: room.mode, draftPoolSize: room.draftPoolSize,
-      playerCount: room.playerCount, side: 'blue', players: room.players
+      playerCount: room.playerCount, side: 'blue', token, players: publicPlayers(room)
     });
     io.to(roomId).emit('playerJoined', {
       player: { id: socket.id, name: opts.name || '玩家2', side: 'blue' },
-      players: room.players
+      players: publicPlayers(room)
     });
     console.log('[socket] 加入房间:', roomId, '玩家:', socket.id);
   });
@@ -1203,40 +1245,196 @@ io.on('connection', (socket) => {
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
     player.ready = true;
+    touchRoom(room);
     io.to(roomId).emit('playerReady', { playerId: socket.id, side: player.side });
 
     if (room.players.length >= 2 && room.players.every(p => p.ready)) {
-      room.phase = 'draft';
+      room.phase = 'battle';
+      room.seed = Math.floor(Math.random() * 4294967296);
+      room.actionLog = [];
+      // 服务端权威的回合归属状态：不理解具体棋盘规则，但能校验"轮到谁操作"，
+      // 防止被篡改的客户端在非己方回合发送操作（配合客户端 UI 层的拦截做纵深防御）
+      room.turn = {
+        phase: 'draft',
+        draftIndex: 0,
+        pickCount: { red: 0, blue: 0 },
+        deploySide: 'red',
+        placeCount: { red: 0, blue: 0 },
+        battleSide: 'red'
+      };
       io.to(roomId).emit('gameStart', {
         mode: room.mode, draftPoolSize: room.draftPoolSize,
-        playerCount: room.playerCount, players: room.players
+        playerCount: room.playerCount, players: publicPlayers(room), seed: room.seed
       });
       console.log('[socket] 游戏开始:', roomId);
     }
   });
 
+  const ALLOWED_ACTION_TYPES = new Set(['pick', 'place', 'move', 'attack', 'skill', 'endTurn']);
+  const ALLOWED_ACTION_FIELDS = new Set(['type', 'generalId', 'x', 'y', 'fromX', 'fromY', 'toX', 'toY', 'actorX', 'actorY', 'targetX', 'targetY', 'skillId', 'targets']);
+  const MAX_ACTION_LOG = 5000; // 单局最多保留的操作条数，超出后停止追加（局面理论上不会真的到这个量级）
+
+  function sanitizeAction(data) {
+    if (!data || typeof data !== 'object') return null;
+    if (!ALLOWED_ACTION_TYPES.has(data.type)) return null;
+    const clean = { type: data.type };
+    for (const key of ALLOWED_ACTION_FIELDS) {
+      if (key === 'type') continue;
+      if (data[key] === undefined) continue;
+      const v = data[key];
+      if (key === 'generalId' || key === 'skillId') {
+        if (typeof v !== 'string' || v.length > 64) return null;
+        clean[key] = v;
+      } else if (key === 'targets') {
+        // 技能目标序列（JSON 字符串），限制长度避免日志膨胀
+        if (typeof v !== 'string' || v.length > 512) return null;
+        clean[key] = v;
+      } else {
+        if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+        clean[key] = v;
+      }
+    }
+    return clean;
+  }
+
+  const PHASE_FOR_TYPE = { pick: 'draft', place: 'deploy', move: 'battle', attack: 'battle', skill: 'battle', endTurn: 'battle' };
+
+  // 服务端不复刻完整规则，只校验"当前阶段 + 该动作类型是否轮到发送者一方"，
+  // 拒绝的操作直接丢弃（不广播/不记录），作为客户端 UI 拦截之外的纵深防御。
+  function validateAndAdvanceTurn(room, type, side) {
+    const turn = room.turn;
+    if (!turn) return false; // 游戏未开始
+    if (PHASE_FOR_TYPE[type] !== turn.phase) return false;
+
+    if (turn.phase === 'draft') {
+      const need = turn.draftIndex % 2 === 0 ? 'red' : 'blue';
+      if (side !== need) return false;
+      turn.pickCount[side] += 1;
+      turn.draftIndex += 1;
+      const effective = room.playerCount;
+      const nextNeed = turn.draftIndex % 2 === 0 ? 'red' : 'blue';
+      if (turn.pickCount[nextNeed] >= effective) turn.draftIndex += 1; // 该方已选满，跳过
+      if (turn.pickCount.red >= effective && turn.pickCount.blue >= effective) {
+        turn.phase = 'deploy';
+        turn.deploySide = 'red';
+      }
+      return true;
+    }
+
+    if (turn.phase === 'deploy') {
+      if (side !== turn.deploySide) return false;
+      turn.placeCount[side] += 1;
+      if (turn.placeCount[side] >= turn.pickCount[side]) {
+        if (side === 'red') {
+          turn.deploySide = 'blue';
+        } else {
+          turn.phase = 'battle';
+          turn.battleSide = 'red';
+        }
+      }
+      return true;
+    }
+
+    if (turn.phase === 'battle') {
+      if (side !== turn.battleSide) return false;
+      if (type === 'endTurn') {
+        turn.battleSide = turn.battleSide === 'red' ? 'blue' : 'red';
+      }
+      return true;
+    }
+
+    return false;
+  }
+
   socket.on('gameAction', (data) => {
-    const room = rooms[data.roomId];
+    const room = rooms[data && data.roomId];
     if (!room) return;
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
-    io.to(data.roomId).emit('gameAction', { ...data, fromSide: player.side });
+    const clean = sanitizeAction(data);
+    if (!clean) return; // 非法/畸形操作，直接丢弃，不广播也不记录
+    if (room.actionLog.length >= MAX_ACTION_LOG) return;
+    if (!validateAndAdvanceTurn(room, clean.type, player.side)) {
+      console.warn('[socket] 拒绝越权/乱序操作:', room.id, player.side, clean.type);
+      return;
+    }
+    const action = { ...clean, fromSide: player.side };
+    room.actionLog.push(action);
+    touchRoom(room);
+    io.to(data.roomId).emit('gameAction', action);
+  });
+
+  // 断线重连：客户端携带上次分配的 token 尝试恢复到原房间
+  socket.on('rejoinRoom', ({ roomId, token }) => {
+    const room = rooms[roomId];
+    if (!room) { socket.emit('rejoinFailed', { error: '房间不存在' }); return; }
+    const player = room.players.find(p => p.token === token);
+    if (!player) { socket.emit('rejoinFailed', { error: '身份校验失败' }); return; }
+
+    if (player.disconnectTimer) {
+      clearTimeout(player.disconnectTimer);
+      player.disconnectTimer = null;
+    }
+    player.id = socket.id;
+    player.connected = true;
+    touchRoom(room);
+    socket.join(roomId);
+
+    socket.emit('rejoined', {
+      roomId, mode: room.mode, draftPoolSize: room.draftPoolSize,
+      playerCount: room.playerCount, side: player.side,
+      players: publicPlayers(room), seed: room.seed,
+      phase: room.phase, actionLog: room.actionLog
+    });
+
+    const opponent = room.players.find(p => p.token !== token);
+    if (opponent && opponent.connected) {
+      io.to(opponent.id).emit('opponentReconnected', { side: player.side });
+    }
+    console.log('[socket] 玩家重连:', roomId, socket.id);
+  });
+
+  socket.on('leaveRoom', (roomId) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx < 0) return;
+    room.players.splice(idx, 1);
+    if (room.players.length === 0) {
+      closeRoom(roomId, '所有玩家已离开');
+    } else {
+      io.to(roomId).emit('playerLeft', { playerId: socket.id });
+    }
   });
 
   socket.on('disconnect', () => {
     console.log('[socket] 玩家断开:', socket.id);
     for (const roomId in rooms) {
       const room = rooms[roomId];
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx >= 0) {
-        room.players.splice(idx, 1);
+      const player = room.players.find(p => p.id === socket.id);
+      if (!player) continue;
+
+      if (room.phase === 'waiting') {
+        // 尚未开始游戏，直接移除，无需保留重连名额
+        room.players = room.players.filter(p => p.id !== socket.id);
         if (room.players.length === 0) {
-          delete rooms[roomId];
+          closeRoom(roomId, '等待阶段玩家离开');
         } else {
           io.to(roomId).emit('playerLeft', { playerId: socket.id });
         }
         break;
       }
+
+      // 对局进行中：保留玩家名额，给予重连宽限期
+      player.connected = false;
+      io.to(roomId).emit('opponentDisconnected', { side: player.side });
+      player.disconnectTimer = setTimeout(() => {
+        const stillThere = room.players.find(p => p.token === player.token);
+        if (stillThere && !stillThere.connected) {
+          closeRoom(roomId, '重连超时');
+        }
+      }, RECONNECT_GRACE_MS);
+      break;
     }
   });
 });
