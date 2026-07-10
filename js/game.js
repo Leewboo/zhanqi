@@ -1256,6 +1256,7 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
+      Effect.triggerPassive(actor, 'onMove', { x, y });
 
       // 联机同步
       if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
@@ -1360,6 +1361,10 @@
 
       // 回合结束时触发全局事件（如威震被动效果）
       Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
+      const endingSide = this.currentSide;
+      this.pieces.forEach(p => {
+        if (p.side === endingSide && p.alive) Effect.triggerPassive(p, 'turnEnd', { turn: this.turn });
+      });
       Effect._checkTmpSkillExpiry({ turn: this.turn });
 
       if (this.currentSide === 'red') {
@@ -1387,6 +1392,10 @@
 
       // 回合开始事件（处理状态递减（在刷新 UI 之后触发 turnStart 事件
       Effect.trigger('turnStart', { side: this.currentSide, turn: this.turn });
+      const startingSide = this.currentSide;
+      this.pieces.forEach(p => {
+        if (p.side === startingSide && p.alive) Effect.triggerPassive(p, 'turnStart', { turn: this.turn });
+      });
       Effect._checkTmpSkillExpiry({ turn: this.turn, side: this.currentSide }, 'turnStart');
 
       // 处理眩晕：眩晕
@@ -2572,6 +2581,7 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
+      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.highlighted = [];
       this.mode = null;
       this._render();
