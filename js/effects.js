@@ -1281,8 +1281,10 @@
 
     // 检查并移除过期的临时技能
     // phase: 'turnEnd'（回合结束）或 'turnStart'（回合开始）
+    // 计数器只在技能拥有者所属方的回合才递减，避免对手回合消耗计数
     _checkTmpSkillExpiry(context, phase) {
       const turn = context && context.turn ? context.turn : (global.Game && global.Game.turn ? global.Game.turn : 0);
+      const side = context && context.side ? context.side : null;
       phase = phase || 'turnEnd';
 
       const expired = [];
@@ -1297,14 +1299,17 @@
           continue;
         }
 
-        if (phase === 'turnEnd' && entry.turnsRemaining !== null) {
+        // 只在技能拥有者所属方的回合才递减计数
+        const ownerTurn = !side || side === entry.actor.side;
+
+        if (phase === 'turnEnd' && entry.turnsRemaining !== null && ownerTurn) {
           entry.turnsRemaining--;
           if (entry.turnsRemaining <= 0) {
             expired.push(entry);
           }
         }
 
-        if (phase === 'turnStart' && entry.turnsAtStartRemaining !== null) {
+        if (phase === 'turnStart' && entry.turnsAtStartRemaining !== null && ownerTurn) {
           entry.turnsAtStartRemaining--;
           if (entry.turnsAtStartRemaining <= 0) {
             expired.push(entry);

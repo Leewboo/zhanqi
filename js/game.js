@@ -1365,7 +1365,7 @@
       this.pieces.forEach(p => {
         if (p.side === endingSide && p.alive) Effect.triggerPassive(p, 'turnEnd', { turn: this.turn });
       });
-      Effect._checkTmpSkillExpiry({ turn: this.turn });
+      Effect._checkTmpSkillExpiry({ turn: this.turn, side: this.currentSide });
 
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
