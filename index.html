@@ -8,7 +8,7 @@
   <link rel="preload" href="fonts/xiaozhuan.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/xingkai.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts/fonts.css" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=2" />
 </head>
 <body>
   <section id="loading-screen" class="loading-screen">
@@ -126,6 +126,7 @@
         <button id="btn-online" class="home-btn">联机对战</button>
         <button id="btn-ai" class="home-btn">人机对战</button>
         <button id="btn-diy" class="home-btn" style="margin-top:6px;background:#fafafa;color:#555;border-color:#c9bf9e;">DIY 武将（脚本）</button>
+        <button id="btn-gallery" class="home-btn" style="margin-top:6px;background:#fafafa;color:#555;border-color:#c9bf9e;">武将图鉴</button>
       </div>
       <div class="home-foot">
         双人轮流操作棋盘 &nbsp;·&nbsp; 选择武将 · 布阵 · 战斗 · 攻防
@@ -164,6 +165,31 @@
       <button id="btn-online-back" class="online-back">返回主页</button>
     </div>
   </section>
+
+  <section id="gallery-screen" class="gallery-screen hidden">
+    <div class="gallery-header">
+      <button id="btn-gallery-back" class="gallery-back-btn">← 返回</button>
+      <h1 class="gallery-title">武将图鉴</h1>
+      <div class="gallery-search-wrap">
+        <input type="text" id="gallery-search" class="gallery-search" placeholder="搜索武将名 / 技能名..." />
+      </div>
+      <div class="gallery-filter">
+        <button class="gallery-filter-btn selected" data-filter="all">全部</button>
+        <button class="gallery-filter-btn" data-filter="active">主动技</button>
+        <button class="gallery-filter-btn" data-filter="passive">被动技</button>
+      </div>
+    </div>
+    <div class="gallery-stats-bar" id="gallery-stats-bar"></div>
+    <div id="gallery-grid" class="gallery-grid"></div>
+  </section>
+
+  <div id="gallery-detail-modal" class="gallery-detail-modal hidden">
+    <div class="gallery-detail-backdrop"></div>
+    <div class="gallery-detail-card">
+      <button class="gallery-detail-close" id="gallery-detail-close">×</button>
+      <div id="gallery-detail-body" class="gallery-detail-body"></div>
+    </div>
+  </div>
 
   <section id="room-screen" class="room-screen hidden">
     <div class="room-inner">
@@ -283,6 +309,6 @@
   <script src="js/skills.js?v=4"></script>
   <script src="js/generals.js?v=4"></script>
   <script src="js/online.js?v=1"></script>
-  <script src="js/game.js?v=12"></script>
+  <script src="js/game.js?v=13"></script>
 </body>
 </html>

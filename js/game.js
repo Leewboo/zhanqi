@@ -2944,6 +2944,286 @@
     if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
 
+    // ========== 武将图鉴 ==========
+    const galleryBtn = document.getElementById('btn-gallery');
+    if (galleryBtn) galleryBtn.addEventListener('click', () => { showGalleryScreen(); });
+
+    function shapeText(shape) {
+      if (shape === '+') return '十字';
+      if (shape === 'x') return '斜角';
+      if (shape === 'r') return '圆形';
+      if (shape === 'square') return '方形';
+      return shape;
+    }
+
+    function resolveGeneralSkills(g) {
+      const rawSkills = (g.skills && g.skills.length) ? g.skills : (g.skill ? [g.skill] : []);
+      return rawSkills.map(function(s) {
+        if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s, desc: '', type: '' };
+        if (typeof s === 'object' && typeof s.content === 'function') return s;
+        if (typeof s === 'object' && typeof s.contentCode === 'string') {
+          return (global.SkillsAPI && global.SkillsAPI.compileSkill(s)) || s;
+        }
+        return s;
+      }).filter(Boolean);
+    }
+
+    let gallerySearchTerm = '';
+    let galleryFilterMode = 'all';
+
+    function showGalleryScreen() {
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('gallery-screen').classList.remove('hidden');
+      renderGallery();
+    }
+
+    function hideGalleryScreen() {
+      document.getElementById('gallery-screen').classList.add('hidden');
+      document.getElementById('home-screen').classList.remove('hidden');
+    }
+
+    function renderGallery() {
+      const grid = document.getElementById('gallery-grid');
+      const statsBar = document.getElementById('gallery-stats-bar');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const all = Generals.list.slice();
+      const total = all.length;
+
+      // 过滤
+      let filtered = all.filter(function(g) {
+        // 搜索过滤
+        if (gallerySearchTerm) {
+          var term = gallerySearchTerm.toLowerCase();
+          var skills = resolveGeneralSkills(g);
+          var skillMatch = skills.some(function(s) {
+            return (s.name && s.name.toLowerCase().indexOf(term) >= 0) ||
+                   (s.desc && s.desc.toLowerCase().indexOf(term) >= 0);
+          });
+          var nameMatch = g.name && g.name.toLowerCase().indexOf(term) >= 0;
+          if (!nameMatch && !skillMatch) return false;
+        }
+        // 技能类型过滤
+        if (galleryFilterMode !== 'all') {
+          var skills2 = resolveGeneralSkills(g);
+          var hasType = skills2.some(function(s) {
+            if (galleryFilterMode === 'active') return s.type !== '被动';
+            if (galleryFilterMode === 'passive') return s.type === '被动';
+            return true;
+          });
+          if (!hasType) return false;
+        }
+        return true;
+      });
+
+      // 统计栏
+      if (statsBar) {
+        var activeCount = 0, passiveCount = 0;
+        all.forEach(function(g) {
+          resolveGeneralSkills(g).forEach(function(s) {
+            if (s.type === '被动') passiveCount++;
+            else activeCount++;
+          });
+        });
+        statsBar.textContent = '共 ' + total + ' 位武将 · ' + activeCount + ' 个主动技 · ' + passiveCount + ' 个被动技' +
+          (filtered.length !== total ? ' · 当前筛选 ' + filtered.length + ' 位' : '');
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="gallery-empty">没有找到匹配的武将</div>';
+        return;
+      }
+
+      filtered.forEach(function(g) {
+        grid.appendChild(buildGalleryCard(g));
+      });
+    }
+
+    function buildGalleryCard(g) {
+      var card = document.createElement('div');
+      card.className = 'gcard';
+
+      // 立绘
+      var portraitWrap = document.createElement('div');
+      portraitWrap.className = 'gcard-portrait';
+      if (g.portrait) {
+        var img = document.createElement('img');
+        img.src = '/portraits/' + g.portrait;
+        img.alt = g.name;
+        img.onerror = function() {
+          portraitWrap.innerHTML = '<span class="gcard-no-portrait">' + g.name.charAt(0) + '</span>';
+        };
+        portraitWrap.appendChild(img);
+      } else {
+        portraitWrap.innerHTML = '<span class="gcard-no-portrait">' + (g.name ? g.name.charAt(0) : '?') + '</span>';
+      }
+      card.appendChild(portraitWrap);
+
+      // 名字条
+      var nameBar = document.createElement('div');
+      nameBar.className = 'gcard-name-bar';
+      nameBar.innerHTML = '<span class="gcard-name">' + g.name + '</span>' +
+        '<span class="gcard-id">' + g.id + '</span>';
+      card.appendChild(nameBar);
+
+      // 属性
+      var stats = document.createElement('div');
+      stats.className = 'gcard-stats';
+      stats.innerHTML =
+        '<div class="gcard-stat hp"><div class="gcard-stat-val">' + g.hp + '</div><div class="gcard-stat-label">生命</div></div>' +
+        '<div class="gcard-stat atk"><div class="gcard-stat-val">' + g.atk + '</div><div class="gcard-stat-label">攻击</div></div>' +
+        '<div class="gcard-stat def"><div class="gcard-stat-val">' + g.def + '</div><div class="gcard-stat-label">防御</div></div>';
+      card.appendChild(stats);
+
+      // 移动/攻击范围
+      var rangeDiv = document.createElement('div');
+      rangeDiv.className = 'gcard-range';
+      var moveShape = (g.moveRange && g.moveRange.shape) || '+';
+      var moveN = (g.moveRange && g.moveRange.n) || 0;
+      var atkShape = (g.attackRange && g.attackRange.shape) || '+';
+      var atkN = (g.attackRange && g.attackRange.n) || 0;
+      rangeDiv.innerHTML =
+        '<span class="gcard-range-item">移动 ' + shapeText(moveShape) + moveN + '</span>' +
+        '<span class="gcard-range-item">攻击 ' + shapeText(atkShape) + atkN + '</span>';
+      card.appendChild(rangeDiv);
+
+      // 技能列表
+      var skillsDiv = document.createElement('div');
+      skillsDiv.className = 'gcard-skills';
+      var skills = resolveGeneralSkills(g);
+      if (skills.length === 0) {
+        skillsDiv.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0;">无技能</div>';
+      } else {
+        skills.forEach(function(s) {
+          var skillDiv = document.createElement('div');
+          skillDiv.className = 'gcard-skill';
+          var isPassive = s.type === '被动';
+          var tagClass = isPassive ? 'passive' : 'active';
+          var tagName = isPassive ? '被动' : '主动';
+          var cdText = (!isPassive && s.cooldown) ? 'CD ' + s.cooldown : '';
+          skillDiv.innerHTML =
+            '<div class="gcard-skill-head">' +
+              '<span class="gcard-skill-tag ' + tagClass + '">' + tagName + '</span>' +
+              '<span class="gcard-skill-name">' + (s.name || s.id || '未命名') + '</span>' +
+              (cdText ? '<span class="gcard-skill-cd">' + cdText + '</span>' : '') +
+            '</div>' +
+            '<div class="gcard-skill-desc">' + (s.desc || '暂无描述') + '</div>';
+          skillsDiv.appendChild(skillDiv);
+        });
+      }
+      card.appendChild(skillsDiv);
+
+      // 点击打开详情
+      card.addEventListener('click', function() {
+        openGalleryDetail(g);
+      });
+
+      return card;
+    }
+
+    function openGalleryDetail(g) {
+      var modal = document.getElementById('gallery-detail-modal');
+      var body = document.getElementById('gallery-detail-body');
+      if (!modal || !body) return;
+
+      var skills = resolveGeneralSkills(g);
+      var html = '';
+
+      // 大立绘
+      html += '<div class="gd-portrait">';
+      if (g.portrait) {
+        html += '<img src="/portraits/' + g.portrait + '" alt="' + g.name + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'" />';
+        html += '<span class="gd-no-portrait" style="display:none;">' + g.name.charAt(0) + '</span>';
+      } else {
+        html += '<span class="gd-no-portrait">' + (g.name ? g.name.charAt(0) : '?') + '</span>';
+      }
+      html += '</div>';
+
+      // 内容区
+      html += '<div class="gd-content">';
+      html += '<h2 class="gd-name">' + g.name + '</h2>';
+      html += '<div class="gd-id">ID: ' + g.id + '</div>';
+
+      // 属性
+      html += '<div class="gd-stats">';
+      html += '<div class="gd-stat hp"><div class="gd-stat-val">' + g.hp + '</div><div class="gd-stat-label">生命</div></div>';
+      html += '<div class="gd-stat atk"><div class="gd-stat-val">' + g.atk + '</div><div class="gd-stat-label">攻击</div></div>';
+      html += '<div class="gd-stat def"><div class="gd-stat-val">' + g.def + '</div><div class="gd-stat-label">防御</div></div>';
+      html += '</div>';
+
+      // 范围
+      var moveShape = (g.moveRange && g.moveRange.shape) || '+';
+      var moveN = (g.moveRange && g.moveRange.n) || 0;
+      var atkShape = (g.attackRange && g.attackRange.shape) || '+';
+      var atkN = (g.attackRange && g.attackRange.n) || 0;
+      html += '<div class="gd-range">';
+      html += '<span>移动范围：' + shapeText(moveShape) + ' ' + moveN + ' 格</span>';
+      html += '<span>攻击范围：' + shapeText(atkShape) + ' ' + atkN + ' 格</span>';
+      html += '</div>';
+
+      // 技能
+      html += '<h3 class="gd-section-title">技能</h3>';
+      if (skills.length === 0) {
+        html += '<div style="font-size:13px;color:var(--muted);padding:8px 0;">该武将暂无技能</div>';
+      } else {
+        skills.forEach(function(s) {
+          var isPassive = s.type === '被动';
+          var tagClass = isPassive ? 'passive' : 'active';
+          var tagName = isPassive ? '被动' : '主动';
+          var cdText = (!isPassive && s.cooldown) ? '冷却 ' + s.cooldown + ' 回合' : '';
+          var triggerText = (isPassive && s.trigger) ? s.trigger : '';
+          html += '<div class="gd-skill">';
+          html += '<div class="gd-skill-head">';
+          html += '<span class="gd-skill-tag ' + tagClass + '">' + tagName + '</span>';
+          html += '<span class="gd-skill-name">' + (s.name || s.id || '未命名') + '</span>';
+          if (cdText) html += '<span class="gd-skill-cd">' + cdText + '</span>';
+          if (triggerText) html += '<span class="gd-skill-trigger">触发：' + triggerText + '</span>';
+          html += '</div>';
+          html += '<div class="gd-skill-desc">' + (s.desc || '暂无描述') + '</div>';
+          html += '</div>';
+        });
+      }
+
+      html += '</div>';
+
+      body.innerHTML = html;
+      modal.classList.remove('hidden');
+    }
+
+    // 图鉴返回按钮
+    var galleryBackBtn = document.getElementById('btn-gallery-back');
+    if (galleryBackBtn) galleryBackBtn.addEventListener('click', hideGalleryScreen);
+
+    // 图鉴搜索
+    var gallerySearchInput = document.getElementById('gallery-search');
+    if (gallerySearchInput) {
+      gallerySearchInput.addEventListener('input', function() {
+        gallerySearchTerm = this.value.trim();
+        renderGallery();
+      });
+    }
+
+    // 图鉴筛选
+    document.querySelectorAll('.gallery-filter-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.gallery-filter-btn').forEach(function(b) { b.classList.remove('selected'); });
+        this.classList.add('selected');
+        galleryFilterMode = this.getAttribute('data-filter');
+        renderGallery();
+      });
+    });
+
+    // 图鉴详情关闭
+    var galleryDetailClose = document.getElementById('gallery-detail-close');
+    if (galleryDetailClose) galleryDetailClose.addEventListener('click', function() {
+      document.getElementById('gallery-detail-modal').classList.add('hidden');
+    });
+    var galleryDetailBackdrop = document.querySelector('.gallery-detail-backdrop');
+    if (galleryDetailBackdrop) galleryDetailBackdrop.addEventListener('click', function() {
+      document.getElementById('gallery-detail-modal').classList.add('hidden');
+    });
+
     // ========== 联机模式界面逻辑 ==========
     let selectedOnlineMode = '3v3';
 
