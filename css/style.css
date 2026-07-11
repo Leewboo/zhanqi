@@ -1855,7 +1855,9 @@ html, body {
   background: var(--bg);
   z-index: 90;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 .gallery-screen.hidden { display: none; }
 
