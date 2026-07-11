@@ -2319,14 +2319,15 @@
       const types = hint.types || [hint.type];
       const hpRatio = actor.hp / (actor.maxHp || 200);
       const hpMissing = (actor.maxHp || 200) - actor.hp;
-      let hasHealType = false, hasDamageType = false, hasBuffType = false;
+      let hasHealType = false, hasBuffAtkType = false, hasBuffDefType = false, hasDamageType = false;
       for (const t of types) {
         if (t === 'heal') hasHealType = true;
-        else if (t === 'damage' || t === 'buff_atk') hasDamageType = true;
-        else if (t === 'buff' || t === 'buff_def') hasBuffType = true;
+        else if (t === 'buff_atk') hasBuffAtkType = true;
+        else if (t === 'buff_def' || t === 'buff') hasBuffDefType = true;
+        else if (t === 'damage') hasDamageType = true;
       }
 
-      if (hasHealType && hasDamageType) {
+      if (hasHealType && (hasBuffAtkType || hasDamageType)) {
         if (hpRatio < 0.4) {
           score *= 1.5;
         } else if (hpRatio > 0.8) {
@@ -2336,6 +2337,32 @@
 
       if (hasHealType && hpRatio >= 0.99) {
         score *= 0.4;
+      }
+
+      // 攻击增益类技能：附近有敌人且能攻击到时，提前使用增益再攻击
+      if (hasBuffAtkType && !actor.attacked) {
+        const atkTarget = this._aiBestAttackTarget(actor);
+        if (atkTarget) {
+          // 增益后攻击能多造成的伤害值
+          const buffAmount = hint.power || 30;
+          const currentAtk = Effect.getEffectiveAttack(actor);
+          const buffedAtk = currentAtk + buffAmount;
+          // 增益前无法击杀、增益后能击杀 → 大幅加分
+          if (atkTarget.hp > currentAtk && atkTarget.hp <= buffedAtk) {
+            score += Effect._aiThreat(atkTarget) * 1.5 + 60;
+          } else {
+            // 增益后多造成的伤害价值
+            score += buffAmount * 0.8 + 25;
+          }
+        }
+      }
+
+      // 防御增益类技能：当前位置受到威胁时加分
+      if (hasBuffDefType) {
+        const posThreat = Effect._aiPositionThreat(actor);
+        if (posThreat > 0) {
+          score += Math.min(40, posThreat * 0.3);
+        }
       }
 
       if (hasDamageType) {
