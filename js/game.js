@@ -496,6 +496,11 @@
 
     _setupPassiveEvents() {
       // 清空旧的事件绑定，重新注册所有被动技能
+      if (this._passiveHandlers && this._passiveHandlers.length) {
+        for (const entry of this._passiveHandlers) {
+          Effect.off(entry.event, entry.handler);
+        }
+      }
       const passiveHandlers = [];
       // 遍历所有技能，找到被动技能并注册
       const allSkills = Object.values(Skills || {});
@@ -1258,7 +1263,6 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
-      Effect.triggerPassive(actor, 'onMove', { x, y });
 
       // 联机同步
       if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
@@ -2583,7 +2587,6 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
-      Effect.triggerPassive(actor, 'onMove', { x, y });
       this.highlighted = [];
       this.mode = null;
       this._render();
