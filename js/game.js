@@ -2323,11 +2323,14 @@
       const yEnd = side === 'red' ? SIZE : half;
       const empty = [];
       for (let y = yStart; y < yEnd; y++) {
-        for (let x = 1; x < SIZE - 1; x++) {
+        for (let x = 0; x < SIZE; x++) {
           if (!this.pieceAt(x, y)) empty.push({ x, y });
         }
       }
-      if (!empty.length) return;
+      if (!empty.length) {
+        this._aiActing = false;
+        return;
+      }
       // 进攻型（高 atk/move）靠前，其它中间
       const offensive = gDef.atk >= 60 || gDef.moveRange.n >= 4;
       empty.sort((a, b) => {
