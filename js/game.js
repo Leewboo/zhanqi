@@ -222,9 +222,6 @@
       this.pendingSkillId = null;
       this.highlighted = [];
       this.over = false;
-      this.hand = { red: [], blue: [] };  // 手牌：每方最多5张小兵卡
-      this.drawnThisTurn = { red: false, blue: false };  // 本回合是否已抽卡
-      this._deployingMinion = null;  // 正在部署的手牌小兵
       this.aiMode = (mode === 'ai');
       this.onlineMode = (mode === 'online');
       this._onlineSide = this.onlineMode ? GameSettings.onlineSide : null;
@@ -463,14 +460,9 @@
       this.selected = null;
       this.mode = null;
       this.highlighted = [];
-      this.hand = { red: [], blue: [] };
-      this.drawnThisTurn = { red: false, blue: false };
-      this._deployingMinion = null;
       this._aiActing = false;
 
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
-      // 第一回合红方自动抽一张卡
-      this._drawCard('red');
       this._renderDraftCards();
       this._refreshUi();
       this._maybeAiAct();
@@ -806,7 +798,6 @@
       if (this.selected && this.mode) {
         if (this.mode === 'move') this._tryMove(x, y);
         else if (this.mode === 'attack') this._tryAttack(x, y);
-        else if (this.mode === 'deployMinion') this._placeMinion(x, y);
         return;
       }
 
@@ -1350,85 +1341,6 @@
       this.highlighted = [];
     },
 
-    // ========== 小兵抽卡系统 ==========
-    _drawCard(side) {
-      if (!global.Minions) return;
-      if (this.drawnThisTurn[side]) return;  // 本回合已抽过
-      if (this.hand[side].length >= 5) {
-        this.log((side === 'red' ? '红' : '蓝') + '方手牌已满，跳过抽卡。');
-        this.drawnThisTurn[side] = true;
-        return;
-      }
-      const minionDef = Minions.rollMinion(this.turn, global.RNG);
-      this.hand[side].push(minionDef);
-      this.drawnThisTurn[side] = true;
-      const rarityInfo = Minions.getRarityInfo(minionDef.rarity);
-      this.log((side === 'red' ? '红' : '蓝') + '方抽到【' + rarityInfo.label + '】' + minionDef.name + '（攻' + minionDef.atk + ' 防' + minionDef.def + ' 血' + minionDef.hp + '）', 'turn');
-
-      // 联机同步
-      if (this.onlineMode && side === this._onlineSide && !this._onlineAction) {
-        Online.sendAction({ type: 'drawCard', minionId: minionDef.id, turn: this.turn });
-      }
-    },
-
-    // 开始部署手牌中的小兵
-    _startDeployMinion(handIndex) {
-      const side = this.currentSide;
-      if (!this._onlineCanAct(side, this._onlineAction)) return;
-      const card = this.hand[side][handIndex];
-      if (!card) return;
-
-      this._deployingMinion = { index: handIndex, def: card };
-      this.mode = 'deployMinion';
-      this.selected = null;
-
-      // 高亮己方半场空位
-      const half = Math.floor(SIZE / 2);
-      const yStart = side === 'red' ? half : 0;
-      const yEnd = side === 'red' ? SIZE : half;
-      this.highlighted = [];
-      for (let y = yStart; y < yEnd; y++) {
-        for (let x = 0; x < SIZE; x++) {
-          if (!this.pieceAt(x, y)) {
-            this.highlighted.push({ x, y, kind: 'deployMinion' });
-          }
-        }
-      }
-      this.log('选择部署位置：' + card.name + '（点击空格放置，取消按钮返回）');
-      this._render();
-      this._renderBottom();
-    },
-
-    // 部署小兵到棋盘
-    _placeMinion(x, y) {
-      if (!this._deployingMinion) return;
-      const hit = this.highlighted.find(h => h.x === x && h.y === y && h.kind === 'deployMinion');
-      if (!hit && !this._onlineAction) return;
-
-      const side = this.currentSide;
-      if (!this._onlineCanAct(side, this._onlineAction)) return;
-
-      const card = this._deployingMinion.def;
-      const piece = Minions.buildMinionPiece(card, side, x, y);
-      this.pieces.push(piece);
-
-      // 从手牌中移除
-      this.hand[side].splice(this._deployingMinion.index, 1);
-      this.log((side === 'red' ? '红' : '蓝') + '方部署 ' + card.name + ' 到 (' + x + ',' + y + ')。', 'turn');
-
-      // 联机同步
-      if (this.onlineMode && side === this._onlineSide && !this._onlineAction) {
-        Online.sendAction({ type: 'placeMinion', minionId: card.id, x: x, y: y, handIndex: this._deployingMinion.index });
-      }
-
-      this._deployingMinion = null;
-      this.mode = null;
-      this.highlighted = [];
-      this._render();
-      this._renderBottom();
-      this._checkWin();
-    },
-
     _checkWin() {
       const redAlive = this.pieces.some(p => p.side === 'red' && p.alive);
       const blueAlive = this.pieces.some(p => p.side === 'blue' && p.alive);
@@ -1485,8 +1397,6 @@
         this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
       }
 
-      // 回合切换时，新行动方自动抽一张小兵卡
-      this._drawCard(this.currentSide);
       this._clearSelection();
       this._refreshUi();
 
@@ -1706,7 +1616,7 @@
       const children = this.boardEl.children;
       for (let i = 0; i < children.length; i++) {
         const el = children[i];
-        el.classList.remove('move', 'attack', 'skill', 'sel', 'deployMinion');
+        el.classList.remove('move', 'attack', 'skill', 'sel');
       }
       // 决定高亮来源：mode 高亮 / pendingSkillId 预览 / 原有 highlighted
       let activeHighlight = this.highlighted;
@@ -1748,7 +1658,7 @@
           const p = document.createElement('div');
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
-          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') + (piece.isMinion ? ' is-minion rarity-' + (piece.rarity || 'common') : '');
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
 
           // 立绘（有则显示，覆盖棋子主体）
           const portraitUrl = this._getPortraitUrl(piece);
@@ -1918,71 +1828,10 @@
       cancelBtn.className = 'act-btn ghost';
       cancelBtn.textContent = '取消';
       cancelBtn.onclick = () => {
-        self._deployingMinion = null;
         self._clearSelection();
         self._refreshUi();
       };
       actionsEl.appendChild(cancelBtn);
-
-      // 手牌区域（小兵卡）
-      this._renderHandCards(actionsEl);
-    },
-
-    _renderHandCards(container) {
-      if (this.phase !== 'battle') return;
-      const side = this.currentSide;
-      const hand = this.hand[side];
-      if (!hand || !hand.length) return;
-
-      // 只在非联机或本地回合时显示手牌按钮
-      if (this.onlineMode && side !== this._onlineSide) return;
-
-      const sep = document.createElement('div');
-      sep.className = 'hand-sep';
-      container.appendChild(sep);
-
-      const handWrap = document.createElement('div');
-      handWrap.className = 'hand-cards';
-
-      for (let i = 0; i < hand.length; i++) {
-        const card = hand[i];
-        const rarityInfo = global.Minions ? Minions.getRarityInfo(card.rarity) : { label: '', color: '#aaa' };
-        const cardEl = document.createElement('div');
-        cardEl.className = 'minion-card rarity-' + (card.rarity || 'common');
-        if (this._deployingMinion && this._deployingMinion.index === i) cardEl.style.outline = '2px solid #e67e22';
-
-        // 稀有度角标
-        const rTag = document.createElement('span');
-        rTag.className = 'mc-rarity';
-        rTag.textContent = rarityInfo.label;
-        cardEl.appendChild(rTag);
-
-        // 名字
-        const nameEl = document.createElement('div');
-        nameEl.className = 'mc-name';
-        nameEl.textContent = card.name;
-        cardEl.appendChild(nameEl);
-
-        // 属性
-        const statsEl = document.createElement('div');
-        statsEl.className = 'mc-stats';
-        statsEl.innerHTML = '<span class="mc-hp">♥' + card.hp + '</span><span class="mc-atk">⚔' + card.atk + '</span><span class="mc-def">🛡' + card.def + '</span>';
-        cardEl.appendChild(statsEl);
-
-        // 技能
-        if (card.skill) {
-          const skillEl = document.createElement('div');
-          skillEl.className = 'mc-skill';
-          skillEl.textContent = (card.skill.type === '被动' ? '【' : '「') + card.skill.name + (card.skill.type === '被动' ? '】' : '」') + ' ' + card.skill.desc;
-          cardEl.appendChild(skillEl);
-        }
-
-        cardEl.title = card.name + ' [' + rarityInfo.label + ']\n攻' + card.atk + ' 防' + card.def + ' 血' + card.hp + (card.skill ? '\n' + card.skill.desc : '');
-        const idx = i;
-        cardEl.onclick = () => this._startDeployMinion(idx);
-        handWrap.appendChild(cardEl);
-      }
-      container.appendChild(handWrap);
     },
 
     _renderSideList() {
@@ -2000,7 +1849,7 @@
             else if (p.moved && p.attacked && p.skilled) li.classList.add('acted');
           }
           const nameSpan = document.createElement('span');
-          let txt = (p.isMinion ? '☆' : '') + p.name;
+          let txt = p.name;
           if (this.phase === 'battle') txt += ' ' + (p.alive ? p.hp : '亡');
           if (this.phase === 'battle' && (p.moved || p.attacked || p.skilled)) {
             txt += ' [' + (p.moved ? '移' : '') + (p.attacked ? '攻' : '') + (p.skilled ? '技' : '') + ']';
@@ -2323,14 +2172,11 @@
       const yEnd = side === 'red' ? SIZE : half;
       const empty = [];
       for (let y = yStart; y < yEnd; y++) {
-        for (let x = 0; x < SIZE; x++) {
+        for (let x = 1; x < SIZE - 1; x++) {
           if (!this.pieceAt(x, y)) empty.push({ x, y });
         }
       }
-      if (!empty.length) {
-        this._aiActing = false;
-        return;
-      }
+      if (!empty.length) return;
       // 进攻型（高 atk/move）靠前，其它中间
       const offensive = gDef.atk >= 60 || gDef.moveRange.n >= 4;
       empty.sort((a, b) => {
@@ -2351,34 +2197,6 @@
 
     _aiBattleStep() {
       const side = this.currentSide;
-
-      // AI 优先部署手牌中的小兵（如果有的话）
-      if (this.hand[side] && this.hand[side].length > 0) {
-        const card = this.hand[side][0];
-        // 找己方半场最佳空位
-        const half = Math.floor(SIZE / 2);
-        const yStart = side === 'red' ? half : 0;
-        const yEnd = side === 'red' ? SIZE : half;
-        let bestSpot = null, bestDist = Infinity;
-        // 靠近最近敌人的位置
-        const enemies = this.pieces.filter(p => p.alive && p.side !== side);
-        for (let y = yStart; y < yEnd; y++) {
-          for (let x = 0; x < SIZE; x++) {
-            if (!this.pieceAt(x, y)) {
-              if (!enemies.length) { bestSpot = { x, y }; break; }
-              const avgDist = enemies.reduce((s, e) => s + Math.abs(e.x - x) + Math.abs(e.y - y), 0) / enemies.length;
-              if (avgDist < bestDist) { bestDist = avgDist; bestSpot = { x, y }; }
-            }
-          }
-          if (!enemies.length && bestSpot) break;
-        }
-        if (bestSpot) {
-          this._deployingMinion = { index: 0, def: card };
-          this._placeMinion(bestSpot.x, bestSpot.y);
-          this._scheduleNext();
-          return;
-        }
-      }
 
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
       const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
@@ -3836,33 +3654,6 @@
         });
       } else if (data.type === 'endTurn') {
         Game.endTurn();
-      } else if (data.type === 'drawCard') {
-        // 远端抽卡回放
-        const side = Game._onlineSide === 'red' ? 'blue' : 'red';
-        if (!Game.drawnThisTurn[side] && global.Minions) {
-          const pool = Minions.getPool();
-          const minionDef = pool.find(m => m.id === data.minionId);
-          if (minionDef) {
-            const scaled = Minions.rollMinion(data.turn || Game.turn, global.RNG);
-            // 使用远端实际抽到的小兵ID
-            const actualDef = pool.find(m => m.id === data.minionId) || scaled;
-            Game.hand[side].push(actualDef);
-            Game.drawnThisTurn[side] = true;
-            const rarityInfo = Minions.getRarityInfo(actualDef.rarity);
-            Game.log((side === 'red' ? '红' : '蓝') + '方抽到【' + rarityInfo.label + '】' + actualDef.name, 'turn');
-          }
-        }
-      } else if (data.type === 'placeMinion') {
-        // 远端部署小兵回放
-        const side = Game._onlineSide === 'red' ? 'blue' : 'red';
-        if (global.Minions) {
-          const pool = Minions.getPool();
-          const minionDef = pool.find(m => m.id === data.minionId);
-          if (minionDef) {
-            Game._deployingMinion = { index: data.handIndex || 0, def: minionDef };
-            Game._placeMinion(data.x, data.y);
-          }
-        }
       }
 
       Game._onlineAction = false;

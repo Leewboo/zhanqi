@@ -1270,8 +1270,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  const ALLOWED_ACTION_TYPES = new Set(['pick', 'place', 'move', 'attack', 'skill', 'endTurn', 'drawCard', 'placeMinion']);
-  const ALLOWED_ACTION_FIELDS = new Set(['type', 'generalId', 'x', 'y', 'fromX', 'fromY', 'toX', 'toY', 'actorX', 'actorY', 'targetX', 'targetY', 'skillId', 'targets', 'minionId', 'handIndex', 'turn']);
+  const ALLOWED_ACTION_TYPES = new Set(['pick', 'place', 'move', 'attack', 'skill', 'endTurn']);
+  const ALLOWED_ACTION_FIELDS = new Set(['type', 'generalId', 'x', 'y', 'fromX', 'fromY', 'toX', 'toY', 'actorX', 'actorY', 'targetX', 'targetY', 'skillId', 'targets']);
   const MAX_ACTION_LOG = 5000; // 单局最多保留的操作条数，超出后停止追加（局面理论上不会真的到这个量级）
 
   function sanitizeAction(data) {
@@ -1282,7 +1282,7 @@ io.on('connection', (socket) => {
       if (key === 'type') continue;
       if (data[key] === undefined) continue;
       const v = data[key];
-      if (key === 'generalId' || key === 'skillId' || key === 'minionId') {
+      if (key === 'generalId' || key === 'skillId') {
         if (typeof v !== 'string' || v.length > 64) return null;
         clean[key] = v;
       } else if (key === 'targets') {
