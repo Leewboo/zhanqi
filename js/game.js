@@ -322,9 +322,11 @@
     },
 
     // 获取武将立绘 URL（无立绘返回 null）
-    _getPortraitUrl(generalId) {
+    _getPortraitUrl(piece) {
+      if (!piece) return null;
+      if (piece.portrait) return '/portraits/' + piece.portrait;
       if (!this._portraitCache) return null;
-      const g = Generals.list.find(x => x.id === generalId);
+      const g = Generals.list.find(x => x.id === piece.generalId);
       if (!g || !g.portrait) return null;
       return '/portraits/' + g.portrait;
     },
@@ -611,7 +613,7 @@
       body.innerHTML = '';
 
       // 顶部显示立绘
-      const portraitUrl = this._getPortraitUrl(piece.generalId);
+      const portraitUrl = this._getPortraitUrl(piece);
       if (portraitUrl) {
         const portraitWrap = document.createElement('div');
         portraitWrap.className = 'detail-portrait';
@@ -1651,7 +1653,7 @@
           p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
 
           // 立绘（有则显示，覆盖棋子主体）
-          const portraitUrl = this._getPortraitUrl(piece.generalId);
+          const portraitUrl = this._getPortraitUrl(piece);
           if (portraitUrl) {
             p.classList.add('has-portrait');
             const img = document.createElement('img');

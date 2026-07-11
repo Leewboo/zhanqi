@@ -1023,6 +1023,14 @@
     // 召唤幻象：在指定格子放置一个虚假棋子（用标记实现，会被攻击但无 hp），
     // 返回创建的虚假棋子对象（放入 Game.pieces）
     // 注：幻象 hp 耗尽后自动消亡
+    // opts 支持：
+    //   - id: 武将ID前缀（默认 summon）
+    //   - name: 召唤物名称
+    //   - hp/atk/def: 数值
+    //   - moveRange/attackRange: 范围
+    //   - skills: 技能数组
+    //   - portrait: 立绘文件名（portraits/ 目录下）
+    //   - templateId: 模板武将ID，从 Generals.list 复制立绘和基础属性
     summonUnit(actor, x, y, opts) {
       if (!actor || !global.Game) return null;
       var g = global.Game;
@@ -1030,14 +1038,22 @@
       if (g.pieceAt(x, y)) return null;
 
       opts = opts || {};
+
+      var template = null;
+      if (opts.templateId && global.Generals) {
+        template = global.Generals.list.find(x2 => x2.id === opts.templateId);
+      }
+
+      var portraitFile = opts.portrait || (template && template.portrait) || null;
+
       var unit = {
-        generalId: (opts.id || 'summon') + '_' + Date.now(),
-        name:      opts.name || actor.name + '·召',
+        generalId: (opts.id || (template && template.id) || 'summon') + '_' + Date.now(),
+        name:      opts.name || (template ? template.name : actor.name) + '·召',
         side:      actor.side,
-        hp:        Math.max(1, parseInt(opts.hp) || 60),
-        maxHp:     Math.max(1, parseInt(opts.hp) || 60),
-        atk:       Math.max(0, parseInt(opts.atk) || 0),
-        def:       Math.max(0, parseInt(opts.def) || 0),
+        hp:        Math.max(1, parseInt(opts.hp) || (template && template.hp) || 60),
+        maxHp:     Math.max(1, parseInt(opts.hp) || (template && template.hp) || 60),
+        atk:       Math.max(0, parseInt(opts.atk) || (template && template.atk) || 0),
+        def:       Math.max(0, parseInt(opts.def) || (template && template.def) || 0),
         x: x, y: y,
         alive: true,
         moved: opts.moved !== undefined ? opts.moved : true,
@@ -1045,9 +1061,10 @@
         skilled: opts.skilled !== undefined ? opts.skilled : true,
         skills: [],
         cdMap: {},
-        moveRange: opts.moveRange || { shape: '+', n: 0 },
-        attackRange: opts.attackRange || { shape: '+', n: 0 },
-        isSummon: true
+        moveRange: opts.moveRange || (template && template.moveRange) || { shape: '+', n: 0 },
+        attackRange: opts.attackRange || (template && template.attackRange) || { shape: '+', n: 0 },
+        isSummon: true,
+        portrait: portraitFile
       };
 
       if (opts.skills && Array.isArray(opts.skills)) {
