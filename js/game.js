@@ -2432,13 +2432,69 @@
       const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
       });
+      if (!cells.length) return null;
+
+      const allies = this.pieces.filter(p => p.alive && p.side === side);
+      const atk = Effect.getEffectiveAttack(actor);
+
       let best = null, bestScore = -1;
       for (const c of cells) {
         const p = this.pieceAt(c.x, c.y);
         if (!p || !p.alive || p.side === side) continue;
+
         let score = Effect._aiThreat(p);
-        if (p.hp <= Effect.getEffectiveAttack(actor)) score *= 2;  // 能击杀
-        if (score > bestScore) { bestScore = score; best = p; }
+
+        if (p.hp <= atk) score *= 2.5;
+
+        let allyCanAttack = 0;
+        for (const a of allies) {
+          if (a === actor) continue;
+          const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
+            pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
+          });
+          if (aAtkCells.some(ac => ac.x === p.x && ac.y === p.y)) {
+            allyCanAttack++;
+          }
+        }
+        if (allyCanAttack > 0) score += allyCanAttack * 15;
+
+        const pAtk = Effect.getEffectiveAttack(p);
+        let protectingAlly = false;
+        for (const a of allies) {
+          if (a.hp / (a.maxHp || 200) < 0.5) {
+            const pAtkRange = Range.cellsInRangeWithBlock(p.attackRange.shape, p.attackRange.n, p.x, p.y, {
+              pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
+            });
+            if (pAtkRange.some(ac => ac.x === a.x && ac.y === a.y)) {
+              protectingAlly = true;
+              break;
+            }
+          }
+        }
+        if (protectingAlly) score += 20;
+
+        if (p.hp / (p.maxHp || 200) < 0.3) {
+          let otherAllyCanKill = false;
+          for (const a of allies) {
+            if (a === actor) continue;
+            const aAtk = Effect.getEffectiveAttack(a);
+            if (aAtk >= p.hp) {
+              const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
+                pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
+              });
+              if (aAtkCells.some(ac => ac.x === p.x && ac.y === p.y)) {
+                otherAllyCanKill = true;
+                break;
+              }
+            }
+          }
+          if (!otherAllyCanKill) score += 30;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
       }
       return best;
     },
@@ -2448,36 +2504,106 @@
       const side = actor.side;
       const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
       const enemies = this.pieces.filter(p => p.alive && p.side !== side);
+      const allies = this.pieces.filter(p => p.alive && p.side === side && p !== actor);
       if (!enemies.length || !moveCells.length) return null;
-      // 找最近的敌人
-      enemies.sort((a, b) => {
-        const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
-        const db = Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y);
-        return da - db;
-      });
-      const nearest = enemies[0];
+
+      const hpRatio = actor.hp / (actor.maxHp || 200);
+      const posThreat = Effect._aiPositionThreat(actor);
+      const shouldEscape = hpRatio < 0.4 && posThreat > Effect.getEffectiveAttack(actor) * 2;
+      const hasLowHpAlly = allies.some(a => a.hp / (a.maxHp || 200) < 0.3);
+
       const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
       if (!emptyMoves.length) return null;
+
       let best = null, bestScore = -Infinity;
+
       for (const m of emptyMoves) {
-        // 距离最近敌人的曼哈顿距离（落点越近越好）
-        const dist = Math.abs(m.x - nearest.x) + Math.abs(m.y - nearest.y);
-        // 基础分：始终为正，确保"向敌人靠近"永远优于"等待"
-        // 最大距离约 22（12×12 棋盘），min 10 保证必胜过无目标等待
-        let score = Math.max(10, 60 - dist * 3);
-        // 若落点能攻击到敌人，大幅加分（反映移动后立即能出手的价值）
-        const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
-          pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-        });
-        for (const ac of atkCells) {
-          const p = this.pieceAt(ac.x, ac.y);
-          if (p && p.alive && p.side !== side) {
-            score += Effect._aiThreat(p) * 0.8;
-            if (p.hp <= Effect.getEffectiveAttack(actor)) score += 60;  // 移动后能击杀
+        let score = 0;
+
+        if (shouldEscape) {
+          let minDist = Infinity;
+          for (const e of enemies) {
+            const dist = Math.abs(m.x - e.x) + Math.abs(m.y - e.y);
+            minDist = Math.min(minDist, dist);
           }
+          const currentMinDist = Math.min(...enemies.map(e => Math.abs(actor.x - e.x) + Math.abs(actor.y - e.y)));
+          score = minDist * 20;
+          if (minDist > currentMinDist) score += 50;
+        } else {
+          const nearest = enemies.reduce((a, b) => {
+            const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
+            const db = Math.abs(b.x - actor.x) + Math.abs(b.y - actor.y);
+            return da < db ? a : b;
+          });
+          const dist = Math.abs(m.x - nearest.x) + Math.abs(m.y - nearest.y);
+          score = Math.max(10, 60 - dist * 3);
+
+          const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
+            pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+          });
+          for (const ac of atkCells) {
+            const p = this.pieceAt(ac.x, ac.y);
+            if (p && p.alive && p.side !== side) {
+              score += Effect._aiThreat(p) * 0.8;
+              if (p.hp <= Effect.getEffectiveAttack(actor)) score += 60;
+            }
+          }
+
+          if (hasLowHpAlly) {
+            const lowHpAlly = allies.find(a => a.hp / (a.maxHp || 200) < 0.3);
+            if (lowHpAlly) {
+              const allyDist = Math.abs(m.x - lowHpAlly.x) + Math.abs(m.y - lowHpAlly.y);
+              const currentAllyDist = Math.abs(actor.x - lowHpAlly.x) + Math.abs(actor.y - lowHpAlly.y);
+              if (allyDist < currentAllyDist) {
+                score += (currentAllyDist - allyDist) * 5;
+              }
+            }
+          }
+
+          const terrain = this.terrain[m.y] ? this.terrain[m.y][m.x] : 'plain';
+          if (terrain === 'm') score += 10;
+          else if (terrain === 'f') score += 5;
+
+          let allyProtection = 0;
+          for (const a of allies) {
+            const allyDist = Math.abs(m.x - a.x) + Math.abs(m.y - a.y);
+            if (allyDist <= 1) {
+              allyProtection += (a.def || 0) * 0.2;
+            }
+          }
+          score += allyProtection;
+
+          let canBlock = false;
+          for (const e of enemies) {
+            const eMoveCells = Range.reachableCells(e.x, e.y, e.moveRange.n, this, e.moveRange.shape);
+            const eAtkCells = Range.cellsInRangeWithBlock(e.attackRange.shape, e.attackRange.n, e.x, e.y, {
+              pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
+            });
+            for (const ally of allies) {
+              if (ally.hp / (ally.maxHp || 200) < 0.5) {
+                const eCanReach = eMoveCells.some(c => c.x === ally.x && c.y === ally.y);
+                const eCanAttack = eAtkCells.some(c => c.x === ally.x && c.y === ally.y);
+                if (eCanReach || eCanAttack) {
+                  const distToAlly = Math.abs(m.x - ally.x) + Math.abs(m.y - ally.y);
+                  const distToEnemy = Math.abs(m.x - e.x) + Math.abs(m.y - e.y);
+                  if (distToAlly <= 1 && distToEnemy <= e.moveRange.n + 1) {
+                    canBlock = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (canBlock) break;
+          }
+          if (canBlock) score += 40;
         }
-        if (score > bestScore) { bestScore = score; best = { x: m.x, y: m.y, score }; }
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = { x: m.x, y: m.y, score };
+        }
       }
+
       return best;
     },
 

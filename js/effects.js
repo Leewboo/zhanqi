@@ -315,9 +315,59 @@
     // AI 评估一个棋子的威胁度（用于选择攻击/技能目标）
     _aiThreat(piece) {
       if (!piece || !piece.alive) return 0;
-      const hpFactor = piece.hp / (piece.maxHp || 200);  // 血量越低越值得补刀
+      const hpFactor = piece.hp / (piece.maxHp || 200);
       const atk = Effect.getEffectiveAttack(piece);
-      return (atk * 2 + (piece.def || 0)) * (2 - hpFactor);  // 低血量目标威胁度调高（值得补刀）
+      const def = Effect.getEffectiveDefense(piece);
+      let threat = (atk * 2 + def) * (2 - hpFactor);
+      if (piece.skills) {
+        for (const sk of piece.skills) {
+          if (sk.type !== '被动' && sk.aiHint) {
+            threat += (sk.aiHint.power || 30) * 0.5;
+          }
+        }
+      }
+      return threat;
+    },
+
+    _aiTeamThreat(side) {
+      let total = 0;
+      const pieces = global.Game ? global.Game.pieces : [];
+      for (const p of pieces) {
+        if (p.alive && p.side !== side) {
+          total += Effect._aiThreat(p);
+        }
+      }
+      return total;
+    },
+
+    _aiPositionThreat(piece) {
+      if (!piece || !piece.alive || !global.Game) return 0;
+      const g = global.Game;
+      const side = piece.side;
+      let threat = 0;
+      const enemies = g.pieces.filter(p => p.alive && p.side !== side);
+      for (const e of enemies) {
+        const dist = Math.abs(e.x - piece.x) + Math.abs(e.y - piece.y);
+        const eAtk = Effect.getEffectiveAttack(e);
+        const range = Range.cellsInRangeWithBlock(e.attackRange.shape, e.attackRange.n, e.x, e.y, {
+          pieceAt: (x, y) => { const p = g.pieceAt(x, y); return (p && p.alive) ? p : null; }
+        });
+        const inRange = range.some(c => c.x === piece.x && c.y === piece.y);
+        if (inRange) {
+          threat += eAtk * (1 - piece.hp / (piece.maxHp || 200)) * 2;
+        } else if (dist <= e.moveRange.n + e.attackRange.n) {
+          threat += eAtk * 0.5;
+        }
+      }
+      return threat;
+    },
+
+    _aiSurvivalValue(piece) {
+      if (!piece || !piece.alive) return 0;
+      const hpRatio = piece.hp / (piece.maxHp || 200);
+      const posThreat = Effect._aiPositionThreat(piece);
+      const escapeScore = posThreat > 0 && hpRatio < 0.4 ? (1 - hpRatio) * 100 : 0;
+      return escapeScore;
     },
 
     // AI 选择最优格子（核心逻辑）
