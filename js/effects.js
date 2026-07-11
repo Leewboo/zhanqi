@@ -791,7 +791,77 @@
         if (s > maxScore) maxScore = s;
       }
       const tops = valid.filter(o => (typeof o.aiScore === 'number' ? o.aiScore : 0) === maxScore);
-      return global.RNG.pick(tops);
+      if (tops.length === 1) return tops[0];
+
+      let best = null, bestDynamicScore = -Infinity;
+      for (const opt of valid) {
+        let score = typeof opt.aiScore === 'number' ? opt.aiScore : 0;
+
+        if (opt.aiEval) {
+          try {
+            const evalScore = opt.aiEval(actor, opt);
+            score += typeof evalScore === 'number' ? evalScore : 0;
+          } catch (e) { console.error('[aiEval] 执行错误', e); }
+        }
+
+        if (opt.aiType === 'heal') {
+          const hpRatio = actor.hp / (actor.maxHp || 200);
+          const hpMissing = (actor.maxHp || 200) - actor.hp;
+          const healAmount = opt.healAmount || 50;
+          const healValue = Math.min(hpMissing, healAmount) * (1 - hpRatio) * 2;
+          score += healValue;
+        } else if (opt.aiType === 'buff_atk') {
+          const atkBonus = opt.bonusAmount || 30;
+          let enemiesNear = 0;
+          if (global.Game) {
+            const cells = Range.cellsInRange('square', 2, actor.x, actor.y);
+            for (const c of cells) {
+              const p = global.Game.pieceAt(c.x, c.y);
+              if (p && p.alive && p.side !== actor.side) enemiesNear++;
+            }
+          }
+          const atkValue = atkBonus * Math.max(1, enemiesNear * 0.5);
+          score += atkValue;
+        } else if (opt.aiType === 'buff_def') {
+          const defBonus = opt.bonusAmount || 20;
+          const posThreat = Effect._aiPositionThreat(actor);
+          const defValue = defBonus * (posThreat > 0 ? 1.5 : 0.5);
+          score += defValue;
+        } else if (opt.aiType === 'damage') {
+          const dmgAmount = opt.damageAmount || 30;
+          let enemiesNear = 0;
+          if (global.Game) {
+            const cells = Range.cellsInRange('square', 2, actor.x, actor.y);
+            for (const c of cells) {
+              const p = global.Game.pieceAt(c.x, c.y);
+              if (p && p.alive && p.side !== actor.side) enemiesNear++;
+            }
+          }
+          const damageValue = dmgAmount * Math.max(1, enemiesNear * 0.3);
+          score += damageValue;
+        } else if (opt.aiType === 'control') {
+          let highThreat = 0, enemiesNear = 0;
+          if (global.Game) {
+            const cells = Range.cellsInRange('square', 2, actor.x, actor.y);
+            for (const c of cells) {
+              const p = global.Game.pieceAt(c.x, c.y);
+              if (p && p.alive && p.side !== actor.side) {
+                enemiesNear++;
+                if (Effect._aiThreat(p) > 50) highThreat++;
+              }
+            }
+          }
+          const controlValue = highThreat * 30 + enemiesNear * 10;
+          score += controlValue;
+        }
+
+        if (score > bestDynamicScore) {
+          bestDynamicScore = score;
+          best = opt;
+        }
+      }
+
+      return best || global.RNG.pick(tops);
     },
 
     chooseOption(actor, opts) {

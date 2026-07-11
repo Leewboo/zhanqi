@@ -2315,6 +2315,34 @@
       // ===== 2. 基础得分 =====
       let score = power * (0.5 + priority / 10);
 
+      // ===== 2.5 多类型技能评估（支持 types 数组）=====
+      const types = hint.types || [hint.type];
+      const hpRatio = actor.hp / (actor.maxHp || 200);
+      const hpMissing = (actor.maxHp || 200) - actor.hp;
+      let hasHealType = false, hasDamageType = false, hasBuffType = false;
+      for (const t of types) {
+        if (t === 'heal') hasHealType = true;
+        else if (t === 'damage' || t === 'buff_atk') hasDamageType = true;
+        else if (t === 'buff' || t === 'buff_def') hasBuffType = true;
+      }
+
+      if (hasHealType && hasDamageType) {
+        if (hpRatio < 0.4) {
+          score *= 1.5;
+        } else if (hpRatio > 0.8) {
+          score *= 1.2;
+        }
+      }
+
+      if (hasHealType && hpRatio >= 0.99) {
+        score *= 0.4;
+      }
+
+      if (hasDamageType) {
+        const enemiesNear = this.pieces.filter(p => p.alive && p.side !== side && Math.abs(p.x - actor.x) + Math.abs(p.y - actor.y) <= 3).length;
+        if (enemiesNear === 0) score *= 0.5;
+      }
+
       // ===== 3. 计算范围内敌人数（用于多种判断）=====
       const enemiesInRange = this._countEnemiesInSkillRange(actor, skill);
       const alliesInRange = this._countAlliesInSkillRange(actor, skill);
