@@ -213,6 +213,8 @@
       this.turn = 1;
       this.currentSide = 'red';
       this.draftIndex = 0;
+      this.deploySide = 'red';
+      this.deploySelected = null;
       this.pickedRed = [];
       this.pickedBlue = [];
       this.selected = null;
@@ -464,6 +466,7 @@
       this.hand = { red: [], blue: [] };
       this.drawnThisTurn = { red: false, blue: false };
       this._deployingMinion = null;
+      this._aiActing = false;
 
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
       // 第一回合红方自动抽一张卡
