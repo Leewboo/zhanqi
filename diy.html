@@ -830,6 +830,23 @@
     overflow: hidden;
     position: relative;
   }
+  .fs-editor-error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 2px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fs-editor-error.hidden {
+    display: none;
+  }
+  .fs-editor-error::before {
+    content: '⚠';
+  }
   /* 全屏下的 .code-editor 适配容器大小 */
   .fs-editor-body .code-editor {
     width: 100%;
@@ -2131,6 +2148,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
       <button id="fs-editor-save" class="btn primary">✓ 保存</button>
       <button id="fs-editor-cancel" class="btn danger">✕ 取消</button>
     </div>
+    <div id="fs-editor-error" class="fs-editor-error hidden"></div>
   </div>
   <div class="fs-editor-split">
     <div class="fs-editor-body" id="fs-editor-body"></div>
@@ -2936,6 +2954,11 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     var end = ta.selectionEnd;
     var before = ta.value.substring(0, start);
     var after = ta.value.substring(end);
+    var fullCode = before + after;
+
+    // 智能变量名递增：检测已存在的变量名，自动增加序号
+    text = autoIncrementVariableNames(text, fullCode);
+
     // 如果光标不在行首，先换行
     var prefix = (start > 0 && before.charAt(before.length - 1) !== '\n') ? '\n' : '';
     ta.value = before + prefix + text + '\n' + after;
@@ -2943,6 +2966,75 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     ta.selectionStart = ta.selectionEnd = pos;
     ta.focus();
     ta.dispatchEvent(new Event('input'));
+  }
+
+  // 智能变量名递增
+  function autoIncrementVariableNames(insertText, existingCode) {
+    // 匹配 const/let/var 声明的变量名
+    var varRegex = /\b(const|let|var)\s+(\w+)\s*=/g;
+    var matches = [];
+    var match;
+    while ((match = varRegex.exec(insertText)) !== null) {
+      matches.push({ start: match.index, end: match.index + match[0].length, name: match[2] });
+    }
+
+    if (matches.length === 0) return insertText;
+
+    var result = insertText;
+    for (var i = matches.length - 1; i >= 0; i--) {
+      var varName = matches[i].name;
+      var newName = findNextAvailableName(varName, existingCode + insertText.replace(result, ''));
+      if (newName !== varName) {
+        result = result.substring(0, matches[i].start + match[1].length + 1) + newName + result.substring(matches[i].start + match[1].length + 1 + varName.length);
+      }
+    }
+    return result;
+  }
+
+  // 查找下一个可用的变量名（如 ally → ally1 → ally2）
+  function findNextAvailableName(baseName, code) {
+    // 查找已有变量的最大序号
+    var maxNum = 0;
+    var pattern = new RegExp('\\b' + baseName + '(\\d+)\\b', 'g');
+    var match;
+    while ((match = pattern.exec(code)) !== null) {
+      var num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
+    }
+    // 如果已经存在同名变量（不带数字），则从 1 开始
+    if (new RegExp('\\b' + baseName + '\\b').test(code)) {
+      return baseName + (maxNum + 1);
+    }
+    return baseName;
+  }
+
+  // 语法检测：实时检测 JavaScript 代码语法错误
+  function validateSyntax(code) {
+    var errorEl = $('fs-editor-error');
+    if (!errorEl) return;
+
+    // 空代码不检测
+    if (!code.trim()) {
+      errorEl.classList.add('hidden');
+      return;
+    }
+
+    // 包装成匿名函数进行语法验证（模拟技能代码的编译环境）
+    var wrapped = '(function(actor, context, Effect, Game, Range) {\n' + code + '\n})';
+
+    try {
+      new Function(wrapped);
+      errorEl.classList.add('hidden');
+    } catch (e) {
+      // 解析错误信息，提取关键部分
+      var msg = e.message || '语法错误';
+      var lineMatch = msg.match(/line (\d+)/);
+      var lineNum = lineMatch ? lineMatch[1] : '';
+      var cleanMsg = msg.replace(/^.*?:/, '').trim();
+      if (lineNum) cleanMsg = '第 ' + lineNum + ' 行: ' + cleanMsg;
+      errorEl.textContent = cleanMsg;
+      errorEl.classList.remove('hidden');
+    }
   }
 
   // API 侧栏数据
@@ -3444,7 +3536,10 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     var cloneTimer = null;
     cloneTa.addEventListener('input', function () {
       if (cloneTimer) clearTimeout(cloneTimer);
-      cloneTimer = setTimeout(cloneSync, 40);
+      cloneTimer = setTimeout(function () {
+        cloneSync();
+        validateSyntax(cloneTa.value);
+      }, 40);
     });
     cloneTa.addEventListener('scroll', function () {
       clonePre.scrollTop = cloneTa.scrollTop;
