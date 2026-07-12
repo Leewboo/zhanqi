@@ -27,8 +27,10 @@
     );
 
     // content 需要 async，因为里面可以 await Effect.chooseEnemy 等
+    // context 用于被动技能接收触发上下文（如 onAttacked 的 attacker/damage）
     const contentFn = new Function(
       'actor',
+      'context',
       'return (async () => { ' + (def.contentCode || '') + ' \n})();'
     );
 
@@ -43,9 +45,9 @@
       preview: def.preview || null,
       aiHint: def.aiHint || null,
       filter: filterFn,
-      content: function (actor) {
+      content: function (actor, context) {
         try {
-          return contentFn(actor);
+          return contentFn(actor, context);
         } catch (e) {
           console.error('[DIY 技能执行错误] ' + def.id, e);
           if (global.Game) global.Game.log('【' + (def.name || def.id) + '】脚本执行错误：' + e.message);
