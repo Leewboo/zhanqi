@@ -1644,7 +1644,7 @@
 
 <!-- 悬浮教程按钮 -->
 <button class="diy-hint-btn" id="tutorial-toggle">
-  <span class="tut-icon">?</span> 教程 <span class="badge">6</span>
+  <span class="tut-icon">?</span> 教程 <span class="badge">15</span>
 </button>
 
 <!-- 悬浮教程面板遮罩 -->
@@ -1918,14 +1918,154 @@ async function content(actor) {
         <div class="api-tag-row">
           <div class="api-tag"><b>Effect.shield(target, amt)</b> — 加护盾，先扣盾再扣血</div>
           <div class="api-tag"><b>Effect.stun(target, turns)</b> — 眩晕，跳过行动</div>
+          <div class="api-tag"><b>Effect.freeze(target, turns)</b> — <span style="color:#c0392b;">★</span>冻结，无法移动</div>
+          <div class="api-tag"><b>Effect.poison(target, dmg, turns)</b> — <span style="color:#c0392b;">★</span>中毒，每回合掉血</div>
+          <div class="api-tag"><b>Effect.regen(target, heal, turns)</b> — <span style="color:#c0392b;">★</span>再生，每回合回血</div>
           <div class="api-tag"><b>Effect.charm(actor, target, turns)</b> — 魅惑，目标临时加入己方</div>
           <div class="api-tag"><b>Effect.dodge(target, chance)</b> — 获得闪避（0-1概率，下次受击判定）</div>
           <div class="api-tag"><b>Effect.thorns(target, amt, turns)</b> — 荆棘反伤护甲</div>
+          <div class="api-tag"><b>Effect.taunt(actor, turns)</b> — <span style="color:#c0392b;">★</span>嘲讽，吸引AI攻击</div>
           <div class="api-tag"><b>Effect.mark(target, name, opts)</b> — 加标记（display/modifiers/data）</div>
           <div class="api-tag"><b>Effect.unmark(target, name)</b> — 移除标记</div>
+          <div class="api-tag"><b>Effect.unmarkAll(target)</b> — <span style="color:#c0392b;">★</span>移除所有标记</div>
           <div class="api-tag"><b>Effect.hasMark(target, name)</b> — 是否有某标记</div>
+          <div class="api-tag"><b>Effect.getMarkData(target, name)</b> — <span style="color:#c0392b;">★</span>获取标记数据</div>
+          <div class="api-tag"><b>Effect.getMarksOn(target)</b> — <span style="color:#c0392b;">★</span>获取所有标记数组</div>
           <div class="api-tag"><b>Effect.modifyMoveRange(target, delta, turns)</b> — 增减移动力</div>
         </div>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ ★ 新效果 API 详解<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p style="margin-top:8px;color:#c0392b;"><b>以下为新增的高性价比 Effect，每个附带完整示例：</b></p>
+
+        <p style="margin-top:12px;"><b>1. 不屈 <code>Effect.undying(target, stacks)</code></b></p>
+        <p>致命伤害时保留 1 点生命，消耗一层标记。stacks 可叠加（挡多次致命伤）。</p>
+        <pre><code class="language-javascript">// 主动技能：给己方核心武将2层不屈
+const ally = await Effect.chooseAlly(actor, {
+  range: { shape: 'r', n: 2 },
+  hintText: '请选择友方'
+});
+if (!ally) return false;
+actor.skilled = true;
+Effect.undying(ally, 2);
+return true;</code></pre>
+
+        <p style="margin-top:12px;"><b>2. 复活 <code>Effect.revive(target, turns, ratio)</code></b></p>
+        <p>死亡后延迟 turns 回合，以 ratio 比例血量复活。位置被占时自动找最近空位。</p>
+        <pre><code class="language-javascript">// 被动技能（turnStart）：每回合开始给自己复活标记
+// trigger: turnStart
+Effect.revive(actor, 3, 0.3); // 死后3回合以30%血量复活
+global.Game.log(actor.name + ' 祭起复活术！');</code></pre>
+
+        <p style="margin-top:12px;"><b>3. 隐身 <code>Effect.stealth(target, turns)</code></b></p>
+        <p>隐身期间无法被选为攻击/技能目标（AI 和玩家都无法选中）。棋子半透明显示。</p>
+        <pre><code class="language-javascript">// 主动技能：自身隐身2回合
+actor.skilled = true;
+Effect.stealth(actor, 2);
+return true;</code></pre>
+        <p>配合 <code>Effect.isUntargetable(piece)</code> 可在代码中检查某棋子是否隐身：</p>
+        <pre><code class="language-javascript">if (Effect.isUntargetable(target)) {
+  global.Game.log(target.name + ' 处于隐身，无法选中！');
+  return false;
+}</code></pre>
+
+        <p style="margin-top:12px;"><b>4. 标记引爆 <code>Effect.detonate(target, markName, callback)</code></b></p>
+        <p>消耗目标身上的指定标记，执行回调函数 <code>callback(piece, markData)</code>，然后移除标记。让"叠加标记→引爆"的 Combo 流成为可能。</p>
+        <pre><code class="language-javascript">// 主动技能：先叠加3层"破绽"标记，再引爆
+const target = await Effect.chooseEnemy(actor, {
+  range: { shape: '+', n: 3 }
+});
+if (!target) return false;
+actor.skilled = true;
+
+// 检查是否有"破绽"标记
+var data = Effect.getMarkData(target, 'flaw');
+if (data && data.stacks >= 3) {
+  // 引爆：每层造成20点真实伤害
+  Effect.detonate(target, 'flaw', function(piece, d) {
+    Effect.damage(actor, piece, d.stacks * 20, { ignoreDef: true });
+  });
+  global.Game.log('【破绽引爆】造成 ' + (data.stacks * 20) + ' 真实伤害！');
+} else {
+  // 叠加标记
+  var cur = data ? data.stacks : 0;
+  Effect.unmark(target, 'flaw');
+  Effect.mark(target, 'flaw', {
+    display: '破',
+    modifiers: { flawStacks: cur + 1 },
+    data: { stacks: cur + 1 }
+  });
+  global.Game.log(target.name + ' 身上破绽+1（当前 ' + (cur + 1) + ' 层）');
+}
+return true;</code></pre>
+
+        <p style="margin-top:12px;"><b>5. 属性偷取 <code>Effect.stealStat(actor, target, stat, amount)</code></b></p>
+        <p>永久从 target 偷取 amount 点属性给 actor。<code>stat</code> 为 <code>'atk'</code> 或 <code>'def'</code>。不会恢复！</p>
+        <pre><code class="language-javascript">// 被动技能（onAttack）：攻击时偷取5点攻击力
+// trigger: onAttack
+if (!context || !context.target) return;
+var t = context.target;
+if (t.alive) {
+  Effect.stealStat(actor, t, 'atk', 5);
+}</code></pre>
+
+        <p style="margin-top:12px;"><b>6. 陷阱 <code>Effect.placeTrap(x, y, opts)</code></b></p>
+        <p>在指定格子放置陷阱，敌方棋子踩到时自动触发。<code>opts.type</code> 支持：<code>damage</code>(伤害) / <code>stun</code>(眩晕) / <code>teleport</code>(随机传送) / <code>poison</code>(中毒)。</p>
+        <pre><code class="language-javascript">// 主动技能：在目标格布雷
+const cell = await Effect.chooseCell(actor, {
+  range: { shape: '+', n: 3 },
+  mustEmpty: true,
+  hintText: '请选择布雷位置'
+});
+if (!cell) return false;
+actor.skilled = true;
+Effect.placeTrap(cell.x, cell.y, {
+  type: 'damage',   // 类型：damage/stun/teleport/poison
+  damage: 40,       // 伤害量（damage/poison类型用）
+  turns: 3,         // 3回合后自动消失
+  owner: actor,     // 陷阱归属
+  side: 'enemy'     // 敌方触发
+});
+return true;</code></pre>
+        <p>清除陷阱：<code>Effect.clearTraps({owner: actor})</code> 或 <code>Effect.clearTraps({x, y})</code> 或 <code>Effect.clearTraps()</code>（清全部）。</p>
+
+        <p style="margin-top:12px;"><b>7. 伤害分摊 <code>Effect.linkDamage(allyA, allyB, turns, ratio)</code></b></p>
+        <p>链接两个友军，任一方受伤时转移 ratio 比例伤害给另一方。分摊伤害会正确触发不屈/护盾/死亡事件。</p>
+        <pre><code class="language-javascript">// 主动技能：链接自己和一名友军，分摊50%伤害
+const ally = await Effect.chooseAlly(actor, {
+  range: { shape: 'r', n: 3 },
+  hintText: '请选择链接友军'
+});
+if (!ally) return false;
+actor.skilled = true;
+Effect.linkDamage(actor, ally, 3, 0.5); // 3回合内分摊50%
+return true;</code></pre>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ ★ 技能操作 API<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p>运行时动态增删棋子的技能、管理冷却、添加临时技能。</p>
+        <div class="api-tag-row">
+          <div class="api-tag"><b>Effect.gainSkill(actor, skillDef)</b> — 添加技能（字符串ID/DIY对象）</div>
+          <div class="api-tag"><b>Effect.loseSkill(actor, skillId)</b> — 移除技能</div>
+          <div class="api-tag"><b>Effect.hasSkill(actor, skillId)</b> — 检查是否有某技能</div>
+          <div class="api-tag"><b>Effect.getSkill(actor, skillId)</b> — 获取技能对象</div>
+          <div class="api-tag"><b>Effect.setSkillCooldown(actor, skillId, cd)</b> — 设置冷却</div>
+          <div class="api-tag"><b>Effect.resetSkillCooldown(actor, skillId)</b> — 重置冷却为0</div>
+          <div class="api-tag"><b>Effect.modifySkill(actor, skillId, changes)</b> — 修改技能属性</div>
+          <div class="api-tag"><b>Effect.reduceAllCooldowns(actor, amount)</b> — 减少所有冷却</div>
+          <div class="api-tag"><b>Effect.gainTmpSkill(actor, skillDef, opts)</b> — <span style="color:#c0392b;">★</span>临时技能</div>
+          <div class="api-tag"><b>Effect.loseTmpSkill(actor, tmpId)</b> — 移除临时技能</div>
+          <div class="api-tag"><b>Effect.loseAllTmpSkills(actor)</b> — 移除所有临时技能</div>
+        </div>
+        <p style="margin-top:8px;"><b>临时技能过期方式</b>：</p>
+        <pre><code class="language-javascript">Effect.gainTmpSkill(actor, 'skillId', { turns: 2 });          // 2回合后消失
+Effect.gainTmpSkill(actor, 'skillId', { turnsAtStart: 1 });   // 下回合开始消失
+Effect.gainTmpSkill(actor, 'skillId', { expiresOn: 'onSkillCast' }); // 施法后消失
+Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消失</code></pre>
       </div>
     </div>
     <div class="collapsible">
@@ -1939,12 +2079,21 @@ async function content(actor) {
           <div class="api-tag"><b>Effect.aiContext()</b> — 查询当前 AI 上下文（非 AI 模式返回 null，用于多步技能分支）</div>
           <div class="api-tag"><b>Effect.currentAiSkill()</b> — 获取当前 AI 模式下正在执行的技能对象</div>
           <div class="api-tag"><b>Effect.teleport(actor, x, y)</b> — 瞬移到空格</div>
+          <div class="api-tag"><b>Effect.swap(actor, target)</b> — <span style="color:#c0392b;">★</span>与目标换位</div>
+          <div class="api-tag"><b>Effect.randomTeleport(actor, range)</b> — <span style="color:#c0392b;">★</span>随机传送</div>
+          <div class="api-tag"><b>Effect.summonUnit(actor, x, y, opts)</b> — <span style="color:#c0392b;">★</span>召唤单位</div>
           <div class="api-tag"><b>Effect.push(actor, target, dir, n)</b> — 击退 n 格，dir=[dx,dy]</div>
           <div class="api-tag"><b>Effect.pull(actor, target, n)</b> — 拉拽 n 格向自己</div>
+          <div class="api-tag"><b>Effect.chain(actor, target, amt, count, opts)</b> — <span style="color:#c0392b;">★</span>链式弹射</div>
           <div class="api-tag"><b>Effect.resetAction(actor)</b> — 重置移动/攻击/技能</div>
+          <div class="api-tag"><b>Effect.resetMove(actor)</b> — <span style="color:#c0392b;">★</span>仅恢复移动</div>
+          <div class="api-tag"><b>Effect.resetAttack(actor)</b> — <span style="color:#c0392b;">★</span>仅恢复攻击</div>
           <div class="api-tag"><b>Effect.getAllies(actor)</b> — 获取所有友方存活棋子</div>
           <div class="api-tag"><b>Effect.getEnemies(actor)</b> — 获取所有敌方存活棋子</div>
           <div class="api-tag"><b>Effect.healArea(actor, shape, n, amt)</b> — 范围治疗友方</div>
+          <div class="api-tag"><b>Effect.stealStat(actor, target, stat, amt)</b> — <span style="color:#c0392b;">★</span>永久偷取属性</div>
+          <div class="api-tag"><b>Effect.placeTrap(x, y, opts)</b> — <span style="color:#c0392b;">★</span>放置陷阱</div>
+          <div class="api-tag"><b>Effect.clearTraps(opts)</b> — <span style="color:#c0392b;">★</span>清除陷阱</div>
           <div class="api-tag"><b>Effect.changeTerrain(x, y, type)</b> — 改地形：r(河)/m(山)/f(林)/w(沼)/plain</div>
           <div class="api-tag"><b>Effect.random(min, max)</b> — 随机整数</div>
           <div class="api-tag"><b>Effect.chance(p)</b> — 概率判定，返回 true/false</div>
@@ -2797,7 +2946,7 @@ async function content(actor) {
   }
 
   // API 侧栏数据
-  var FS_API_TABS = ['战斗', '状态', '位移', '查询', '恢复', '触发', '片段'];
+  var FS_API_TABS = ['战斗', '状态', '位移', '查询', '恢复', '技能操作', '触发', '片段'];
 
   var FS_API_DATA = {
     '战斗': [
@@ -2813,6 +2962,8 @@ async function content(actor) {
       { group: '数值查询' },
       { sig: 'Effect.getEffectiveAttack(actor)', desc: '当前有效攻击力（含攻击 buff）', insert: 'var atk = Effect.getEffectiveAttack(actor);' },
       { sig: 'Effect.getEffectiveDefense(target)', desc: '当前有效防御力（含地形、buff）', insert: 'var def = Effect.getEffectiveDefense(target);' },
+      { group: '属性偷取' },
+      { sig: 'Effect.stealStat(actor, target, stat, amount)', desc: '★ 永久偷取属性：stat为"atk"或"def"，不可恢复', isNew: true, insert: 'Effect.stealStat(actor, target, \'atk\', 10);' },
     ],
     '状态': [
       { group: '护盾 & 削弱' },
@@ -2833,6 +2984,15 @@ async function content(actor) {
       { sig: 'Effect.unmark(target, name)', desc: '移除指定标记', insert: 'Effect.unmark(target, \'mymark\');' },
       { sig: 'Effect.hasMark(target, name)', desc: '判断目标是否有某标记，返回 true/false', insert: 'if (Effect.hasMark(target, \'mymark\')) { }' },
       { sig: 'Effect.getMarkData(target, name)', desc: '获取标记的 data 对象', insert: 'var d = Effect.getMarkData(actor, \'mymark\');' },
+      { sig: 'Effect.unmarkAll(target)', desc: '移除目标身上所有标记', insert: 'Effect.unmarkAll(target);' },
+      { sig: 'Effect.getMarksOn(target)', desc: '获取目标身上所有标记数组', insert: 'var marks = Effect.getMarksOn(actor);' },
+      { group: '★ 新效果' },
+      { sig: 'Effect.undying(target, stacks)', desc: '不屈：致命伤时锁1血，消耗1层（可叠加层数）', isNew: true, insert: 'Effect.undying(actor, 2);' },
+      { sig: 'Effect.revive(target, turns, ratio)', desc: '复活：死亡后延迟 turns 回合以 ratio 比例血量复活', isNew: true, insert: 'Effect.revive(actor, 2, 0.3);' },
+      { sig: 'Effect.stealth(target, turns)', desc: '隐身：无法被选中为攻击/技能目标，持续 turns 回合', isNew: true, insert: 'Effect.stealth(actor, 2);' },
+      { sig: 'Effect.isUntargetable(piece)', desc: '检查棋子是否隐身（不可被选中）', isNew: true, insert: 'if (Effect.isUntargetable(target)) return false;' },
+      { sig: 'Effect.detonate(target, markName, callback)', desc: '引爆标记：消耗标记并触发回调', isNew: true, insert: 'Effect.detonate(target, \'mymark\', function(piece, data) {\n  Effect.damage(null, piece, data.stacks * 20, { ignoreDef: true });\n});' },
+      { sig: 'Effect.linkDamage(allyA, allyB, turns, ratio)', desc: '伤害分摊：链接两个友军，受伤时转移 ratio 比例伤害', isNew: true, insert: 'Effect.linkDamage(actor, ally, 3, 0.5);' },
     ],
     '位移': [
       { group: '主动位移' },
@@ -2843,6 +3003,9 @@ async function content(actor) {
       { group: '推拉' },
       { sig: 'Effect.push(actor, target, dir, n)', desc: '击退：将 target 沿 dir=[dx,dy] 推 n 格', insert: 'var dir = [Math.sign(target.x-actor.x)||1, Math.sign(target.y-actor.y)||0];\nEffect.push(actor, target, dir, 2);' },
       { sig: 'Effect.pull(actor, target, n)', desc: '拉拽：将 target 向 actor 方向拉 n 格', insert: 'Effect.pull(actor, target, 2);' },
+      { group: '★ 陷阱系统' },
+      { sig: 'Effect.placeTrap(x, y, opts)', desc: '★ 布陷阱：opts.type为damage/stun/teleport/poison，敌方踩到触发', isNew: true, insert: 'Effect.placeTrap(cell.x, cell.y, {\n  type: \'damage\',\n  damage: 40,\n  turns: 3,\n  owner: actor,\n  side: \'enemy\'\n});' },
+      { sig: 'Effect.clearTraps(opts)', desc: '清除陷阱：opts={x,y}或{owner}或无参清全部', isNew: true, insert: 'Effect.clearTraps({ owner: actor });' },
     ],
     '查询': [
       { group: '选择（异步，需 await）' },
@@ -2877,6 +3040,22 @@ async function content(actor) {
       { sig: 'actor.moved = false', desc: '手动恢复移动标志', insert: 'actor.moved = false;' },
       { sig: 'actor.attacked = false', desc: '手动恢复攻击标志', insert: 'actor.attacked = false;' },
       { sig: 'actor.cdMap[sk.id] = 0', desc: '手动清除某技能的冷却', insert: 'actor.cdMap[actor.skills[0].id] = 0;' },
+    ],
+    '技能操作': [
+      { group: '技能增删' },
+      { sig: 'Effect.gainSkill(actor, skillDef)', desc: '给棋子添加技能（字符串ID/DIY对象/已编译技能）', insert: 'Effect.gainSkill(actor, \'skillId\');' },
+      { sig: 'Effect.loseSkill(actor, skillId)', desc: '移除棋子的指定技能', insert: 'Effect.loseSkill(actor, \'skillId\');' },
+      { sig: 'Effect.hasSkill(actor, skillId)', desc: '检查棋子是否有某技能', insert: 'if (Effect.hasSkill(actor, \'skillId\')) { }' },
+      { sig: 'Effect.getSkill(actor, skillId)', desc: '获取棋子的技能对象', insert: 'var sk = Effect.getSkill(actor, \'skillId\');' },
+      { group: '冷却管理' },
+      { sig: 'Effect.setSkillCooldown(actor, skillId, cd)', desc: '设置技能冷却为 cd 回合', insert: 'Effect.setSkillCooldown(actor, \'skillId\', 3);' },
+      { sig: 'Effect.resetSkillCooldown(actor, skillId)', desc: '重置技能冷却为 0', insert: 'Effect.resetSkillCooldown(actor, \'skillId\');' },
+      { sig: 'Effect.modifySkill(actor, skillId, changes)', desc: '修改技能属性（如 name/desc/cooldown 等）', insert: 'Effect.modifySkill(actor, \'skillId\', { cooldown: 2 });' },
+      { sig: 'Effect.reduceAllCooldowns(actor, amount)', desc: '减少所有技能冷却 amount 回合', insert: 'Effect.reduceAllCooldowns(actor, 1);' },
+      { group: '临时技能' },
+      { sig: 'Effect.gainTmpSkill(actor, skillDef, opts)', desc: '★ 临时技能：opts.turns/turnsAtStart/expiresOn/expiresAtTurn', isNew: true, insert: 'Effect.gainTmpSkill(actor, \'skillId\', { turns: 2 });' },
+      { sig: 'Effect.loseTmpSkill(actor, tmpId)', desc: '手动移除临时技能（传入 gainTmpSkill 返回的 tmpId）', insert: 'Effect.loseTmpSkill(actor, tmpId);' },
+      { sig: 'Effect.loseAllTmpSkills(actor)', desc: '移除棋子所有临时技能', insert: 'Effect.loseAllTmpSkills(actor);' },
     ],
     '触发': [
       { group: '被动触发时机（trigger 字段可选值）' },
@@ -3029,6 +3208,102 @@ async function content(actor) {
         '  Effect.damage(actor, att, 30, { ignoreDef: true });',
         '  Effect.freeze(att, 1);',
         '}'
+      ].join('\n')
+    },
+    {
+      name: '★ 主动：不屈 + 隐身',
+      code: [
+        'actor.skilled = true;',
+        'Effect.undying(actor, 2);  // 2层不屈：致命伤锁1血',
+        'Effect.stealth(actor, 2);  // 隐身2回合：无法被选中',
+        'global.Game.log(actor.name + " 进入不屈隐身状态！");',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '★ 主动：标记叠加 + 引爆',
+      code: [
+        'const target = await Effect.chooseEnemy(actor, {',
+        '  range: { shape: "+", n: 3 },',
+        '  passThrough: true,',
+        '  hintText: "【破绽】请选择敌人"',
+        '});',
+        'if (!target) return false;',
+        'actor.skilled = true;',
+        'var data = Effect.getMarkData(target, "flaw");',
+        'if (data && data.stacks >= 3) {',
+        '  // 引爆：每层20点真实伤害',
+        '  Effect.detonate(target, "flaw", function(piece, d) {',
+        '    Effect.damage(actor, piece, d.stacks * 20, { ignoreDef: true });',
+        '  });',
+        '} else {',
+        '  // 叠加标记',
+        '  var cur = data ? data.stacks : 0;',
+        '  Effect.unmark(target, "flaw");',
+        '  Effect.mark(target, "flaw", {',
+        '    display: "破",',
+        '    modifiers: { flawStacks: cur + 1 },',
+        '    data: { stacks: cur + 1 }',
+        '  });',
+        '  global.Game.log(target.name + " 破绽+1（当前 " + (cur + 1) + " 层）");',
+        '}',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '★ 主动：布雷陷阱',
+      code: [
+        'const cell = await Effect.chooseCell(actor, {',
+        '  range: { shape: "+", n: 3 },',
+        '  mustEmpty: true, passThrough: true,',
+        '  hintText: "【布雷】请选择位置"',
+        '});',
+        'if (!cell) return false;',
+        'actor.skilled = true;',
+        'Effect.placeTrap(cell.x, cell.y, {',
+        '  type: "damage",   // damage/stun/teleport/poison',
+        '  damage: 40,',
+        '  turns: 3,',
+        '  owner: actor,',
+        '  side: "enemy"',
+        '});',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '★ 被动（onAttack）：偷取属性',
+      code: [
+        '// type: 被动  trigger: onAttack',
+        '// filter: return actor && actor.alive;',
+        'if (!context || !context.target) return;',
+        'var t = context.target;',
+        'if (t.alive) {',
+        '  Effect.stealStat(actor, t, "atk", 5);',
+        '}'
+      ].join('\n')
+    },
+    {
+      name: '★ 主动：伤害分摊链接',
+      code: [
+        'const ally = await Effect.chooseAlly(actor, {',
+        '  range: { shape: "r", n: 3 },',
+        '  passThrough: true,',
+        '  hintText: "【链接】请选择友军"',
+        '});',
+        'if (!ally) return false;',
+        'actor.skilled = true;',
+        'Effect.linkDamage(actor, ally, 3, 0.5);',
+        'global.Game.log(actor.name + " 与 " + ally.name + " 建立伤害分摊！");',
+        'return true;'
+      ].join('\n')
+    },
+    {
+      name: '★ 被动（turnStart）：复活准备',
+      code: [
+        '// type: 被动  trigger: turnStart',
+        '// filter: return actor && actor.alive;',
+        '// 每回合开始时刷新复活标记（死后2回合以30%血量复活）',
+        'Effect.revive(actor, 2, 0.3);'
       ].join('\n')
     }
   ];
