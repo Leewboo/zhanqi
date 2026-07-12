@@ -231,10 +231,11 @@
             target.hp = 1;
             undyingMark.modifiers.undyingStacks -= 1;
             undyingMark.data.stacks -= 1;
-            if (undyingMark.data.stacks <= 0) {
+            const remaining = undyingMark.data.stacks;
+            if (remaining <= 0) {
               this.unmark(target, 'undying');
             }
-            global.Game.log('【不屈】' + target.name + ' 残血生还！（剩余 ' + undyingMark.data.stacks + ' 层）');
+            global.Game.log('【不屈】' + target.name + ' 残血生还！（剩余 ' + remaining + ' 层）');
             global.Game._showFloatText(target.x, target.y, '不屈!', 'shield');
             global.Game._render();
             return final;
@@ -1576,12 +1577,12 @@
       amount = Math.max(1, parseInt(amount) || 0);
       var stolen = 0;
       if (stat === 'atk') {
-        var real = Math.min(amount, target.atk);
+        var real = Math.max(0, Math.min(amount, target.atk));
         target.atk -= real;
         actor.atk += real;
         stolen = real;
       } else {
-        var real = Math.min(amount, target.def);
+        var real = Math.max(0, Math.min(amount, target.def));
         target.def -= real;
         actor.def += real;
         stolen = real;
@@ -1631,8 +1632,10 @@
 
         // 触发陷阱
         if (global.Game) global.Game.log(piece.name + ' 踩中了陷阱！', 'turn');
+        // owner 已死亡则用 null 作为伤害来源
+        const trapOwner = (t.owner && t.owner.alive) ? t.owner : null;
         if (t.type === 'damage') {
-          Effect.damage(t.owner || null, piece, t.damage, { ignoreDef: false });
+          Effect.damage(trapOwner, piece, t.damage, { ignoreDef: false });
         } else if (t.type === 'stun') {
           Effect.stun(piece, t.data.turns || 1);
         } else if (t.type === 'teleport') {
@@ -1681,7 +1684,7 @@
     },
 
     // 检查并执行伤害分摊（在 damage 内部调用）
-    // 返回实际分摊出去的伤害量
+    // 返回分摊出去的伤害量（用于回补目标）
     _checkLinkDamage(target, damage) {
       if (!target || !target.alive || damage <= 0) return 0;
       const linkMark = this.getMarksOn(target).find(m => m.modifiers && m.modifiers.linkPartner);
@@ -1693,18 +1696,9 @@
       if (!partner) return 0;
       const shared = Math.floor(damage * ratio);
       if (shared <= 0) return 0;
-      // 直接扣血（避免递归触发分摊和防御计算）
-      partner.hp -= shared;
-      if (global.Game) {
-        global.Game._showFloatText(partner.x, partner.y, '-' + shared + '(分摊)', 'damage');
-        global.Game.log('【分摊】' + partner.name + ' 承担 ' + shared + ' 点伤害。');
-        if (partner.hp <= 0) {
-          partner.hp = 0;
-          partner.alive = false;
-          this.unmarkAll(partner);
-          global.Game.log(partner.name + ' 被分摊伤害击败！');
-        }
-      }
+      // 通过 Effect.damage 处理（自动处理不屈、护盾、死亡事件等）
+      if (global.Game) global.Game.log('【分摊】' + partner.name + ' 承担 ' + shared + ' 点伤害。');
+      Effect.damage(null, partner, shared, { ignoreDef: true, _isShared: true });
       return shared;
     }
   };

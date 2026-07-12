@@ -1611,7 +1611,22 @@
         reviveMark.data.turns -= 1;
         reviveMark.modifiers.reviveTurns = reviveMark.data.turns;
         if (reviveMark.data.turns <= 0) {
-          // 复活
+          // 复活：若原位置被占，找最近的空位
+          if (this.pieceAt(p.x, p.y)) {
+            const SIZE = Range.BOARD_SIZE;
+            let found = false;
+            for (let r = 1; r <= 3 && !found; r++) {
+              for (let dy = -r; dy <= r && !found; dy++) {
+                for (let dx = -r; dx <= r && !found; dx++) {
+                  const nx = p.x + dx, ny = p.y + dy;
+                  if (nx >= 0 && ny >= 0 && nx < SIZE && ny < SIZE && !this.pieceAt(nx, ny)) {
+                    p.x = nx; p.y = ny;
+                    found = true;
+                  }
+                }
+              }
+            }
+          }
           p.alive = true;
           p.hp = Math.max(1, Math.floor(p.maxHp * (reviveMark.data.ratio || 0.3)));
           p.moved = false;
