@@ -217,6 +217,7 @@
       this.deploySelected = null;
       this.pickedRed = [];
       this.pickedBlue = [];
+      this.draftPool = null;  // 本局将池（随机刷新的武将子集）
       this.selected = null;
       this.mode = null;
       this.pendingSkillId = null;
@@ -235,6 +236,7 @@
       // 随机数种子：联机对战使用服务器下发的统一种子，保证双端结果一致；
       // 本机/人机对战使用本地随机种子即可
       RNG.seed(this.onlineMode ? opts.seed : RNG.randomSeed());
+      this._generateDraftPool();
       this._buildDom();
       this._bind();
       this._setupPassiveEvents();
@@ -242,8 +244,8 @@
 
       this.phase = 'draft';
       this._highlightDeployZones();
-      const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(Generals.list.length / 2));
-      this.log('选将开始：双方轮流挑选武将，每方 ' + effectivePicks + ' 人。', 'turn');
+      const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(this.draftPool.length / 2));
+      this.log('选将开始：将池 ' + this.draftPool.length + ' 将，双方轮流挑选，每方 ' + effectivePicks + ' 人。', 'turn');
       if (this.aiMode) {
         const playerSide = this.aiSide === 'blue' ? '红' : '蓝';
         const aiSideName = this.aiSide === 'blue' ? '蓝' : '红';
@@ -263,6 +265,19 @@
 
       // 启动时异步加载 DIY 武将（如已在 startGame 预加载则此调用只是获取最新）
       this._loadDiy(true);
+    },
+
+    // 生成本局将池：从全部武将中用 RNG 随机抽取 draftPoolSize 个
+    // 联机模式下双方使用同一种子，保证将池一致
+    _generateDraftPool() {
+      const poolSize = GameSettings.draftPoolSize;
+      const all = Generals.list.slice();
+      // Fisher-Yates 洗牌（使用可播种 RNG，保证联机双端一致）
+      for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(RNG.random() * (i + 1));
+        const tmp = all[i]; all[i] = all[j]; all[j] = tmp;
+      }
+      this.draftPool = (poolSize > 0 && poolSize < all.length) ? all.slice(0, poolSize) : all;
     },
 
     // 异步加载 DIY 武将和技能，注入全局系统
@@ -298,8 +313,11 @@
           this._preloadPortraits(data.generals);
         }
 
-        // 3) 如果 draft 阶段，刷新卡片让 DIY 武将出现在选将池中
+        // 3) 如果 draft 阶段且尚未选将，重新生成将池（包含新加载的 DIY 武将）
         if (changed && this.phase === 'draft') {
+          if (this.draftIndex === 0) {
+            this._generateDraftPool();
+          }
           this._refreshUi();
         }
       } catch (e) {
@@ -404,7 +422,7 @@
         Online.sendAction({ type: 'pick', generalId: generalDef.id });
       }
 
-      const maxPerSide = Math.floor(Generals.list.length / 2);
+      const maxPerSide = Math.floor(this.draftPool.length / 2);
       const effective = Math.min(PICKS_PER_SIDE, maxPerSide);
       if (this.pickedRed.length >= effective && this.pickedBlue.length >= effective) {
         this._startDeploy();
@@ -1896,7 +1914,7 @@
         title.className = 'block-title';
         title.textContent = '武将池 · 轮到 ' + side + '方 选择';
         draftBlock.appendChild(title);
-        const pool = Generals.list.filter(g =>
+        const pool = this.draftPool.filter(g =>
           !this.pickedRed.find(p => p.id === g.id) &&
           !this.pickedBlue.find(p => p.id === g.id)
         );
@@ -2004,14 +2022,12 @@
         }
         status.innerHTML = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · <b>' + sideName + '方</b>' + suffix;
         cards.innerHTML = '';
-        const pool = Generals.list.filter(g =>
+        const pool = this.draftPool.filter(g =>
           !this.pickedRed.find(p => p.id === g.id) &&
           !this.pickedBlue.find(p => p.id === g.id)
         );
-        const poolLimit = GameSettings.draftPoolSize;
-        const displayPool = (poolLimit > 0 && pool.length > poolLimit) ? pool.slice(0, poolLimit) : pool;
         const self = this;
-        for (const g of displayPool) {
+        for (const g of pool) {
           const draftSide = this.draftIndex % 2 === 0 ? 'red' : 'blue';
           const canClick = !(this.aiMode && draftSide === this.aiSide) && this._onlineCanAct(draftSide);
           const card = buildDraftCard(g, canClick ? () => self._pickGeneral(g) : null);
@@ -2138,7 +2154,7 @@
     },
 
     _aiPickGeneral() {
-      const pool = Generals.list.filter(g =>
+      const pool = this.draftPool.filter(g =>
         !this.pickedRed.find(p => p.id === g.id) &&
         !this.pickedBlue.find(p => p.id === g.id)
       );
@@ -3580,7 +3596,7 @@
       GameSettings.onlineMode = data.mode;
       GameSettings.onlineSide = Online.side;
       GameSettings.picksPerSide = data.mode === '3v3' ? 3 : 5;
-      GameSettings.draftPoolSize = data.mode === '3v3' ? 6 : 10;
+      GameSettings.draftPoolSize = data.draftPoolSize || (data.mode === '3v3' ? 6 : 10);
       GameSettings.save();
 
       document.getElementById('room-screen').classList.add('hidden');
@@ -3707,7 +3723,7 @@
       GameSettings.onlineMode = data.mode;
       GameSettings.onlineSide = data.side;
       GameSettings.picksPerSide = data.mode === '3v3' ? 3 : 5;
-      GameSettings.draftPoolSize = data.mode === '3v3' ? 6 : 10;
+      GameSettings.draftPoolSize = data.draftPoolSize || (data.mode === '3v3' ? 6 : 10);
       GameSettings.save();
 
       document.getElementById('room-screen').classList.add('hidden');
@@ -3943,6 +3959,10 @@
         const v = parseInt(chip.getAttribute('data-draft-pool'));
         GameSettings.setDraftPoolSize(v);
         refreshSettingsUi();
+        // 选将阶段且尚未选将时，重新生成将池（联机模式下不修改服务端设定的将池）
+        if (Game && Game.phase === 'draft' && Game.draftIndex === 0 && !Game.onlineMode) {
+          Game._generateDraftPool();
+        }
         if (Game && Game.phase === 'draft' && Game._renderDraftCards) {
           Game._renderDraftCards();
         }
