@@ -186,14 +186,19 @@
 
       if (final > 0) {
         target.hp -= final;
+        // 伤害分摊：受伤时转移部分伤害给链接的友军
+        if (!opts._isShared) {
+          const shared = Effect._checkLinkDamage(target, final);
+          if (shared > 0) target.hp += shared; // 分摊出去的部分回补
+        }
       }
-      
+
       if (global.Game) {
         global.Game._showHitEffect(target.x, target.y, final > 50);
         if (final > 0) {
           global.Game._showFloatText(target.x, target.y, '-' + final, 'damage');
         }
-        
+
         const note = hasZeroDef ? '（' + markNames + '，防御归零）' : '';
         const shieldNote = shieldAbsorbed > 0 ? '（护盾吸收 ' + shieldAbsorbed + '）' : '';
         global.Game.log((actor ? actor.name : '') + ' 对 ' + target.name + ' 造成 ' + final + ' 伤害' + note + shieldNote + '。');
@@ -219,13 +224,43 @@
           }
         }
 
+        // 不屈：致命伤害时锁 1 血
         if (target.hp <= 0) {
+          const undyingMark = this.getMarksOn(target).find(m => m.modifiers && m.modifiers.undyingStacks);
+          if (undyingMark && undyingMark.modifiers.undyingStacks > 0) {
+            target.hp = 1;
+            undyingMark.modifiers.undyingStacks -= 1;
+            undyingMark.data.stacks -= 1;
+            if (undyingMark.data.stacks <= 0) {
+              this.unmark(target, 'undying');
+            }
+            global.Game.log('【不屈】' + target.name + ' 残血生还！（剩余 ' + undyingMark.data.stacks + ' 层）');
+            global.Game._showFloatText(target.x, target.y, '不屈!', 'shield');
+            global.Game._render();
+            return final;
+          }
+
+          // 复活：保留 revive 标记，死亡后供回合处理检查
           target.hp = 0;
           target.alive = false;
           // 触发被击杀事件
           Effect.trigger('onKilled', { actor, victim: target, damage: final });
           Effect.triggerPassive(target, 'onKilled', { killer: actor, damage: final });
-          this.unmarkAll(target);
+          // 检查是否有复活标记，有则保留
+          const reviveMark = this.getMarksOn(target).find(m => m.modifiers && m.modifiers.reviveTurns);
+          if (reviveMark) {
+            const reviveData = reviveMark.data;
+            const reviveMods = reviveMark.modifiers;
+            this.unmarkAll(target);
+            Effect.mark(target, 'revive', {
+              display: '魂',
+              modifiers: reviveMods,
+              data: reviveData
+            });
+            global.Game.log(target.name + ' 被击败！但【复活】效果仍存在...');
+          } else {
+            this.unmarkAll(target);
+          }
           global.Game.log(target.name + ' 被击败！');
           if (actor) global.Game._onKill(actor, target);
         }
@@ -395,6 +430,8 @@
         if (options.mustEnemy && (!p || p.alive === false || p.side === actor.side)) continue;
         if (options.mustAlly && (!p || p.alive === false || p.side !== actor.side)) continue;
         if (options.mustSelf && (c.x !== actor.x || c.y !== actor.y)) continue;
+        // 隐身单位不可被选中（除非是自己）
+        if (p && p.alive && p !== actor && Effect.isUntargetable(p) && !options.ignoreStealth) continue;
         if (typeof options.filter === 'function' && !options.filter({ x: c.x, y: c.y }, p)) continue;
         valid.push({ x: c.x, y: c.y, piece: p });
       }
@@ -523,6 +560,8 @@
           if (options.mustEnemy && (!p || p.alive === false || p.side === actor.side)) continue;
           if (options.mustAlly && (!p || p.alive === false || p.side !== actor.side)) continue;
           if (options.mustSelf && (c.x !== actor.x || c.y !== actor.y)) continue;
+          // 隐身单位不可被选中（除非是自己）
+          if (p && p.alive && p !== actor && Effect.isUntargetable(p) && !options.ignoreStealth) continue;
           if (typeof options.filter === 'function' && !options.filter({ x: c.x, y: c.y }, p)) continue;
           valid.push(c);
         }
@@ -1457,6 +1496,216 @@
       for (const entry of expired) {
         this._removeTmpSkill(entry);
       }
+    },
+
+    // ========== 新效果扩展 ==========
+
+    // 不屈：受到致命伤害时保留 1 点生命，消耗标记（一次性）
+    // stacks: 可叠加次数，默认 1（能挡几次致命伤）
+    undying(target, stacks) {
+      stacks = Math.max(1, parseInt(stacks) || 1);
+      if (!target || !target.alive) return false;
+      const existing = this.getMarkData(target, 'undying');
+      if (existing) {
+        existing.stacks += stacks;
+        const m = this._marks[target.generalId + '_undying'];
+        if (m) { m.data.stacks = existing.stacks; m.modifiers.undyingStacks = existing.stacks; }
+      } else {
+        Effect.mark(target, 'undying', {
+          display: '屈',
+          modifiers: { undyingStacks: stacks },
+          data: { stacks }
+        });
+      }
+      if (global.Game) global.Game.log(target.name + ' 获得【不屈】（' + stacks + ' 层）！');
+      return true;
+    },
+
+    // 复活：死亡后延迟 turns 回合以 ratio 比例血量复活
+    revive(target, turns, ratio) {
+      turns = turns || 1;
+      ratio = ratio || 0.3;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'revive', {
+        display: '魂',
+        modifiers: { reviveTurns: turns, reviveRatio: ratio },
+        data: { turns, ratio }
+      });
+      if (global.Game) global.Game.log(target.name + ' 获得【复活】（' + turns + ' 回合后复活）！');
+      return true;
+    },
+
+    // 隐身：无法被选中为攻击/技能目标，持续 turns 回合
+    stealth(target, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      Effect.mark(target, 'stealth', {
+        display: '隐',
+        modifiers: { stealthTurns: turns, untargetable: true },
+        data: { turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 进入【隐身】状态（' + turns + ' 回合）！');
+      return true;
+    },
+
+    // 检查棋子是否不可被选中（隐身）
+    isUntargetable(piece) {
+      if (!piece || !piece.alive) return false;
+      return this.hasMark(piece, 'stealth');
+    },
+
+    // 标记引爆：消耗目标身上的指定标记，触发回调效果
+    // markName: 要引爆的标记名；callback(piece, markData): 引爆效果
+    detonate(target, markName, callback) {
+      if (!target || !target.alive) return false;
+      const data = this.getMarkData(target, markName);
+      if (!data) return false;
+      if (typeof callback === 'function') {
+        try { callback(target, data); } catch (e) { console.error(e); }
+      }
+      this.unmark(target, markName);
+      if (global.Game) global.Game.log(target.name + ' 身上的【' + markName + '】被引爆！');
+      return true;
+    },
+
+    // 属性偷取：永久从 target 偷取 amount 点属性给 actor
+    // stat: 'atk' | 'def'
+    stealStat(actor, target, stat, amount) {
+      if (!actor || !target || !actor.alive || !target.alive) return 0;
+      if (stat !== 'atk' && stat !== 'def') return 0;
+      amount = Math.max(1, parseInt(amount) || 0);
+      var stolen = 0;
+      if (stat === 'atk') {
+        var real = Math.min(amount, target.atk);
+        target.atk -= real;
+        actor.atk += real;
+        stolen = real;
+      } else {
+        var real = Math.min(amount, target.def);
+        target.def -= real;
+        actor.def += real;
+        stolen = real;
+      }
+      if (global.Game) global.Game.log(actor.name + ' 从 ' + target.name + ' 偷取 ' + stolen + ' 点' + (stat === 'atk' ? '攻击' : '防御') + '！');
+      return stolen;
+    },
+
+    // 陷阱系统
+    // _traps: [{ x, y, side, type, damage, owner, data }]
+    _traps: [],
+
+    // 放置陷阱
+    // opts: { side: 敌方/友方触发, type: 'damage'|'stun'|'teleport', damage, turns, owner }
+    placeTrap(x, y, opts) {
+      opts = opts || {};
+      if (!global.Game) return false;
+      if (x < 0 || y < 0 || x >= Range.BOARD_SIZE || y >= Range.BOARD_SIZE) return false;
+      // 同一格不能重复放
+      if (this._traps.some(t => t.x === x && t.y === y)) return false;
+      const trap = {
+        x, y,
+        side: opts.side || 'enemy',
+        type: opts.type || 'damage',
+        damage: opts.damage || 30,
+        owner: opts.owner || null,
+        turns: opts.turns || 3,
+        data: opts.data || {}
+      };
+      this._traps.push(trap);
+      if (global.Game) global.Game.log((opts.owner ? opts.owner.name + ' ' : '') + '在 (' + x + ',' + y + ') 布下陷阱！');
+      return true;
+    },
+
+    // 检查并触发某格子的陷阱（棋子移动到该格时调用）
+    _checkTraps(piece) {
+      if (!piece || !piece.alive || !global.Game) return;
+      for (let i = this._traps.length - 1; i >= 0; i--) {
+        const t = this._traps[i];
+        if (t.x !== piece.x || t.y !== piece.y) continue;
+        // side='enemy' 表示敌方陷阱触发（放置者=owner，触发者应≠owner.side）
+        // side='ally' 表示友方陷阱触发（触发者=owner同阵营）
+        const shouldTrigger = (t.side === 'enemy')
+          ? (!t.owner || t.owner.side !== piece.side)
+          : (!t.owner || t.owner.side === piece.side);
+        if (!shouldTrigger) continue;
+
+        // 触发陷阱
+        if (global.Game) global.Game.log(piece.name + ' 踩中了陷阱！', 'turn');
+        if (t.type === 'damage') {
+          Effect.damage(t.owner || null, piece, t.damage, { ignoreDef: false });
+        } else if (t.type === 'stun') {
+          Effect.stun(piece, t.data.turns || 1);
+        } else if (t.type === 'teleport') {
+          Effect.randomTeleport(piece, t.data.range || 3);
+        } else if (t.type === 'poison') {
+          Effect.poison(piece, t.damage, t.data.turns || 2);
+        }
+        // 消耗陷阱
+        this._traps.splice(i, 1);
+        if (global.Game) global.Game._render();
+        break; // 一次只触发一个
+      }
+    },
+
+    // 清除指定格子或指定 owner 的陷阱
+    clearTraps(opts) {
+      opts = opts || {};
+      if (opts.x !== undefined && opts.y !== undefined) {
+        this._traps = this._traps.filter(t => !(t.x === opts.x && t.y === opts.y));
+      } else if (opts.owner) {
+        this._traps = this._traps.filter(t => !t.owner || t.owner.generalId !== opts.owner.generalId);
+      } else {
+        this._traps = [];
+      }
+    },
+
+    // 伤害分摊：链接两个友军，任一方受伤时转移 ratio 比例给另一方
+    // 持续 turns 回合
+    linkDamage(allyA, allyB, turns, ratio) {
+      turns = turns || 2;
+      ratio = ratio !== undefined ? ratio : 0.5;
+      if (!allyA || !allyB || !allyA.alive || !allyB.alive) return false;
+      const linkId = 'link_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+      Effect.mark(allyA, 'link', {
+        display: '链',
+        modifiers: { linkTurns: turns, linkPartner: allyB.generalId, linkRatio: ratio, linkId },
+        data: { turns, ratio, partner: allyB.generalId, linkId }
+      });
+      Effect.mark(allyB, 'link', {
+        display: '链',
+        modifiers: { linkTurns: turns, linkPartner: allyA.generalId, linkRatio: ratio, linkId },
+        data: { turns, ratio, partner: allyA.generalId, linkId }
+      });
+      if (global.Game) global.Game.log(allyA.name + ' 与 ' + allyB.name + ' 建立伤害分摊（' + Math.floor(ratio * 100) + '%）！');
+      return true;
+    },
+
+    // 检查并执行伤害分摊（在 damage 内部调用）
+    // 返回实际分摊出去的伤害量
+    _checkLinkDamage(target, damage) {
+      if (!target || !target.alive || damage <= 0) return 0;
+      const linkMark = this.getMarksOn(target).find(m => m.modifiers && m.modifiers.linkPartner);
+      if (!linkMark) return 0;
+      const partnerId = linkMark.modifiers.linkPartner;
+      const ratio = linkMark.modifiers.linkRatio || 0.5;
+      // 找到分摊对象
+      const partner = global.Game && global.Game.pieces.find(p => p.generalId === partnerId && p.alive);
+      if (!partner) return 0;
+      const shared = Math.floor(damage * ratio);
+      if (shared <= 0) return 0;
+      // 直接扣血（避免递归触发分摊和防御计算）
+      partner.hp -= shared;
+      if (global.Game) {
+        global.Game._showFloatText(partner.x, partner.y, '-' + shared + '(分摊)', 'damage');
+        global.Game.log('【分摊】' + partner.name + ' 承担 ' + shared + ' 点伤害。');
+        if (partner.hp <= 0) {
+          partner.hp = 0;
+          partner.alive = false;
+          this.unmarkAll(partner);
+          global.Game.log(partner.name + ' 被分摊伤害击败！');
+        }
+      }
+      return shared;
     }
   };
 

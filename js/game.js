@@ -717,6 +717,10 @@
           if (mods.zeroDef) parts.push('防御归零');
           if (mods.atkBuff && !mods.stunTurns && !mods.charmTurns && !mods.dodgeChance && !mods.thornsTurns) parts.push('攻击+' + mods.atkBuff);
           if (mods.moveRangeDelta) parts.push('移动力' + (mods.moveRangeDelta > 0 ? '+' : '') + mods.moveRangeDelta + (mods.moveRangeTurns > 1 ? '（' + (data.turns !== undefined ? data.turns : mods.moveRangeTurns) + ' 回合）' : ''));
+          if (mods.undyingStacks) parts.push('不屈 ' + mods.undyingStacks + ' 层');
+          if (mods.reviveTurns) parts.push('复活 ' + mods.reviveTurns + ' 回合后');
+          if (mods.stealthTurns) parts.push('隐身 ' + (data.turns !== undefined ? data.turns : mods.stealthTurns) + ' 回合');
+          if (mods.linkPartner) parts.push('伤害分摊 ' + Math.floor((mods.linkRatio || 0.5) * 100) + '%（' + (data.turns !== undefined ? data.turns : mods.linkTurns) + ' 回合）');
 
           v.textContent = parts.length > 0 ? parts.join(' · ') : m.name;
           row.appendChild(l);
@@ -1237,7 +1241,7 @@
         });
         for (const c of cells) {
           const t = this.pieceAt(c.x, c.y);
-          if (t && t.alive && t.side !== actor.side) {
+          if (t && t.alive && t.side !== actor.side && !Effect.isUntargetable(t)) {
             this.highlighted.push({ x: c.x, y: c.y, kind: 'attack' });
           }
         }
@@ -1284,6 +1288,7 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
+      Effect._checkTraps(actor); // 陷阱触发
 
       // 联机同步
       if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
@@ -1573,6 +1578,60 @@
             if (m.data.turns <= 0) Effect.unmark(p, m.name);
           }
         }
+
+        // 隐身回合数递减
+        const stealthMarks = marks.filter(m => m.modifiers && m.modifiers.stealthTurns);
+        for (const m of stealthMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.stealthTurns = m.data.turns;
+            if (m.data.turns <= 0) {
+              Effect.unmark(p, m.name);
+              this.log(p.name + ' 的隐身效果结束。', 'turn');
+            }
+          }
+        }
+
+        // 伤害分摊回合数递减
+        const linkMarks = marks.filter(m => m.modifiers && m.modifiers.linkTurns);
+        for (const m of linkMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.linkTurns = m.data.turns;
+            if (m.data.turns <= 0) Effect.unmark(p, m.name);
+          }
+        }
+      }
+
+      // 复活检查：遍历所有已死亡的棋子，若有 revive 标记且倒计时归零则复活
+      const deadPieces = this.pieces.filter(p => !p.alive);
+      for (const p of deadPieces) {
+        const reviveMark = Effect.getMarksOn(p).find(m => m.modifiers && m.modifiers.reviveTurns);
+        if (!reviveMark) continue;
+        reviveMark.data.turns -= 1;
+        reviveMark.modifiers.reviveTurns = reviveMark.data.turns;
+        if (reviveMark.data.turns <= 0) {
+          // 复活
+          p.alive = true;
+          p.hp = Math.max(1, Math.floor(p.maxHp * (reviveMark.data.ratio || 0.3)));
+          p.moved = false;
+          p.attacked = false;
+          p.skilled = false;
+          Effect.unmark(p, 'revive');
+          this.log('【复活】' + p.name + ' 以 ' + p.hp + ' 点生命重返战场！', 'turn');
+          this._showFloatText(p.x, p.y, '复活!', 'heal');
+        }
+      }
+
+      // 陷阱回合数递减（在双方回合结束时统一处理）
+      if (Effect._traps && Effect._traps.length) {
+        for (let i = Effect._traps.length - 1; i >= 0; i--) {
+          const t = Effect._traps[i];
+          t.turns -= 1;
+          if (t.turns <= 0) {
+            Effect._traps.splice(i, 1);
+          }
+        }
       }
 
       this._render();
@@ -1677,6 +1736,8 @@
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
           p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
+          // 隐身棋子半透明
+          if (Effect.isUntargetable(piece)) p.style.opacity = '0.45';
 
           // 立绘（有则显示，覆盖棋子主体）
           const portraitUrl = this._getPortraitUrl(piece);
@@ -1792,6 +1853,10 @@
         else if (mods.dodgeChance) markLabels.push('闪');
         else if (mods.thornsTurns) markLabels.push('荆');
         else if (mods.zeroDef) markLabels.push('破防');
+        else if (mods.undyingStacks) markLabels.push('屈');
+        else if (mods.reviveTurns) markLabels.push('魂');
+        else if (mods.stealthTurns) markLabels.push('隐');
+        else if (mods.linkPartner) markLabels.push('链');
         else markLabels.push(m.display);
       }
       if (markLabels.length > 0) stateParts.push(markLabels.join('/'));
@@ -2517,6 +2582,7 @@
       for (const c of cells) {
         const p = this.pieceAt(c.x, c.y);
         if (!p || !p.alive || p.side === side) continue;
+        if (Effect.isUntargetable(p)) continue; // 隐身单位不可被攻击
 
         let score = Effect._aiThreat(p);
 
@@ -2789,6 +2855,7 @@
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
+      Effect._checkTraps(actor); // 陷阱触发
       this.highlighted = [];
       this.mode = null;
       this._render();
