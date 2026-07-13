@@ -67,8 +67,11 @@
       for (const m of marks) {
         if (m.modifiers && m.modifiers.zeroDef) return 0;
       }
-      // 基础防御 + 防御 buff
+      // 基础防御 + 防御 buff（从属性和标记中读取）
       let def = target.def + (target.defBuff || 0);
+      for (const m of marks) {
+        if (m.modifiers && typeof m.modifiers.defBuff === 'number') def += m.modifiers.defBuff;
+      }
       // 地形加成（m=山+10, w=水+15, f=林+5）
       if (global.Game && global.Game.terrain) {
         const t = target.y >= 0 && global.Game.terrain[target.y]
@@ -79,6 +82,26 @@
         if (t === 'f') def += 5;
       }
       return Math.max(0, def);
+    },
+
+    getEffectiveAttackRange(actor) {
+      if (!actor || !actor.attackRange) return { shape: '+', n: 1 };
+      let n = actor.attackRange.n;
+      const marks = this.getMarksOn(actor);
+      for (const m of marks) {
+        if (m.modifiers && typeof m.modifiers.attackRangeDelta === 'number') n += m.modifiers.attackRangeDelta;
+      }
+      return { shape: actor.attackRange.shape, n: Math.max(1, n) };
+    },
+
+    getEffectiveMoveRange(actor) {
+      if (!actor || !actor.moveRange) return { shape: '+', n: 1 };
+      let n = actor.moveRange.n;
+      const marks = this.getMarksOn(actor);
+      for (const m of marks) {
+        if (m.modifiers && typeof m.modifiers.moveRangeDelta === 'number') n += m.modifiers.moveRangeDelta;
+      }
+      return { shape: actor.moveRange.shape, n: Math.max(1, n) };
     },
 
     getEffectiveAttack(actor) {
@@ -753,6 +776,93 @@
       });
       if (global.Game) global.Game.log(target.name + ' 攻击力 ' + (delta > 0 ? '+' : '') + delta + '（' + turns + '回合）。');
       return delta;
+    },
+
+    // 防御力增益/减益（带持续回合数）
+    modifyDef(target, delta, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return 0;
+      const key = 'def_' + (delta > 0 ? 'up' : 'down') + '_' + Math.abs(delta);
+      Effect.mark(target, key, {
+        display: (delta > 0 ? '防+' : '防') + delta,
+        modifiers: { defBuff: delta },
+        data: { delta, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 防御力 ' + (delta > 0 ? '+' : '') + delta + '（' + turns + '回合）。');
+      return delta;
+    },
+
+    // 攻击范围增减（带持续回合数）
+    modifyAttackRange(target, delta, turns) {
+      turns = turns || 1;
+      if (!target || !target.alive) return false;
+      const key = 'ar_' + (delta > 0 ? 'up' : 'down') + '_' + Math.abs(delta);
+      Effect.mark(target, key, {
+        display: (delta > 0 ? '攻距+' : '攻距') + delta,
+        modifiers: { attackRangeDelta: delta, attackRangeTurns: turns },
+        data: { delta, turns }
+      });
+      if (global.Game) global.Game.log(target.name + ' 攻击范围 ' + (delta > 0 ? '+' : '') + delta + '（' + turns + '回合）。');
+      return true;
+    },
+
+    // 永久修改生命上限（当前hp按比例调整）
+    modifyMaxHp(target, delta, opts) {
+      opts = opts || {};
+      if (!target || !target.alive) return 0;
+      const oldMax = target.maxHp;
+      target.maxHp = Math.max(1, target.maxHp + delta);
+      if (opts.adjustCurrent !== false) {
+        const ratio = target.maxHp / oldMax;
+        target.hp = Math.max(1, Math.floor(target.hp * ratio));
+      }
+      if (global.Game) global.Game.log(target.name + ' 生命上限 ' + (delta > 0 ? '+' : '') + delta + '（当前生命' + (opts.adjustCurrent !== false ? '按比例调整' : '不变') + '）。');
+      return delta;
+    },
+
+    // 批量修改属性
+    // changes: { atk, def, maxHp, moveRange, attackRange }
+    // 每个属性可以是数值（直接增减）或对象 { delta, turns }（带回合数的增益）
+    modifyAllStats(target, changes) {
+      if (!target || !target.alive || !changes) return false;
+      let changed = false;
+      if (changes.atk !== undefined) {
+        if (typeof changes.atk === 'object') {
+          Effect.modifyAttack(target, changes.atk.delta, changes.atk.turns);
+        } else {
+          Effect.modifyAttack(target, changes.atk, 1);
+        }
+        changed = true;
+      }
+      if (changes.def !== undefined) {
+        if (typeof changes.def === 'object') {
+          Effect.modifyDef(target, changes.def.delta, changes.def.turns);
+        } else {
+          Effect.modifyDef(target, changes.def, 1);
+        }
+        changed = true;
+      }
+      if (changes.maxHp !== undefined) {
+        Effect.modifyMaxHp(target, changes.maxHp, changes.maxHpOpts);
+        changed = true;
+      }
+      if (changes.moveRange !== undefined) {
+        if (typeof changes.moveRange === 'object') {
+          Effect.modifyMoveRange(target, changes.moveRange.delta, changes.moveRange.turns);
+        } else {
+          Effect.modifyMoveRange(target, changes.moveRange, 1);
+        }
+        changed = true;
+      }
+      if (changes.attackRange !== undefined) {
+        if (typeof changes.attackRange === 'object') {
+          Effect.modifyAttackRange(target, changes.attackRange.delta, changes.attackRange.turns);
+        } else {
+          Effect.modifyAttackRange(target, changes.attackRange, 1);
+        }
+        changed = true;
+      }
+      return changed;
     },
 
     // 直接对范围内所有友方治疗

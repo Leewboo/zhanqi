@@ -1216,7 +1216,8 @@
           return;
         }
         // 使用 reachableCells 考虑地形消耗（河流消耗2步）
-        const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
+        const moveRange = Effect.getEffectiveMoveRange(actor);
+        const cells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape);
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -1233,7 +1234,8 @@
           this._renderBottom();
           return;
         }
-        const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+        const atkRange = Effect.getEffectiveAttackRange(actor);
+        const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
           pieceAt: (x, y) => {
             const p = this.pieceAt(x, y);
             return p && p.alive ? p : null;
@@ -1521,6 +1523,26 @@
           if (m.data && typeof m.data.turns === 'number') {
             m.data.turns -= 1;
             m.modifiers.moveRangeTurns = m.data.turns;
+            if (m.data.turns <= 0) Effect.unmark(p, m.name);
+          }
+        }
+
+        // 防御buff回合递减（标记系统管理）
+        const defBuffMarks = marks.filter(m => m.modifiers && m.modifiers.defBuff !== undefined && m.data && typeof m.data.turns === 'number');
+        for (const m of defBuffMarks) {
+          m.data.turns -= 1;
+          if (m.data.turns <= 0) {
+            Effect.unmark(p, m.name);
+            this.log(p.name + ' 的防御' + (m.data.delta > 0 ? '增益' : '减益') + '结束。', 'turn');
+          }
+        }
+
+        // 攻击范围buff回合递减（标记系统管理）
+        const atkRangeMarks = marks.filter(m => m.modifiers && m.modifiers.attackRangeDelta);
+        for (const m of atkRangeMarks) {
+          if (m.data && typeof m.data.turns === 'number') {
+            m.data.turns -= 1;
+            m.modifiers.attackRangeTurns = m.data.turns;
             if (m.data.turns <= 0) Effect.unmark(p, m.name);
           }
         }
@@ -2585,7 +2607,8 @@
     // 找最佳攻击目标（威胁度最高/最易击杀）
     _aiBestAttackTarget(actor) {
       const side = actor.side;
-      const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+      const atkRange = Effect.getEffectiveAttackRange(actor);
+      const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
       });
       if (!cells.length) return null;
@@ -2659,7 +2682,8 @@
     // 找最佳移动落点（朝最近敌人靠近，且尽量能攻击到）
     _aiBestMoveDest(actor) {
       const side = actor.side;
-      const moveCells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
+      const moveRange = Effect.getEffectiveMoveRange(actor);
+      const moveCells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape);
       const enemies = this.pieces.filter(p => p.alive && p.side !== side);
       const allies = this.pieces.filter(p => p.alive && p.side === side && p !== actor);
       if (!enemies.length || !moveCells.length) return null;
