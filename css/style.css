@@ -2387,6 +2387,12 @@ html, body {
 .minion-card.selected.rare,
 .minion-card.selected.epic { border-color: #c0392b; }
 
+.minion-card.disabled {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  cursor: not-allowed !important;
+}
+
 .minion-card-name {
   font-weight: bold;
   font-size: 13px;
