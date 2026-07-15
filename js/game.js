@@ -636,6 +636,33 @@
       const hand = this.minionHand[side] || [];
       const points = this.minionPoints[side];
 
+      // 判断是否是本地玩家可控的回合（AI 回合或联机对方回合时不显示手牌）
+      const isLocalTurn = !(this.aiMode && side === this.aiSide) &&
+        !(this.onlineMode && side !== this._onlineSide);
+
+      // 非本地回合：不显示具体手牌，只显示状态提示
+      if (!isLocalTurn) {
+        // 自己没手牌也没点数时，直接隐藏面板
+        const mySide = this.onlineMode ? this._onlineSide : (this.aiMode ? (this.aiSide === 'red' ? 'blue' : 'red') : side);
+        const myHand = this.minionHand[mySide] || [];
+        const myPoints = this.minionPoints[mySide] || 0;
+        if (myHand.length === 0 && myPoints === 0 && hand.length === 0 && points === 0) {
+          panel.style.display = 'none';
+          return;
+        }
+
+        panel.style.display = 'block';
+        const sideName = side === 'red' ? '红方' : '蓝方';
+        let suffix = '';
+        if (this.aiMode && side === this.aiSide) suffix = 'AI 思考中...';
+        if (this.onlineMode && side !== this._onlineSide) suffix = '等待对方部署...';
+
+        status.innerHTML = '小兵部署 · <b>' + sideName + '</b> · ' + suffix;
+        cardsEl.innerHTML = '<div class="minion-empty">' + suffix + '</div>';
+        if (summary) summary.innerHTML = '';
+        return;
+      }
+
       // 没有手牌且没有部署点时隐藏面板
       if (hand.length === 0 && points === 0) {
         panel.style.display = 'none';
@@ -644,11 +671,7 @@
 
       panel.style.display = 'block';
       const sideName = side === 'red' ? '红方' : '蓝方';
-      let suffix = '';
-      if (this.aiMode && side === this.aiSide) suffix = ' · AI 思考中...';
-      if (this.onlineMode && side !== this._onlineSide) suffix = ' · 等待对方...';
-
-      status.innerHTML = '小兵部署 · <b>' + sideName + '</b> · 部署点: ' + points + ' · 手牌: ' + hand.length + suffix;
+      status.innerHTML = '小兵部署 · <b>' + sideName + '</b> · 部署点: ' + points + ' · 手牌: ' + hand.length;
 
       if (summary) {
         summary.innerHTML = '<span style="color:#b23a3a;font-weight:700;">红 ' + this.minionPoints.red + '点/' + this.minionHand.red.length + '牌</span>' +
@@ -658,7 +681,7 @@
 
       const self = this;
       cardsEl.innerHTML = '';
-      const canClick = !(this.aiMode && side === this.aiSide) && this._onlineCanAct(side) && points > 0;
+      const canClick = points > 0;
 
       if (hand.length === 0) {
         cardsEl.innerHTML = '<div class="minion-empty">手牌已空</div>';
