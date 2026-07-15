@@ -771,9 +771,7 @@
           const c = document.createElement('div');
           c.className = 'cell';
           if ((x + y) % 2) c.classList.add('alt');
-          // 上半区（蓝方）、下半区（红方）对称着色
-          if (y < half) c.classList.add('zone-blue');
-          else c.classList.add('zone-red');
+          // 战斗阶段不显示区域颜色，只在选中小兵卡牌或布阵阶段时通过高亮显示
           // 中线：y=5 行的底部、y=6 行的顶部加粗
           if (y === half - 1) c.classList.add('midline-bottom');
           if (y === half) c.classList.add('midline-top');
@@ -2034,7 +2032,7 @@
       const children = this.boardEl.children;
       for (let i = 0; i < children.length; i++) {
         const el = children[i];
-        el.classList.remove('move', 'attack', 'skill', 'sel');
+        el.classList.remove('move', 'attack', 'skill', 'sel', 'deploy');
       }
       // 决定高亮来源：mode 高亮 / pendingSkillId 预览 / 原有 highlighted
       let activeHighlight = this.highlighted;

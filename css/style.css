@@ -613,6 +613,13 @@ html, body {
   background: var(--cell-skill);
   box-shadow: inset 0 0 0 2px rgba(58,178,120,0.6);
 }
+.cell.deploy {
+  background-color: rgba(255, 220, 210, 0.6);
+  box-shadow: inset 0 0 0 2px rgba(255, 100, 80, 0.5);
+}
+.cell.deploy.alt {
+  background-color: rgba(240, 200, 190, 0.65);
+}
 .cell.sel { background: var(--cell-sel); }
 
 .piece {
