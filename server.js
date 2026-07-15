@@ -1164,12 +1164,15 @@ app.use(async (ctx, next) => {
       }, null, 2));
       zip.file('generals.json', JSON.stringify(Array.isArray(ext.generals) ? ext.generals : [], null, 2));
       zip.file('skills.json',   JSON.stringify(Array.isArray(ext.skills)   ? ext.skills   : [], null, 2));
+      zip.file('minions.json',  JSON.stringify(Array.isArray(ext.minions)  ? ext.minions  : [], null, 2));
 
-      // 打包武将引用的立绘文件到 portraits/ 目录
+      // 打包武将和小兵引用的立绘文件到 portraits/ 目录
       const portraitFolder = zip.folder('portraits');
       const generalsList = Array.isArray(ext.generals) ? ext.generals : [];
+      const minionsList  = Array.isArray(ext.minions)  ? ext.minions  : [];
+      const allPortraitUnits = generalsList.concat(minionsList);
       const packedPortraits = [];
-      for (const g of generalsList) {
+      for (const g of allPortraitUnits) {
         if (!g.portrait || packedPortraits.includes(g.portrait)) continue;
         if (!/^pt_[a-z0-9]+\.[a-z]+$/i.test(g.portrait)) continue;
         const portraitPath = path.join(PORTRAIT_DIR, g.portrait);
@@ -1211,6 +1214,7 @@ app.use(async (ctx, next) => {
       const projectJson  = await zip.file('project.json')?.async('string');
       const generalsJson = await zip.file('generals.json')?.async('string');
       const skillsJson   = await zip.file('skills.json')?.async('string');
+      const minionsJson  = await zip.file('minions.json')?.async('string');
 
       if (!generalsJson || !skillsJson) {
         ctx.status = 400; ctx.body = { ok: false, error: 'ZIP 内缺少 generals.json 或 skills.json' }; return;
@@ -1218,6 +1222,7 @@ app.use(async (ctx, next) => {
 
       const generals    = JSON.parse(generalsJson);
       const skills      = JSON.parse(skillsJson);
+      const minions     = minionsJson ? JSON.parse(minionsJson) : [];
       const projectMeta = projectJson ? JSON.parse(projectJson) : {};
 
       const store = readStore();
@@ -1229,6 +1234,7 @@ app.use(async (ctx, next) => {
         ext.desc     = projectMeta.desc || ext.desc;
         ext.generals = Array.isArray(generals) ? generals : [];
         ext.skills   = Array.isArray(skills)   ? skills   : [];
+        ext.minions  = Array.isArray(minions)  ? minions  : [];
       } else {
         ext = {
           id:       projectMeta.id || genId('ext'),
@@ -1236,7 +1242,8 @@ app.use(async (ctx, next) => {
           desc:     projectMeta.desc || '',
           enabled:  true,
           generals: Array.isArray(generals) ? generals : [],
-          skills:   Array.isArray(skills)   ? skills   : []
+          skills:   Array.isArray(skills)   ? skills   : [],
+          minions:  Array.isArray(minions)  ? minions  : []
         };
         store.extensions.push(ext);
       }
@@ -1263,6 +1270,11 @@ app.use(async (ctx, next) => {
           const mapping = restoredPortraits.find(function (r) { return r.original === g.portrait; });
           if (mapping) g.portrait = mapping.newName;
         }
+        for (const m of ext.minions) {
+          if (!m.portrait) continue;
+          const mapping = restoredPortraits.find(function (r) { return r.original === m.portrait; });
+          if (mapping) m.portrait = mapping.newName;
+        }
       }
 
       if (!writeStore(store)) {
@@ -1279,6 +1291,7 @@ app.use(async (ctx, next) => {
         projectName:   ext.name,
         generalsCount: ext.generals.length,
         skillsCount:   ext.skills.length,
+        minionsCount:  ext.minions.length,
         portraitsCount: restoredPortraits.length
       };
     } catch (e) {

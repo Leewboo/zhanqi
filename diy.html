@@ -2710,8 +2710,8 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
 
             <!-- 提交区域 -->
             <div class="submit-row">
-              <button id="btn-m-submit" class="btn primary">✓ 提交</button>
-              <button id="btn-m-reset" class="btn">重置</button>
+              <button type="button" id="btn-m-submit" class="btn primary">✓ 提交</button>
+              <button type="button" id="btn-m-reset" class="btn">重置</button>
             </div>
             <div id="m-submit-info" class="output-msg" style="display:none;"></div>
           </div>
@@ -5296,7 +5296,15 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ minion: minion, skills: skills, extId: extId || undefined, extName: extName || '默认拓展' })
       })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          var ct = r.headers.get('content-type') || '';
+          if (ct.indexOf('json') === -1) {
+            return r.text().then(function (txt) {
+              throw new Error('服务器返回了非 JSON 响应（HTTP ' + r.status + '），请检查是否已登录');
+            });
+          }
+          return r.json();
+        })
         .then(function (data) {
           if (data && data.ok) {
             mPortraitState.current = (data.minion && data.minion.portrait) || null;
