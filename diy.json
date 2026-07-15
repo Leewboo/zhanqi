@@ -414,8 +414,45 @@
           "portrait": null
         }
       ],
-      "skills": [],
-      "minions": []
+      "skills": [
+        {
+          "id": "diyminion_djhdh_skill1",
+          "name": "未命名技能 1",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": null,
+          "desc": "",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: \"+\", n: 3 },\n  hintText: \"请选择敌人\"\n});\nif (!target) return false;\nactor.skilled = true;\nEffect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 1.5 });\nglobal.Game.log(actor.name + \" 发动技能！\");\nreturn true;",
+          "aiHint": null
+        }
+      ],
+      "minions": [
+        {
+          "id": "diyminion_djhdh",
+          "name": "额护士",
+          "hp": 80,
+          "atk": 25,
+          "def": 10,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diyminion_djhdh_skill1"
+          ],
+          "rarity": "common",
+          "cost": 1,
+          "description": "",
+          "portrait": null
+        }
+      ]
     }
   ]
 }

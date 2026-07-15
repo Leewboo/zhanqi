@@ -420,6 +420,19 @@
       return side === this._onlineSide;
     },
 
+    // 判断当前是否为 AI 控制的阶段（人机模式下 AI 的选将/布阵/战斗回合）
+    // 在此期间禁止玩家操作棋盘，避免 AI 思考间隙玩家选中或操作 AI 的棋子
+    _isAiControlledPhase() {
+      if (!this.aiMode) return false;
+      if (this.phase === 'draft') {
+        const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+        return side === this.aiSide;
+      }
+      if (this.phase === 'deploy') return this.deploySide === this.aiSide;
+      if (this.phase === 'battle') return this.currentSide === this.aiSide;
+      return false;
+    },
+
     _pickGeneral(generalDef) {
       if (this.phase !== 'draft') return;
       const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
@@ -632,6 +645,8 @@
 
     _selectMinionCard(instanceId) {
       if (this.phase !== 'battle') return;
+      // AI 回合：禁止玩家操作 AI 手牌中的小兵卡
+      if (this._isAiControlledPhase()) return;
 
       const side = this.currentSide;
       const hand = this.minionHand[side] || [];
@@ -1056,6 +1071,8 @@
     },
 
     _onCellClick(x, y) {
+      // AI 回合 / AI 控制的阶段：禁止玩家操作棋盘（防止 AI 思考期间被操作其棋子）
+      if (this._isAiControlledPhase()) return;
       if (this.phase === 'draft') {
         return;
       }
