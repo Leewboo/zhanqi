@@ -1,255 +1,262 @@
 {
-  "extensions": [],
-  "generals": [
+  "extensions": [
     {
-      "id": "test_zhangfei",
-      "name": "张飞",
-      "hp": 250,
-      "atk": 55,
-      "def": 20,
-      "moveRange": { "shape": "+", "n": 3 },
-      "attackRange": { "shape": "+", "n": 1 },
-      "portrait": null,
-      "skillIds": ["skill_roar", "skill_toughness"]
-    },
-    {
-      "id": "test_guanyu",
-      "name": "关羽",
-      "hp": 220,
-      "atk": 65,
-      "def": 15,
-      "moveRange": { "shape": "+", "n": 3 },
-      "attackRange": { "shape": "+", "n": 1 },
-      "portrait": null,
-      "skillIds": ["skill_strike", "skill_undying"]
-    },
-    {
-      "id": "test_zhugeliang",
-      "name": "诸葛亮",
-      "hp": 180,
-      "atk": 45,
-      "def": 10,
-      "moveRange": { "shape": "+", "n": 2 },
-      "attackRange": { "shape": "r", "n": 3 },
-      "portrait": null,
-      "skillIds": ["skill_fire", "skill_trap"]
-    },
-    {
-      "id": "test_zhaoyun",
-      "name": "赵云",
-      "hp": 200,
-      "atk": 50,
-      "def": 18,
-      "moveRange": { "shape": "+", "n": 4 },
-      "attackRange": { "shape": "+", "n": 1 },
-      "portrait": null,
-      "skillIds": ["skill_dash", "skill_mark"]
-    },
-    {
-      "id": "test_diaochan",
-      "name": "貂蝉",
-      "hp": 160,
-      "atk": 35,
-      "def": 8,
-      "moveRange": { "shape": "+", "n": 3 },
-      "attackRange": { "shape": "+", "n": 2 },
-      "portrait": null,
-      "skillIds": ["skill_heal", "skill_share"]
-    },
-    {
-      "id": "test_caocao",
-      "name": "曹操",
-      "hp": 210,
-      "atk": 50,
-      "def": 18,
-      "moveRange": { "shape": "+", "n": 3 },
-      "attackRange": { "shape": "+", "n": 1 },
-      "portrait": null,
-      "skillIds": ["skill_jianxiong", "skill_steal"]
-    },
-    {
-      "id": "test_machao",
-      "name": "马超",
-      "hp": 230,
-      "atk": 60,
-      "def": 15,
-      "moveRange": { "shape": "+", "n": 4 },
-      "attackRange": { "shape": "+", "n": 1 },
-      "portrait": null,
-      "skillIds": ["skill_cavalry", "skill_revive"]
-    },
-    {
-      "id": "test_simayi",
-      "name": "司马懿",
-      "hp": 190,
-      "atk": 40,
-      "def": 12,
-      "moveRange": { "shape": "+", "n": 2 },
-      "attackRange": { "shape": "r", "n": 2 },
-      "portrait": null,
-      "skillIds": ["skill_summon_minion", "skill_def_buff"]
-    }
-  ],
-  "skills": [
-    {
-      "id": "skill_roar",
-      "name": "咆哮",
-      "type": "主动",
-      "cooldown": 3,
-      "desc": "对周围所有敌人造成攻击力50%的伤害",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const enemies = Effect.getEnemiesInRange(actor, { shape: 'r', n: 1 });\nif (enemies.length === 0) { Game.log('周围没有敌人！', 'turn'); return; }\nEffect.showMarker(actor, '咆哮！', '#e74c3c');\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.5);\n  Effect.damage(actor, enemies[i], dmg);\n}\nEffect.modifyAttack(actor, 20, 2);",
-      "aiHint": { "type": "aoe", "target": "enemy", "power": 80, "priority": 2 }
-    },
-    {
-      "id": "skill_toughness",
-      "name": "坚韧",
-      "type": "被动",
-      "trigger": "onAttacked",
-      "desc": "受到致命伤害时，恢复20%最大生命值（每局限一次）",
-      "filterCode": "return true;",
-      "contentCode": "if (!actor._toughnessUsed && context.damage >= actor.hp) {\n  actor._toughnessUsed = true;\n  const heal = Math.floor(actor.maxHp * 0.2);\n  Effect.heal(actor, actor, heal);\n  Effect.showMarker(actor, '坚韧！', '#27ae60');\n}",
-      "aiHint": null
-    },
-    {
-      "id": "skill_strike",
-      "name": "武圣",
-      "type": "主动",
-      "cooldown": 3,
-      "desc": "对直线方向3格内的敌人造成攻击力100%的伤害",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: '+', n: 3 });\nif (!target) return;\nconst dmg = actor.atk;\nEffect.damage(actor, target, dmg);\nEffect.showMarker(target, '武圣！', '#e74c3c');\nif (target.hp <= 0) {\n  Effect.modifyAttack(actor, 30, 2);\n}",
-      "aiHint": { "type": "single", "target": "enemy", "power": 100, "priority": 2 }
-    },
-    {
-      "id": "skill_undying",
-      "name": "不屈",
-      "type": "被动",
-      "trigger": "onAttacked",
-      "desc": "受到致命伤害时，保留1点生命值（每局限一次）",
-      "filterCode": "return true;",
-      "contentCode": "if (!actor._undyingUsed && context.damage >= actor.hp) {\n  actor._undyingUsed = true;\n  Effect.addMark(actor, '不屈', 1);\n  Effect.showMarker(actor, '不屈！', '#27ae60');\n}",
-      "aiHint": null
-    },
-    {
-      "id": "skill_fire",
-      "name": "火攻",
-      "type": "主动",
-      "cooldown": 2,
-      "desc": "对十字范围内所有敌人造成攻击力60%的伤害并附加灼烧标记",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nconst enemies = Effect.getEnemiesAt(target.x, target.y, { shape: '+', n: 1 });\nEffect.showMarker(actor, '火攻！', '#e67e22');\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.6);\n  Effect.damage(actor, enemies[i], dmg);\n  Effect.addMark(enemies[i], '灼烧', 3);\n}",
-      "aiHint": { "type": "aoe", "target": "enemy", "power": 70, "priority": 2 }
-    },
-    {
-      "id": "skill_trap",
-      "name": "八卦阵",
-      "type": "主动",
-      "cooldown": 4,
-      "desc": "在指定位置放置陷阱，敌人踩上时受到攻击力80%伤害",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nEffect.placeTrap(target.x, target.y, { owner: actor, damage: Math.floor(actor.atk * 0.8) });\nEffect.showMarker({x: target.x, y: target.y}, '陷阱', '#9b59b6');",",
-      "aiHint": { "type": "trap", "target": "cell", "power": 50, "priority": 1 }
-    },
-    {
-      "id": "skill_dash",
-      "name": "龙胆",
-      "type": "主动",
-      "cooldown": 2,
-      "desc": "向指定方向突进2格，并对终点相邻的敌人造成攻击力70%伤害",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseCell(actor, { shape: '+', n: 2 });\nif (!target) return;\nEffect.teleport(actor, target.x, target.y);\nEffect.showMarker(actor, '龙胆！', '#3498db');\nconst enemies = Effect.getEnemiesInRange(actor, { shape: '+', n: 1 });\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.7);\n  Effect.damage(actor, enemies[i], dmg);\n}",
-      "aiHint": { "type": "dash", "target": "cell", "power": 75, "priority": 2 }
-    },
-    {
-      "id": "skill_mark",
-      "name": "标记",
-      "type": "主动",
-      "cooldown": 2,
-      "desc": "标记一个敌人，下次攻击该敌人时造成双倍伤害",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: 'r', n: 3 });\nif (!target) return;\nEffect.addMark(target, '破阵标记', 3);\nEffect.showMarker(target, '标记！', '#f39c12');",
-      "aiHint": { "type": "debuff", "target": "enemy", "power": 60, "priority": 1 }
-    },
-    {
-      "id": "skill_heal",
-      "name": "倾城",
-      "type": "主动",
-      "cooldown": 3,
-      "desc": "治疗周围友军，恢复攻击力80%的生命值",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nif (allies.length === 0) { Game.log('周围没有友军！', 'turn'); return; }\nEffect.showMarker(actor, '倾城！', '#e91e63');\nfor (let i = 0; i < allies.length; i++) {\n  const heal = Math.floor(actor.atk * 0.8);\n  Effect.heal(actor, allies[i], heal);\n}",
-      "aiHint": { "type": "heal", "target": "ally", "power": 80, "priority": 2 }
-    },
-    {
-      "id": "skill_share",
-      "name": "红颜",
-      "type": "被动",
-      "trigger": "onTurnStart",
-      "desc": "回合开始时，为周围友军分摊下次受到的伤害",
-      "filterCode": "return actor && actor.alive;",
-      "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nfor (let i = 0; i < allies.length; i++) {\n  Effect.addMark(allies[i], '红颜守护', 1);\n}\nEffect.showMarker(actor, '红颜守护', '#e91e63');",
-      "aiHint": null
-    },
-    {
-      "id": "skill_jianxiong",
-      "name": "奸雄",
-      "type": "主动",
-      "cooldown": 3,
-      "desc": "隐身并提升攻击力30%，持续2回合，下次攻击后现身",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "Effect.addMark(actor, '隐身', 2);\nEffect.modifyAttack(actor, Math.floor(actor.atk * 0.3), 2);\nEffect.showMarker(actor, '奸雄！', '#8e44ad');",
-      "aiHint": { "type": "buff", "target": "self", "power": 70, "priority": 2 }
-    },
-    {
-      "id": "skill_steal",
-      "name": "挟天子",
-      "type": "主动",
-      "cooldown": 4,
-      "desc": "偷取目标敌人20%攻击力和防御力，持续3回合",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: '+', n: 1 });\nif (!target) return;\nconst stealAtk = Math.floor(target.atk * 0.2);\nconst stealDef = Math.floor(target.def * 0.2);\nEffect.modifyAttack(actor, stealAtk, 3);\nEffect.modifyDef(actor, stealDef, 3);\nEffect.modifyAttack(target, -stealAtk, 3);\nEffect.modifyDef(target, -stealDef, 3);\nEffect.showMarker(actor, '挟天子！', '#8e44ad');",
-      "aiHint": { "type": "steal", "target": "enemy", "power": 75, "priority": 2 }
-    },
-    {
-      "id": "skill_cavalry",
-      "name": "铁骑",
-      "type": "主动",
-      "cooldown": 2,
-      "desc": "获得1次额外移动和攻击，并提升攻击范围1格",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "actor.moved = false;\nactor.attacked = false;\nEffect.addMark(actor, '铁骑', 1);\nEffect.modifyAttackRange(actor, 1, 1);\nEffect.showMarker(actor, '铁骑！', '#c0392b');",
-      "aiHint": { "type": "buff", "target": "self", "power": 85, "priority": 2 }
-    },
-    {
-      "id": "skill_revive",
-      "name": "复活",
-      "type": "被动",
-      "trigger": "onKilled",
-      "desc": "死亡后2回合以50%生命值复活（每局限一次）",
-      "filterCode": "return true;",
-      "contentCode": "if (!actor._reviveUsed) {\n  actor._reviveUsed = true;\n  Effect.addMark(actor, '复活等待', 2);\n  Effect.showMarker(actor, '待复活...', '#27ae60');\n}",
-      "aiHint": null
-    },
-    {
-      "id": "skill_summon_minion",
-      "name": "伏兵",
-      "type": "主动",
-      "cooldown": 4,
-      "desc": "召唤一个刀兵到指定位置",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nconst half = Math.floor(Range.BOARD_SIZE / 2);\nconst isOwnHalf = actor.side === 'red' ? target.y >= half : target.y < half;\nif (!isOwnHalf) {\n  Game.log('只能召唤到己方半场！', 'turn');\n  return;\n}\nEffect.summonMinion(actor, 'minion_sword', target.x, target.y);\nEffect.showMarker(actor, '伏兵！', '#795548');",
-      "aiHint": { "type": "summon", "target": "cell", "power": 65, "priority": 1 }
-    },
-    {
-      "id": "skill_def_buff",
-      "name": "坚守",
-      "type": "主动",
-      "cooldown": 3,
-      "desc": "提升周围友军防御力20点，持续3回合",
-      "filterCode": "return actor && actor.alive && !actor.skilled;",
-      "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nif (allies.length === 0) {\n  Effect.modifyDef(actor, 20, 3);\n} else {\n  for (let i = 0; i < allies.length; i++) {\n    Effect.modifyDef(allies[i], 20, 3);\n  }\n  Effect.modifyDef(actor, 20, 3);\n}\nEffect.showMarker(actor, '坚守！', '#2980b9');",
-      "aiHint": { "type": "buff", "target": "ally", "power": 70, "priority": 2 }
+      "id": "ext_test",
+      "name": "测试武将",
+      "desc": "测试小兵系统和各种Effect的武将",
+      "enabled": true,
+      "generals": [
+        {
+          "id": "test_zhangfei",
+          "name": "张飞",
+          "hp": 250,
+          "atk": 55,
+          "def": 20,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "portrait": null,
+          "skillIds": ["skill_roar", "skill_toughness"]
+        },
+        {
+          "id": "test_guanyu",
+          "name": "关羽",
+          "hp": 220,
+          "atk": 65,
+          "def": 15,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "portrait": null,
+          "skillIds": ["skill_strike", "skill_undying"]
+        },
+        {
+          "id": "test_zhugeliang",
+          "name": "诸葛亮",
+          "hp": 180,
+          "atk": 45,
+          "def": 10,
+          "moveRange": { "shape": "+", "n": 2 },
+          "attackRange": { "shape": "r", "n": 3 },
+          "portrait": null,
+          "skillIds": ["skill_fire", "skill_trap"]
+        },
+        {
+          "id": "test_zhaoyun",
+          "name": "赵云",
+          "hp": 200,
+          "atk": 50,
+          "def": 18,
+          "moveRange": { "shape": "+", "n": 4 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "portrait": null,
+          "skillIds": ["skill_dash", "skill_mark"]
+        },
+        {
+          "id": "test_diaochan",
+          "name": "貂蝉",
+          "hp": 160,
+          "atk": 35,
+          "def": 8,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 2 },
+          "portrait": null,
+          "skillIds": ["skill_heal", "skill_share"]
+        },
+        {
+          "id": "test_caocao",
+          "name": "曹操",
+          "hp": 210,
+          "atk": 50,
+          "def": 18,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "portrait": null,
+          "skillIds": ["skill_jianxiong", "skill_steal"]
+        },
+        {
+          "id": "test_machao",
+          "name": "马超",
+          "hp": 230,
+          "atk": 60,
+          "def": 15,
+          "moveRange": { "shape": "+", "n": 4 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "portrait": null,
+          "skillIds": ["skill_cavalry", "skill_revive"]
+        },
+        {
+          "id": "test_simayi",
+          "name": "司马懿",
+          "hp": 190,
+          "atk": 40,
+          "def": 12,
+          "moveRange": { "shape": "+", "n": 2 },
+          "attackRange": { "shape": "r", "n": 2 },
+          "portrait": null,
+          "skillIds": ["skill_summon_minion", "skill_def_buff"]
+        }
+      ],
+      "skills": [
+        {
+          "id": "skill_roar",
+          "name": "咆哮",
+          "type": "主动",
+          "cooldown": 3,
+          "desc": "对周围所有敌人造成攻击力50%的伤害",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const enemies = Effect.getEnemiesInRange(actor, { shape: 'r', n: 1 });\nif (enemies.length === 0) { Game.log('周围没有敌人！', 'turn'); return; }\nEffect.showMarker(actor, '咆哮！', '#e74c3c');\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.5);\n  Effect.damage(actor, enemies[i], dmg);\n}\nEffect.modifyAttack(actor, 20, 2);",
+          "aiHint": { "type": "aoe", "target": "enemy", "power": 80, "priority": 2 }
+        },
+        {
+          "id": "skill_toughness",
+          "name": "坚韧",
+          "type": "被动",
+          "trigger": "onAttacked",
+          "desc": "受到致命伤害时，恢复20%最大生命值（每局限一次）",
+          "filterCode": "return true;",
+          "contentCode": "if (!actor._toughnessUsed && context.damage >= actor.hp) {\n  actor._toughnessUsed = true;\n  const heal = Math.floor(actor.maxHp * 0.2);\n  Effect.heal(actor, actor, heal);\n  Effect.showMarker(actor, '坚韧！', '#27ae60');\n}",
+          "aiHint": null
+        },
+        {
+          "id": "skill_strike",
+          "name": "武圣",
+          "type": "主动",
+          "cooldown": 3,
+          "desc": "对直线方向3格内的敌人造成攻击力100%的伤害",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: '+', n: 3 });\nif (!target) return;\nconst dmg = actor.atk;\nEffect.damage(actor, target, dmg);\nEffect.showMarker(target, '武圣！', '#e74c3c');\nif (target.hp <= 0) {\n  Effect.modifyAttack(actor, 30, 2);\n}",
+          "aiHint": { "type": "single", "target": "enemy", "power": 100, "priority": 2 }
+        },
+        {
+          "id": "skill_undying",
+          "name": "不屈",
+          "type": "被动",
+          "trigger": "onAttacked",
+          "desc": "受到致命伤害时，保留1点生命值（每局限一次）",
+          "filterCode": "return true;",
+          "contentCode": "if (!actor._undyingUsed && context.damage >= actor.hp) {\n  actor._undyingUsed = true;\n  Effect.addMark(actor, '不屈', 1);\n  Effect.showMarker(actor, '不屈！', '#27ae60');\n}",
+          "aiHint": null
+        },
+        {
+          "id": "skill_fire",
+          "name": "火攻",
+          "type": "主动",
+          "cooldown": 2,
+          "desc": "对十字范围内所有敌人造成攻击力60%的伤害并附加灼烧标记",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nconst enemies = Effect.getEnemiesAt(target.x, target.y, { shape: '+', n: 1 });\nEffect.showMarker(actor, '火攻！', '#e67e22');\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.6);\n  Effect.damage(actor, enemies[i], dmg);\n  Effect.addMark(enemies[i], '灼烧', 3);\n}",
+          "aiHint": { "type": "aoe", "target": "enemy", "power": 70, "priority": 2 }
+        },
+        {
+          "id": "skill_trap",
+          "name": "八卦阵",
+          "type": "主动",
+          "cooldown": 4,
+          "desc": "在指定位置放置陷阱，敌人踩上时受到攻击力80%伤害",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nEffect.placeTrap(target.x, target.y, { owner: actor, damage: Math.floor(actor.atk * 0.8) });\nEffect.showMarker({x: target.x, y: target.y}, '陷阱', '#9b59b6');",
+          "aiHint": { "type": "trap", "target": "cell", "power": 50, "priority": 1 }
+        },
+        {
+          "id": "skill_dash",
+          "name": "龙胆",
+          "type": "主动",
+          "cooldown": 2,
+          "desc": "向指定方向突进2格，并对终点相邻的敌人造成攻击力70%伤害",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseCell(actor, { shape: '+', n: 2 });\nif (!target) return;\nEffect.teleport(actor, target.x, target.y);\nEffect.showMarker(actor, '龙胆！', '#3498db');\nconst enemies = Effect.getEnemiesInRange(actor, { shape: '+', n: 1 });\nfor (let i = 0; i < enemies.length; i++) {\n  const dmg = Math.floor(actor.atk * 0.7);\n  Effect.damage(actor, enemies[i], dmg);\n}",
+          "aiHint": { "type": "dash", "target": "cell", "power": 75, "priority": 2 }
+        },
+        {
+          "id": "skill_mark",
+          "name": "标记",
+          "type": "主动",
+          "cooldown": 2,
+          "desc": "标记一个敌人，下次攻击该敌人时造成双倍伤害",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: 'r', n: 3 });\nif (!target) return;\nEffect.addMark(target, '破阵标记', 3);\nEffect.showMarker(target, '标记！', '#f39c12');",
+          "aiHint": { "type": "debuff", "target": "enemy", "power": 60, "priority": 1 }
+        },
+        {
+          "id": "skill_heal",
+          "name": "倾城",
+          "type": "主动",
+          "cooldown": 3,
+          "desc": "治疗周围友军，恢复攻击力80%的生命值",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nif (allies.length === 0) { Game.log('周围没有友军！', 'turn'); return; }\nEffect.showMarker(actor, '倾城！', '#e91e63');\nfor (let i = 0; i < allies.length; i++) {\n  const heal = Math.floor(actor.atk * 0.8);\n  Effect.heal(actor, allies[i], heal);\n}",
+          "aiHint": { "type": "heal", "target": "ally", "power": 80, "priority": 2 }
+        },
+        {
+          "id": "skill_share",
+          "name": "红颜",
+          "type": "被动",
+          "trigger": "onTurnStart",
+          "desc": "回合开始时，为周围友军分摊下次受到的伤害",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nfor (let i = 0; i < allies.length; i++) {\n  Effect.addMark(allies[i], '红颜守护', 1);\n}\nEffect.showMarker(actor, '红颜守护', '#e91e63');",
+          "aiHint": null
+        },
+        {
+          "id": "skill_jianxiong",
+          "name": "奸雄",
+          "type": "主动",
+          "cooldown": 3,
+          "desc": "隐身并提升攻击力30%，持续2回合，下次攻击后现身",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.addMark(actor, '隐身', 2);\nEffect.modifyAttack(actor, Math.floor(actor.atk * 0.3), 2);\nEffect.showMarker(actor, '奸雄！', '#8e44ad');",
+          "aiHint": { "type": "buff", "target": "self", "power": 70, "priority": 2 }
+        },
+        {
+          "id": "skill_steal",
+          "name": "挟天子",
+          "type": "主动",
+          "cooldown": 4,
+          "desc": "偷取目标敌人20%攻击力和防御力，持续3回合",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseEnemy(actor, { shape: '+', n: 1 });\nif (!target) return;\nconst stealAtk = Math.floor(target.atk * 0.2);\nconst stealDef = Math.floor(target.def * 0.2);\nEffect.modifyAttack(actor, stealAtk, 3);\nEffect.modifyDef(actor, stealDef, 3);\nEffect.modifyAttack(target, -stealAtk, 3);\nEffect.modifyDef(target, -stealDef, 3);\nEffect.showMarker(actor, '挟天子！', '#8e44ad');",
+          "aiHint": { "type": "steal", "target": "enemy", "power": 75, "priority": 2 }
+        },
+        {
+          "id": "skill_cavalry",
+          "name": "铁骑",
+          "type": "主动",
+          "cooldown": 2,
+          "desc": "获得1次额外移动和攻击，并提升攻击范围1格",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "actor.moved = false;\nactor.attacked = false;\nEffect.addMark(actor, '铁骑', 1);\nEffect.modifyAttackRange(actor, 1, 1);\nEffect.showMarker(actor, '铁骑！', '#c0392b');",
+          "aiHint": { "type": "buff", "target": "self", "power": 85, "priority": 2 }
+        },
+        {
+          "id": "skill_revive",
+          "name": "复活",
+          "type": "被动",
+          "trigger": "onKilled",
+          "desc": "死亡后2回合以50%生命值复活（每局限一次）",
+          "filterCode": "return true;",
+          "contentCode": "if (!actor._reviveUsed) {\n  actor._reviveUsed = true;\n  Effect.addMark(actor, '复活等待', 2);\n  Effect.showMarker(actor, '待复活...', '#27ae60');\n}",
+          "aiHint": null
+        },
+        {
+          "id": "skill_summon_minion",
+          "name": "伏兵",
+          "type": "主动",
+          "cooldown": 4,
+          "desc": "召唤一个刀兵到指定位置",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const target = await Effect.chooseCell(actor, { shape: 'r', n: 2 });\nif (!target) return;\nconst half = Math.floor(Range.BOARD_SIZE / 2);\nconst isOwnHalf = actor.side === 'red' ? target.y >= half : target.y < half;\nif (!isOwnHalf) {\n  Game.log('只能召唤到己方半场！', 'turn');\n  return;\n}\nEffect.summonMinion(actor, 'minion_sword', target.x, target.y);\nEffect.showMarker(actor, '伏兵！', '#795548');",
+          "aiHint": { "type": "summon", "target": "cell", "power": 65, "priority": 1 }
+        },
+        {
+          "id": "skill_def_buff",
+          "name": "坚守",
+          "type": "主动",
+          "cooldown": 3,
+          "desc": "提升周围友军防御力20点，持续3回合",
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const allies = Effect.getAlliesInRange(actor, { shape: 'r', n: 1 });\nif (allies.length === 0) {\n  Effect.modifyDef(actor, 20, 3);\n} else {\n  for (let i = 0; i < allies.length; i++) {\n    Effect.modifyDef(allies[i], 20, 3);\n  }\n  Effect.modifyDef(actor, 20, 3);\n}\nEffect.showMarker(actor, '坚守！', '#2980b9');",
+          "aiHint": { "type": "buff", "target": "ally", "power": 70, "priority": 2 }
+        }
+      ]
     }
   ]
 }
