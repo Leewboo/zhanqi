@@ -4182,6 +4182,14 @@
         const card = hand.find(c => c.instanceId === data.instanceId);
         if (card) {
           Game._deployMinion(card, data.x, data.y);
+        } else if (data.cardId) {
+          // 模板召唤（通过 Effect.deployMinion 用模板 id 部署，卡牌不在手牌中）
+          // 用 ignore 系列选项复刻召唤效果，不扣点、不限半场/上限
+          if (global.Effect && global.Effect.deployMinion) {
+            global.Effect.deployMinion(data.cardId, data.x, data.y, {
+              side: side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true
+            });
+          }
         } else {
           console.warn('[online] deployMinion 回放：未找到 instanceId', data.instanceId);
         }

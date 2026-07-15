@@ -1913,6 +1913,338 @@
       if (global.Game) global.Game.log('【分摊】' + partner.name + ' 承担 ' + shared + ' 点伤害。');
       Effect.damage(null, partner, shared, { ignoreDef: true, _isShared: true });
       return shared;
+    },
+
+    // ============================================================
+    // 强力搜索 API
+    // ============================================================
+
+    // 判定一个值是否落在 [min,max] 区间内；range 可为 [min,max] / [n]（精确匹配）/ 单个数字 / null（不限）
+    _inRange(val, range) {
+      if (range === undefined || range === null) return true;
+      if (Array.isArray(range)) {
+        if (range.length === 1) return val === range[0];
+        if (range.length >= 2) return val >= range[0] && val <= range[1];
+        return true;
+      }
+      return val === range;
+    },
+
+    // 强力搜索棋子：返回符合条件的棋子数组
+    // range: { shape, n, center:{x,y} } 或 null/省略（搜索全棋盘）
+    // filter: {
+    //   side: 'red'|'blue'|'enemy'|'ally' (相对 actor，需传 actor) ,
+    //   hp:[min,max], maxHp:[min,max], atk:[min,max], def:[min,max],
+    //   type:'武将'|'小兵',                // 棋子类型
+    //   alive:true,                        // 是否仅存活
+    //   name:'关键字',                      // 名称包含
+    //   minionId:'xxx',                    // 小兵模板 id
+    //   generalId:'xxx',                   // 武将/小兵实例 id
+    //   rarity:'common'|'rare'|'epic',
+    //   custom: function(piece){return true} // 自定义过滤函数
+    // }
+    // opts: { actor: 参考棋子（用于 side:'enemy'/'ally'）, includeSelf:true }
+    searchPiece(range, filter, opts) {
+      filter = filter || {};
+      opts = opts || {};
+      const g = global.Game;
+      if (!g) return [];
+
+      // 1) 圈定搜索范围：若给了 range 则取范围内格子上的棋子，否则全部棋子
+      let candidates;
+      if (range && (range.shape || range.n)) {
+        const cx = (range.center && typeof range.center.x === 'number') ? range.center.x : (opts.actor ? opts.actor.x : 0);
+        const cy = (range.center && typeof range.center.y === 'number') ? range.center.y : (opts.actor ? opts.actor.y : 0);
+        const cells = Range.cellsInRange(range.shape || 'square', range.n || 1, cx, cy, { includeSelf: range.includeSelf !== false });
+        candidates = [];
+        const seen = new Set();
+        for (const c of cells) {
+          const p = g.pieceAt(c.x, c.y);
+          if (p && !seen.has(p)) { seen.add(p); candidates.push(p); }
+        }
+      } else {
+        candidates = g.pieces.slice();
+      }
+
+      // 2) 逐项过滤
+      const actor = opts.actor;
+      return candidates.filter(function (p) {
+        if (!p) return false;
+        if (filter.alive === true && !p.alive) return false;
+        if (filter.alive === false && p.alive) return false;
+        // 阵营
+        if (filter.side !== undefined && filter.side !== null) {
+          if (filter.side === 'enemy') {
+            if (!actor || p.side === actor.side) return false;
+          } else if (filter.side === 'ally') {
+            if (!actor || p.side !== actor.side) return false;
+          } else if (p.side !== filter.side) {
+            return false;
+          }
+        }
+        // 排除自身（可选）
+        if (opts.includeSelf === false && actor && p === actor) return false;
+        // 类型
+        if (filter.type === '武将' && p.isMinion) return false;
+        if (filter.type === '小兵' && !p.isMinion) return false;
+        // 数值区间
+        if (!Effect._inRange(p.hp, filter.hp)) return false;
+        if (!Effect._inRange(p.maxHp, filter.maxHp)) return false;
+        if (!Effect._inRange(p.atk, filter.atk)) return false;
+        if (!Effect._inRange(p.def, filter.def)) return false;
+        // 名称包含
+        if (filter.name && typeof filter.name === 'string') {
+          if (!p.name || p.name.indexOf(filter.name) === -1) return false;
+        }
+        if (filter.minionId && p.minionId !== filter.minionId) return false;
+        if (filter.generalId && p.generalId !== filter.generalId) return false;
+        if (filter.rarity && p.rarity !== filter.rarity) return false;
+        // 自定义函数
+        if (typeof filter.custom === 'function' && !filter.custom(p)) return false;
+        return true;
+      });
+    },
+
+    // 强力搜索棋盘格：返回符合条件的格子数组 [{x,y,piece}]
+    // range: { shape, n, center:{x,y} } 或 null/省略（全棋盘）
+    // filter: {
+    //   empty:true,            // 仅空格
+    //   occupied:true,         // 仅已被占据
+    //   ownHalf:'red'|'blue',  // 仅指定方半场
+    //   terrain:'r'|'m'|...,   // 仅指定地形
+    //   piece: filterObj,      // 格上棋子需满足 searchPiece 的过滤条件
+    //   custom: function(cell, piece){return true}
+    // }
+    searchCell(range, filter) {
+      filter = filter || {};
+      const g = global.Game;
+      if (!g) return [];
+
+      let cells;
+      if (range && (range.shape || range.n)) {
+        const cx = (range.center && typeof range.center.x === 'number') ? range.center.x : 0;
+        const cy = (range.center && typeof range.center.y === 'number') ? range.center.y : 0;
+        cells = Range.cellsInRange(range.shape || 'square', range.n || 1, cx, cy, { includeSelf: range.includeSelf !== false });
+      } else {
+        cells = [];
+        for (let y = 0; y < SIZE; y++) {
+          for (let x = 0; x < SIZE; x++) cells.push({ x: x, y: y });
+        }
+      }
+
+      const half = SIZE / 2;
+      return cells.filter(function (c) {
+        const p = g.pieceAt(c.x, c.y);
+        if (filter.empty === true && p) return false;
+        if (filter.occupied === true && !p) return false;
+        if (filter.ownHalf) {
+          const inHalf = filter.ownHalf === 'red' ? c.y >= half : c.y < half;
+          if (!inHalf) return false;
+        }
+        if (filter.terrain) {
+          const t = (g.terrain && g.terrain[c.x] && g.terrain[c.x][c.y]) || 'plain';
+          if (t !== filter.terrain) return false;
+        }
+        if (filter.piece && p) {
+          const matched = Effect.searchPiece(null, filter.piece, {});
+          if (matched.indexOf(p) === -1) return false;
+        }
+        if (typeof filter.custom === 'function' && !filter.custom(c, p)) return false;
+        return true;
+      }).map(function (c) {
+        const p = g.pieceAt(c.x, c.y);
+        return { x: c.x, y: c.y, piece: p || null };
+      });
+    },
+
+    // 获取武将/小兵的详细信息定义（用于查询特定单位的属性、技能、描述等）
+    // id: 武将 id（如 'diy_xxx'）/ 小兵 id（如 'minion_sword' / 'diyminion_xxx'）
+    // 返回该定义对象的深拷贝（修改不会影响游戏数据），未找到返回 null
+    getJson(id) {
+      if (!id) return null;
+      const sid = String(id);
+      // 武将：内置 + DIY 注册
+      if (global.Generals && global.Generals.getList) {
+        const g = global.Generals.getList().find(function (x) { return x.id === sid; });
+        if (g) return JSON.parse(JSON.stringify(g));
+      }
+      if (global.Generals && Array.isArray(global.Generals.list)) {
+        const g = global.Generals.list.find(function (x) { return x.id === sid; });
+        if (g) return JSON.parse(JSON.stringify(g));
+      }
+      // 小兵：内置 + DIY 注册
+      if (global.Minions) {
+        const m = global.Minions.getById ? global.Minions.getById(sid) : null;
+        if (m) return JSON.parse(JSON.stringify(m));
+      }
+      return null;
+    },
+
+    // ============================================================
+    // 小兵系统 API：抽卡 / 部署 / 删卡 / 加部署点
+    // ============================================================
+
+    // 抽卡：为指定方抽取 count 张小兵卡到手牌
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回新抽取的卡牌数组（已加入手牌）
+    drawCard(side, count) {
+      const g = global.Game;
+      if (!g || typeof g._drawMinionCards !== 'function') return [];
+      side = side || g.currentSide;
+      count = Math.max(0, parseInt(count) || 1);
+      const before = (g.minionHand[side] || []).length;
+      g._drawMinionCards(side, count);
+      const after = (g.minionHand[side] || []);
+      const drawn = after.slice(before);
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (drawn.length && g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 抽取了 ' + drawn.length + ' 张小兵卡。', 'turn');
+      return drawn;
+    },
+
+    // 删卡：从指定方手牌中移除一张卡（按 instanceId 或下标）
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // target: instanceId 字符串 / 卡牌对象 / 手牌下标
+    // 返回被移除的卡牌，失败返回 null
+    removeCard(side, target) {
+      const g = global.Game;
+      if (!g) return null;
+      side = side || g.currentSide;
+      const hand = g.minionHand[side] || [];
+      let idx = -1;
+      if (typeof target === 'number') {
+        idx = target;
+      } else if (typeof target === 'string') {
+        idx = hand.findIndex(function (c) { return c.instanceId === target; });
+      } else if (target && typeof target === 'object') {
+        idx = hand.findIndex(function (c) { return c.instanceId === target.instanceId; });
+      }
+      if (idx < 0 || idx >= hand.length) return null;
+      const removed = hand.splice(idx, 1)[0];
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 弃置了一张小兵卡。', 'turn');
+      return removed;
+    },
+
+    // 加/减部署点：为指定方调整部署点数
+    // amount 为正则增加，为负则扣除（不低于 0）
+    // 返回调整后的部署点数
+    addDeployPoint(side, amount) {
+      const g = global.Game;
+      if (!g) return 0;
+      side = side || g.currentSide;
+      amount = parseInt(amount) || 0;
+      const cur = g.minionPoints[side] || 0;
+      g.minionPoints[side] = Math.max(0, cur + amount);
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (g.log && amount !== 0) {
+        g.log((side === 'red' ? '红方' : '蓝方') + ' 部署点 ' + (amount > 0 ? '+' : '') + amount + '（当前 ' + g.minionPoints[side] + '）。', 'turn');
+      }
+      return g.minionPoints[side];
+    },
+
+    // 部署小兵到指定位置
+    // card: 卡牌对象（手牌中的，含 instanceId）/ 小兵模板 id 字符串 / 通过 getJson 取到的定义
+    // x, y: 部署坐标
+    // opts: { side:'red'|'blue'(缺省 currentSide), ignoreCost:true(不扣部署点), ignoreLimit:true(不限同类型上限), ignoreHalf:true(不限己方半场) }
+    // 返回部署成功与否（true/false）
+    deployMinion(card, x, y, opts) {
+      const g = global.Game;
+      if (!g || !card) return false;
+      opts = opts || {};
+      const side = opts.side || g.currentSide;
+
+      // 解析 card：字符串 id → 从模板取；对象 → 直接用
+      let cardObj = card;
+      if (typeof card === 'string') {
+        cardObj = global.Minions ? (global.Minions.getById ? global.Minions.getById(card) : null) : null;
+        if (!cardObj) {
+          if (g.log) g.log('部署失败：找不到小兵 ' + card, 'turn');
+          return false;
+        }
+        cardObj = Object.assign({}, cardObj);
+        // 模板部署：分配一个 instanceId（不入手牌，直接召唤）
+        if (!cardObj.instanceId) {
+          cardObj.instanceId = side + '_api_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : Date.now().toString(36));
+        }
+      }
+
+      const half = SIZE / 2;
+      // 校验己方半场
+      if (!opts.ignoreHalf) {
+        const isOwnHalf = side === 'red' ? y >= half : y < half;
+        if (!isOwnHalf) {
+          if (g.log) g.log('只能部署在己方半场！', 'turn');
+          return false;
+        }
+      }
+      // 校验空格
+      if (g.pieceAt(x, y)) {
+        if (g.log) g.log('该位置已有单位！', 'turn');
+        return false;
+      }
+      // 校验部署点
+      if (!opts.ignoreCost && (g.minionPoints[side] || 0) < (cardObj.cost || 0)) {
+        if (g.log) g.log('部署点数不足！', 'turn');
+        return false;
+      }
+      // 校验同类型上限
+      if (!opts.ignoreLimit) {
+        const sameTypeCount = g.pieces.filter(function (p) {
+          return p.isMinion && p.minionId === cardObj.id && p.side === side;
+        }).length;
+        if (sameTypeCount >= (g.minionMaxPerType || 2)) {
+          if (g.log) g.log('该类型小兵已达上限！', 'turn');
+          return false;
+        }
+      }
+
+      // 解析技能
+      const minionSkills = (typeof g._resolveMinionSkills === 'function') ? g._resolveMinionSkills(cardObj) : [];
+
+      // 生成 generalId（与游戏内逻辑保持一致：可播种 RNG 保证联机双端一致）
+      const minionGeneralId = cardObj.id + '_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : '') + '_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : '');
+      const minion = {
+        generalId: minionGeneralId,
+        name: cardObj.name,
+        side: side,
+        hp: cardObj.hp,
+        maxHp: cardObj.maxHp || cardObj.hp,
+        atk: cardObj.atk,
+        def: cardObj.def,
+        x: x,
+        y: y,
+        alive: true,
+        moved: true,
+        attacked: true,
+        skilled: true,
+        skills: minionSkills,
+        cdMap: {},
+        moveRange: cardObj.moveRange,
+        attackRange: cardObj.attackRange,
+        isMinion: true,
+        minionId: cardObj.id,
+        rarity: cardObj.rarity
+      };
+
+      g.pieces.push(minion);
+      if (!opts.ignoreCost) g.minionPoints[side] = Math.max(0, (g.minionPoints[side] || 0) - (cardObj.cost || 0));
+
+      // 若卡牌来自手牌，则从手牌移除
+      const hand = g.minionHand[side];
+      if (hand) {
+        const idx = hand.findIndex(function (c) { return c.instanceId === cardObj.instanceId; });
+        if (idx >= 0) hand.splice(idx, 1);
+      }
+
+      if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 部署了 ' + cardObj.name + '！', 'turn');
+      if (g._render) g._render();
+      if (g._renderMinionPanel) g._renderMinionPanel();
+
+      // 联机同步：本地玩家部署时通知对方
+      if (g.onlineMode && side === g._onlineSide && !g._onlineAction && global.Online) {
+        global.Online.sendAction({ type: 'deployMinion', cardId: cardObj.id, instanceId: cardObj.instanceId, x: x, y: y });
+      }
+      return true;
     }
   };
 
