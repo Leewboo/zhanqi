@@ -586,26 +586,28 @@
 
     _endMinionDeploy() {
       const side = this.minionDeploySide;
-      const otherSide = side === 'red' ? 'blue' : 'red';
 
       if (side === 'red') {
+        // 红方结束 → 切到蓝方
         this.minionDeploySide = 'blue';
-        this.log('红方结束部署，蓝方部署。', 'turn');
+        this.log('红方结束部署，蓝方开始部署。', 'turn');
         this._renderMinionHand();
         this._refreshUi();
         this._maybeAiAct();
       } else {
+        // 蓝方结束 → 进入下一轮或结束
         this.minionDeployRound++;
         if (this.minionDeployRound <= 3) {
+          // 每轮双方各抽1张卡 + 各加1点部署点
           this.minionPoints.red += 1;
           this.minionPoints.blue += 1;
+          this._drawMinionCards('red', 1);
+          this._drawMinionCards('blue', 1);
 
           this.log('=== 第 ' + this.minionDeployRound + ' 轮部署 ===', 'turn');
-          this.log('双方各获得 1 点部署点。', 'turn');
-          this.log('当前点数：红方 ' + this.minionPoints.red + '，蓝方 ' + this.minionPoints.blue + '。', 'turn');
+          this.log('双方各获得 1 点部署点并抽取 1 张卡牌。', 'turn');
 
           this.minionDeploySide = 'red';
-          this.log('红方先部署。', 'turn');
           this._renderMinionHand();
           this._refreshUi();
           this._maybeAiAct();
@@ -631,53 +633,75 @@
       this._aiActing = false;
 
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
-      this._renderMinionHand();
+
+      // 隐藏 draft-panel
+      const panel = document.getElementById('draft-panel');
+      if (panel) panel.style.display = 'none';
+      const summary = document.getElementById('draft-summary');
+      if (summary) summary.innerHTML = '';
+
       this._refreshUi();
       this._maybeAiAct();
     },
 
     _renderMinionHand() {
-      const handEl = document.getElementById('minion-hand');
-      if (!handEl) return;
+      if (!this.minionDeployPhase) return;
 
-      if (!this.minionDeployPhase) {
-        handEl.classList.add('hidden');
-        return;
-      }
+      const panel = document.getElementById('draft-panel');
+      const cards = document.getElementById('draft-cards');
+      const status = document.getElementById('draft-status');
+      const summary = document.getElementById('draft-summary');
+      if (!panel || !cards) return;
 
-      handEl.classList.remove('hidden');
+      panel.style.display = 'block';
       const side = this.minionDeploySide;
       const hand = this.minionHand[side] || [];
       const points = this.minionPoints[side];
+      const sideName = side === 'red' ? '红方' : '蓝方';
 
-      let html = '<div class="minion-hand-header">';
-      html += '<span class="minion-side">' + (side === 'red' ? '红方' : '蓝方') + '部署阶段</span>';
-      html += '<span class="minion-points">部署点数: ' + points + '</span>';
-      html += '<button class="minion-end-btn" onclick="Game._endMinionDeploy()">结束部署</button>';
-      html += '</div>';
+      let suffix = '';
+      if (this.onlineMode && side !== this._onlineSide) {
+        suffix = ' · 等待对方部署...';
+      } else if (this.aiMode && side === this.aiSide) {
+        suffix = ' · AI 部署中...';
+      }
+      status.innerHTML = '小兵部署 · 第 ' + this.minionDeployRound + '/3 轮 · <b>' + sideName +
+        '</b> · 点数: ' + points + ' · 手牌: ' + hand.length + suffix;
 
-      html += '<div class="minion-cards">';
+      if (summary) {
+        summary.innerHTML = '<span style="color:#b23a3a;font-weight:700;">红方 ' + this.minionPoints.red + '点</span>' +
+          '<span style="margin:0 8px;">|</span>' +
+          '<span style="color:#3a6bb2;font-weight:700;">蓝方 ' + this.minionPoints.blue + '点</span>' +
+          '<button class="minion-end-btn" onclick="Game._endMinionDeploy()" style="float:right;">结束部署</button>';
+      }
+
+      const self = this;
+      cards.innerHTML = '';
+      const canClick = !(this.aiMode && side === this.aiSide) && this._onlineCanAct(side);
+
       if (hand.length === 0) {
-        html += '<div class="minion-empty">手牌已空</div>';
+        cards.innerHTML = '<div class="minion-empty">手牌已空，点击"结束部署"</div>';
       } else {
         for (const card of hand) {
           const isSelected = this.minionSelected && this.minionSelected.instanceId === card.instanceId;
-          html += '<div class="minion-card ' + card.rarity + (isSelected ? ' selected' : '') + '"';
-          html += ' onclick="Game._selectMinionCard(\'' + card.instanceId + '\')">';
-          html += '<div class="minion-card-name">' + card.name + '</div>';
-          html += '<div class="minion-card-stats">';
-          html += '<span>H:' + card.hp + '</span>';
-          html += '<span>A:' + card.atk + '</span>';
-          html += '<span>D:' + card.def + '</span>';
-          html += '</div>';
-          html += '<div class="minion-card-cost">消耗: ' + card.cost + '</div>';
-          html += '<div class="minion-card-desc">' + card.description + '</div>';
-          html += '</div>';
+          const cardEl = document.createElement('div');
+          cardEl.className = 'minion-card ' + card.rarity + (isSelected ? ' selected' : '');
+          if (canClick) {
+            cardEl.style.cursor = 'pointer';
+            cardEl.addEventListener('click', () => self._selectMinionCard(card.instanceId));
+          }
+          cardEl.innerHTML =
+            '<div class="minion-card-name">' + card.name + '</div>' +
+            '<div class="minion-card-stats">' +
+              '<span>H:' + card.hp + '</span>' +
+              '<span>A:' + card.atk + '</span>' +
+              '<span>D:' + card.def + '</span>' +
+            '</div>' +
+            '<div class="minion-card-cost">消耗: ' + card.cost + '</div>' +
+            '<div class="minion-card-desc">' + card.description + '</div>';
+          cards.appendChild(cardEl);
         }
       }
-      html += '</div>';
-
-      handEl.innerHTML = html;
     },
 
     _selectMinionCard(instanceId) {
@@ -2356,7 +2380,6 @@
         panel.style.display = 'block';
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
         const sideName = side === 'red' ? '红' : '蓝';
-        // 联机模式下，未轮到自己时提示"等待对方选将"，避免误导玩家点击
         let suffix = ' · 点击武将卡挑选';
         if (this.onlineMode && side !== this._onlineSide) {
           suffix = ' · 等待对方选将...';
@@ -2432,10 +2455,17 @@
         const picked = side === 'red' ? this.pickedRed : this.pickedBlue;
         const placed = this.pieces.filter(p => p.side === side).length;
         el.textContent = '布阵阶段 · ' + (side === 'red' ? '红' : '蓝') + '方 · ' + placed + ' / ' + picked.length;
+      } else if (this.phase === 'minion_deploy') {
+        const side = this.minionDeploySide;
+        el.textContent = '小兵部署 · 第 ' + this.minionDeployRound + '/3 轮 · ' + (side === 'red' ? '红方' : '蓝方');
       } else {
         el.textContent = '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
       }
-      this._renderDraftCards();
+      if (this.phase === 'minion_deploy') {
+        this._renderMinionHand();
+      } else {
+        this._renderDraftCards();
+      }
       this._render();
       this._renderBottom();
     },
@@ -2508,7 +2538,9 @@
 
       const deployable = hand.filter(c => c.cost <= points);
       if (!deployable.length) {
-        this._endMinionDeploy();
+        // 没有可部署的卡 → 结束本轮部署
+        const self = this;
+        setTimeout(() => self._endMinionDeploy(), 500);
         return;
       }
 
@@ -2533,7 +2565,8 @@
       }
 
       if (!candidates.length) {
-        this._endMinionDeploy();
+        const self = this;
+        setTimeout(() => self._endMinionDeploy(), 500);
         return;
       }
 
@@ -2560,6 +2593,7 @@
 
       this._deployMinion(card, bestPos.x, bestPos.y);
 
+      // 继续部署剩余手牌，或结束
       if (this.minionPoints[side] > 0 && this.minionHand[side].length > 0) {
         const self = this;
         setTimeout(() => self._aiDeployMinion(), 600);
