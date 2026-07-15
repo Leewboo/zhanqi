@@ -2624,18 +2624,19 @@
       });
       const card = deployable[0];
 
-      // 选最优位置：靠近友军、靠近前线
-      const allies = this.pieces.filter(p => p.alive && p.side === side && !p.isMinion);
+      // 选最优位置：小兵倾向于前线（靠近中线），并靠近友方单位协同
+      const allies = this.pieces.filter(p => p.alive && p.side === side);
       let bestPos = candidates[0];
       let bestScore = -Infinity;
       for (const pos of candidates) {
         let score = 0;
         for (const ally of allies) {
           const dist = Math.abs(pos.x - ally.x) + Math.abs(pos.y - ally.y);
-          if (dist <= 2) score += (3 - dist) * 10;
+          if (dist <= 2) score += (3 - dist) * 5;
         }
-        const enemyDist = side === 'red' ? pos.y : (SIZE - 1 - pos.y);
-        score += enemyDist * 5;
+        // frontDist：距前线（中线）的行数，越靠近前线越好
+        const frontDist = side === 'red' ? (pos.y - half) : (half - 1 - pos.y);
+        score -= frontDist * 8; // 前线倾向权重更高，保证小兵压向前线
         if (score > bestScore) {
           bestScore = score;
           bestPos = pos;
@@ -2693,12 +2694,21 @@
         }
       }
       if (!empty.length) return;
-      // 进攻型（高 atk/move）靠前，其它中间
-      const offensive = gDef.atk >= 60 || gDef.moveRange.n >= 4;
+      // 武将倾向于布置在底线（靠近己方边缘）；进攻型（高 atk/移动）可适当靠前一两排
+      const offensive = gDef.atk >= 60 || (gDef.moveRange && gDef.moveRange.n >= 4);
+      // distToBack：距己方底线的行数（0=底线，越大越靠近前线）
+      const distToBack = (y) => side === 'red' ? (SIZE - 1 - y) : y;
+      const targetRow = offensive ? 2 : 0; // 进攻型目标距底线2行，其余贴底线
+      // 已部署同方棋子（用于分散站位，避免堆叠）
+      const placed = this.pieces.filter(p => p.side === side);
       empty.sort((a, b) => {
-        const da = side === 'red' ? (SIZE - 1 - a.y) : a.y;
-        const db = side === 'red' ? (SIZE - 1 - b.y) : b.y;
-        return offensive ? da - db : db - da;
+        const sa = Math.abs(distToBack(a.y) - targetRow);
+        const sb = Math.abs(distToBack(b.y) - targetRow);
+        if (sa !== sb) return sa - sb; // 先按距目标行的远近排序
+        // 同等距离时优先分散：选附近友军少的格子
+        const crowda = placed.filter(p => Math.abs(p.x - a.x) <= 1 && Math.abs(p.y - a.y) <= 1).length;
+        const crowdb = placed.filter(p => Math.abs(p.x - b.x) <= 1 && Math.abs(p.y - b.y) <= 1).length;
+        return crowda - crowdb;
       });
       const spot = empty[0];
       // 模拟：选中 + 放置
