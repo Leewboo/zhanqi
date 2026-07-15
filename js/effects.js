@@ -44,6 +44,22 @@
       return !!this._marks[key];
     },
 
+    // 简化版添加标记（带持续回合数）
+    addMark(actor, name, turns, opts) {
+      opts = opts || {};
+      turns = turns || 1;
+      return Effect.mark(actor, name, {
+        display: opts.display || name,
+        data: Object.assign({}, opts.data || {}, { turns: turns }),
+        modifiers: opts.modifiers || {}
+      });
+    },
+
+    // 简化版移除标记
+    removeMark(actor, name) {
+      return Effect.unmark(actor, name);
+    },
+
     getMarkData(actor, name) {
       const key = actor.generalId + '_' + name;
       return this._marks[key] ? this._marks[key].data : undefined;
@@ -1138,6 +1154,48 @@
     getEnemies(actor) {
       if (!global.Game) return [];
       return global.Game.pieces.filter(p => p.alive && p.side !== actor.side);
+    },
+
+    // 获取指定范围内的敌人
+    getEnemiesInRange(actor, rangeDef) {
+      if (!global.Game || !actor || !actor.alive) return [];
+      const cells = Range.cellsInRange(rangeDef.shape || '+', rangeDef.n || 1, actor.x, actor.y, { includeSelf: false });
+      const enemies = [];
+      for (const c of cells) {
+        const piece = global.Game.pieceAt(c.x, c.y);
+        if (piece && piece.alive && piece.side !== actor.side) {
+          enemies.push(piece);
+        }
+      }
+      return enemies;
+    },
+
+    // 获取指定范围内的友军
+    getAlliesInRange(actor, rangeDef) {
+      if (!global.Game || !actor || !actor.alive) return [];
+      const cells = Range.cellsInRange(rangeDef.shape || '+', rangeDef.n || 1, actor.x, actor.y, { includeSelf: false });
+      const allies = [];
+      for (const c of cells) {
+        const piece = global.Game.pieceAt(c.x, c.y);
+        if (piece && piece.alive && piece.side === actor.side) {
+          allies.push(piece);
+        }
+      }
+      return allies;
+    },
+
+    // 获取指定位置周围范围内的敌人
+    getEnemiesAt(x, y, rangeDef) {
+      if (!global.Game) return [];
+      const cells = Range.cellsInRange(rangeDef.shape || '+', rangeDef.n || 1, x, y, { includeSelf: false });
+      const enemies = [];
+      for (const c of cells) {
+        const piece = global.Game.pieceAt(c.x, c.y);
+        if (piece && piece.alive) {
+          enemies.push(piece);
+        }
+      }
+      return enemies;
     },
 
     // 随机数工具（统一走可播种 RNG，联机对战下双端结果一致）
