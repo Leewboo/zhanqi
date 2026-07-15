@@ -514,7 +514,8 @@
       const hand = this.minionHand[side] || [];
       for (let i = 0; i < count && this.minionDraftPool.length > 0; i++) {
         const card = this.minionDraftPool.shift();
-        card.instanceId = side + '_' + Date.now() + '_' + global.RNG.randInt(0, 999999999).toString(36);
+        // instanceId 使用可播种 RNG 生成，保证联机双端一致
+        card.instanceId = side + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
         hand.push(card);
       }
       this.minionHand[side] = hand;
@@ -548,8 +549,10 @@
         return false;
       }
 
+      // minion 的 generalId 使用可播种 RNG 生成，保证联机双端一致
+      const minionGeneralId = card.id + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
       const minion = {
-        generalId: card.id + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        generalId: minionGeneralId,
         name: card.name,
         side: side,
         hp: card.hp,
@@ -583,6 +586,11 @@
       this.highlighted = [];
       this._render();
       this._renderMinionPanel();
+
+      // 联机同步：本地玩家部署时通知对方
+      if (this.onlineMode && side === this._onlineSide && !this._onlineAction) {
+        Online.sendAction({ type: 'deployMinion', cardId: card.id, instanceId: card.instanceId, x: x, y: y });
+      }
       return true;
     },
 
@@ -4113,6 +4121,17 @@
         });
       } else if (data.type === 'endTurn') {
         Game.endTurn();
+      } else if (data.type === 'deployMinion') {
+        // 远端部署小兵回放：按 instanceId 从对方手牌中找到对应卡牌并部署
+        // 此时 currentSide 应已是部署方（由 endTurn 同步保证），_onlineAction 守卫阻止重复发送
+        const side = Game.currentSide;
+        const hand = Game.minionHand[side] || [];
+        const card = hand.find(c => c.instanceId === data.instanceId);
+        if (card) {
+          Game._deployMinion(card, data.x, data.y);
+        } else {
+          console.warn('[online] deployMinion 回放：未找到 instanceId', data.instanceId);
+        }
       }
 
       Game._onlineAction = false;
