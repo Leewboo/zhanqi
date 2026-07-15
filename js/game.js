@@ -321,6 +321,18 @@
           this._preloadPortraits(data.generals);
         }
 
+        // 3) 注册 DIY 小兵到小兵抽卡池
+        if (data.minions && data.minions.length && global.Minions) {
+          data.minions.forEach(m => {
+            const mDef = Object.assign({}, m, {
+              maxHp: m.hp,
+              skills: m.skillIds || m.skills || []
+            });
+            global.Minions.registerMinion(mDef);
+          });
+          if (!silent) this.log('已加载 DIY 小兵 ' + data.minions.length + ' 个。');
+        }
+
         // 3) 如果 draft 阶段且尚未选将，重新生成将池（包含新加载的 DIY 武将）
         if (changed && this.phase === 'draft') {
           if (this.draftIndex === 0) {
@@ -521,6 +533,27 @@
       this.minionHand[side] = hand;
     },
 
+    // 解析小兵技能：支持字符串 id（已注册技能）/ contentCode 对象（DIY 待编译）/ 已编译技能对象
+    _resolveMinionSkills(card) {
+      const rawSkills = (card.skills && card.skills.length) ? card.skills : (card.skillIds || []);
+      if (!rawSkills || !rawSkills.length) return [];
+      const resolved = [];
+      for (const s of rawSkills) {
+        if (typeof s === 'string') {
+          const found = (global.Skills && global.Skills[s]) || (global.SkillsAPI && global.SkillsAPI.getSkill(s));
+          if (found) resolved.push(found);
+        } else if (typeof s === 'object' && typeof s.content === 'function') {
+          resolved.push(s);
+        } else if (typeof s === 'object' && typeof s.contentCode === 'string') {
+          if (global.SkillsAPI) {
+            const compiled = global.SkillsAPI.registerSkill(s);
+            if (compiled) resolved.push(compiled);
+          }
+        }
+      }
+      return resolved;
+    },
+
     _deployMinion(card, x, y) {
       const side = this.currentSide;
 
@@ -549,6 +582,9 @@
         return false;
       }
 
+      // 解析小兵技能（DIY 小兵可携带 skillIds/contentCode 定义的技能）
+      const minionSkills = this._resolveMinionSkills(card);
+
       // minion 的 generalId 使用可播种 RNG 生成，保证联机双端一致
       const minionGeneralId = card.id + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
       const minion = {
@@ -565,7 +601,7 @@
         moved: true,
         attacked: true,
         skilled: true,
-        skills: [],
+        skills: minionSkills,
         cdMap: {},
         moveRange: card.moveRange,
         attackRange: card.attackRange,

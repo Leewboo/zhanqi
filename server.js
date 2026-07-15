@@ -465,18 +465,19 @@ app.use(async (ctx, next) => {
   if (!ctx.path.startsWith('/api/diy/')) return next();
 
   // ----------------------------------------------------------
-  // GET /api/diy/list  游戏端：拉取所有「已启用」拓展的武将+技能（扁平）
+  // GET /api/diy/list  游戏端：拉取所有「已启用」拓展的武将+技能+小兵（扁平）
   // ----------------------------------------------------------
   if (ctx.path === '/api/diy/list' && ctx.method === 'GET') {
     const store = readStore();
-    const generals = [], skills = [];
+    const generals = [], skills = [], minions = [];
     for (const ext of store.extensions) {
       if (!ext.enabled) continue;
       if (Array.isArray(ext.generals)) generals.push(...ext.generals);
       if (Array.isArray(ext.skills))   skills.push(...ext.skills);
+      if (Array.isArray(ext.minions))  minions.push(...ext.minions);
     }
     ctx.type = 'application/json; charset=utf-8';
-    ctx.body = { ok: true, generals, skills };
+    ctx.body = { ok: true, generals, skills, minions };
     return;
   }
 
@@ -585,7 +586,8 @@ app.use(async (ctx, next) => {
         desc:     '',
         enabled:  true,
         generals: [],
-        skills:   []
+        skills:   [],
+        minions:  []
       };
       store.extensions.push(ext);
     }
@@ -740,7 +742,8 @@ app.use(async (ctx, next) => {
         desc:     '',
         enabled:  true,
         generals: [],
-        skills:   []
+        skills:   [],
+        minions:  []
       };
       store.extensions.push(ext);
     }
@@ -824,6 +827,204 @@ app.use(async (ctx, next) => {
     return;
   }
 
+  // ============================================================
+  // 小兵单位（DIY minion）接口
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // POST /api/diy/minion/submit  提交一个小兵（含技能）到指定拓展
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/diy/minion/submit' && ctx.method === 'POST') {
+    const body = ctx.request.body;
+    if (!body || typeof body !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '请求体格式错误' }; return;
+    }
+    const { minion, skills, extId, extName } = body;
+
+    // 小兵校验
+    if (!minion || typeof minion !== 'object') {
+      ctx.status = 400; ctx.body = { ok: false, error: '缺少小兵定义' }; return;
+    }
+    const mid   = String(minion.id   || '').trim();
+    const mname = String(minion.name || '').trim();
+    if (!mid || !mname) {
+      ctx.status = 400; ctx.body = { ok: false, error: '小兵 id 和 name 必填' }; return;
+    }
+    if (!/^[a-zA-Z0-9_-]{2,30}$/.test(mid)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '小兵 id 需为 2-30 位字母/数字/下划线' }; return;
+    }
+    const rarity = ['common', 'rare', 'epic'].includes(minion.rarity) ? minion.rarity : 'common';
+    const cost = Math.max(1, Math.min(5, parseInt(minion.cost) || 1));
+
+    // 技能校验
+    const skillArr = Array.isArray(skills) ? skills : [];
+    const fullMid = 'diyminion_' + mid;
+    const skillIds = [];
+    const skillObjs = [];
+
+    for (const s of skillArr) {
+      if (s.ref) {
+        const refId = String(s.ref).trim();
+        const fullRefId = refId.startsWith('skill_') ? refId : 'skill_' + refId;
+        skillIds.push(fullRefId);
+      } else {
+        const sid = String(s.id || '').trim();
+        if (!sid || !/^[a-zA-Z0-9_-]{2,30}$/.test(sid)) {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 id 需为 2-30 位字母/数字/下划线' }; return;
+        }
+        if (!s.name || !String(s.name).trim()) {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 name 必填' }; return;
+        }
+        if (typeof s.filterCode !== 'string' || typeof s.contentCode !== 'string') {
+          ctx.status = 400; ctx.body = { ok: false, error: '技能 filterCode / contentCode 必须是字符串' }; return;
+        }
+        const fullSid = fullMid + '_' + sid;
+        skillIds.push(fullSid);
+        skillObjs.push({
+          id:          fullSid,
+          name:        String(s.name),
+          type:        s.type === '被动' ? '被动' : '主动',
+          limited:     s.limited === true,
+          cooldown:    Math.max(0, Math.min(20, parseInt(s.cooldown) || 0)),
+          trigger:     s.trigger || null,
+          desc:        String(s.desc || ''),
+          preview:     s.preview ? validateRange(s.preview, null) : null,
+          filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
+          contentCode: String(s.contentCode || ''),
+          aiHint:     s.aiHint ? {
+            type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
+            target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
+            power:        Math.max(0, Math.min(200, parseInt(s.aiHint.power) || 30)),
+            priority:     Math.max(1, Math.min(10, parseInt(s.aiHint.priority) || 5)),
+            condition:    ['always','enemy_near','enemy_in_range','ally_injured','self_low_hp','self_full_hp','has_target'].includes(s.aiHint.condition) ? s.aiHint.condition : 'always',
+            preferTarget: ['','low_hp','high_threat','injured_ally','nearest','caster'].includes(s.aiHint.preferTarget) ? s.aiHint.preferTarget : '',
+            minTargets:   Math.max(0, Math.min(10, parseInt(s.aiHint.minTargets) || 0)),
+            avoidSelf:    s.aiHint.avoidSelf === true,
+            hpThreshold:  Math.max(0, Math.min(100, parseInt(s.aiHint.hpThreshold) || 0)),
+            notes:        String(s.aiHint.notes || '').slice(0, 200)
+          } : null
+        });
+      }
+    }
+
+    const minionObj = {
+      id: fullMid,
+      name: mname,
+      hp:  Math.max(1,    Math.min(2000, parseInt(minion.hp)  || 80)),
+      atk: Math.max(0,    Math.min(500,  parseInt(minion.atk) || 25)),
+      def: Math.max(0,    Math.min(500,  parseInt(minion.def) || 10)),
+      moveRange:   validateRange(minion.moveRange,   { shape: '+', n: 2 }),
+      attackRange: validateRange(minion.attackRange, { shape: '+', n: 1 }),
+      skillIds: skillIds,
+      rarity: rarity,
+      cost: cost,
+      description: String(minion.description || '').slice(0, 200),
+      portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null
+    };
+
+    // 找到或创建拓展
+    const store = readStore();
+    let ext = null;
+    if (extId) {
+      ext = store.extensions.find(e => e.id === extId);
+    }
+    if (!ext && extName) {
+      ext = store.extensions.find(e => e.name === extName);
+    }
+    if (!ext) {
+      ext = {
+        id:       genId('ext'),
+        name:     String(extName || '默认拓展').slice(0, 40),
+        desc:     '',
+        enabled:  true,
+        generals: [],
+        skills:   [],
+        minions:  []
+      };
+      store.extensions.push(ext);
+    }
+    if (!Array.isArray(ext.minions)) ext.minions = [];
+    if (!Array.isArray(ext.skills))  ext.skills  = [];
+
+    // 写入（覆盖同 id），处理立绘替换
+    const oldMinion = ext.minions.find(m => m.id === fullMid);
+    if (oldMinion && oldMinion.portrait && oldMinion.portrait !== minionObj.portrait) {
+      try {
+        const oldPath = path.join(PORTRAIT_DIR, oldMinion.portrait);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) {}
+    }
+    ext.minions = ext.minions.filter(m => m.id !== fullMid);
+    ext.minions.push(minionObj);
+    const existingSkillIds = new Set(skillObjs.map(s => s.id));
+    ext.skills = ext.skills.filter(s => !existingSkillIds.has(s.id));
+    ext.skills.push(...skillObjs);
+
+    if (!writeStore(store)) {
+      ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
+    }
+
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, minion: minionObj, skills: skillObjs, extId: ext.id, extName: ext.name };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // GET /api/diy/minion/detail?id=xxx  获取单个小兵+技能完整数据（供编辑回填）
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/diy/minion/detail' && ctx.method === 'GET') {
+    const id = String(ctx.query.id || '').trim();
+    if (!id) { ctx.status = 400; ctx.body = { ok: false, error: '缺少 id' }; return; }
+
+    const store = readStore();
+    let found = null, foundExt = null;
+    for (const ext of store.extensions) {
+      const m = (ext.minions || []).find(m => m.id === id);
+      if (m) { found = m; foundExt = ext; break; }
+    }
+    if (!found) { ctx.status = 404; ctx.body = { ok: false, error: '小兵不存在' }; return; }
+
+    const skillIds = new Set(found.skillIds || []);
+    const skills = (foundExt.skills || []).filter(s => skillIds.has(s.id));
+
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, minion: found, skills, extId: foundExt.id, extName: foundExt.name };
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // POST /api/diy/minion/delete  删除一个小兵（及其专属技能）
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/diy/minion/delete' && ctx.method === 'POST') {
+    const body = ctx.request.body || {};
+    const rawId = String(body.id || '').trim();
+    if (!rawId) { ctx.status = 400; ctx.body = { ok: false, error: '缺少 id' }; return; }
+    const fullId = rawId.startsWith('diyminion_') ? rawId : 'diyminion_' + rawId;
+
+    const store = readStore();
+    for (const ext of store.extensions) {
+      if (!Array.isArray(ext.minions)) continue;
+      const removed = ext.minions.filter(m => m.id === fullId);
+      if (removed.length) {
+        // 删除立绘文件
+        for (const m of removed) {
+          if (m.portrait) {
+            try {
+              const p = path.join(PORTRAIT_DIR, m.portrait);
+              if (fs.existsSync(p)) fs.unlinkSync(p);
+            } catch (e) {}
+          }
+        }
+      }
+      ext.minions = ext.minions.filter(m => m.id !== fullId);
+      ext.skills  = ext.skills.filter(s => !s.id.startsWith(fullId + '_'));
+    }
+    writeStore(store);
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true };
+    return;
+  }
+
   await next();
 });
 
@@ -848,7 +1049,9 @@ app.use(async (ctx, next) => {
         enabled:       !!e.enabled,
         generalsCount: Array.isArray(e.generals) ? e.generals.length : 0,
         skillsCount:   Array.isArray(e.skills)   ? e.skills.length   : 0,
-        generals:      Array.isArray(e.generals) ? e.generals : []
+        minionsCount:  Array.isArray(e.minions)  ? e.minions.length  : 0,
+        generals:      Array.isArray(e.generals) ? e.generals : [],
+        minions:       Array.isArray(e.minions)  ? e.minions  : []
       }))
     };
     return;
@@ -863,11 +1066,11 @@ app.use(async (ctx, next) => {
     const name = String(body.name || '未命名拓展').trim().slice(0, 40);
     const desc = String(body.desc || '').slice(0, 200);
     const store = readStore();
-    const ext = { id: genId('ext'), name, desc, enabled: true, generals: [], skills: [] };
+    const ext = { id: genId('ext'), name, desc, enabled: true, generals: [], skills: [], minions: [] };
     store.extensions.push(ext);
     writeStore(store);
     ctx.type = 'application/json; charset=utf-8';
-    ctx.body = { ok: true, ext: { id: ext.id, name: ext.name, desc: ext.desc, enabled: ext.enabled, generalsCount: 0, skillsCount: 0 } };
+    ctx.body = { ok: true, ext: { id: ext.id, name: ext.name, desc: ext.desc, enabled: ext.enabled, generalsCount: 0, skillsCount: 0, minionsCount: 0 } };
     return;
   }
 
