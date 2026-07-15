@@ -453,6 +453,320 @@
           "portrait": null
         }
       ]
+    },
+    {
+      "id": "ext_mrm0z613akf",
+      "name": "黄巾起义",
+      "desc": "东汉末年黄巾起义势力，包含张角三兄弟及各类黄巾兵种",
+      "enabled": true,
+      "generals": [
+        {
+          "id": "diy_zhang_jiao",
+          "name": "张角",
+          "hp": 250,
+          "atk": 55,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhang_jiao_jiao_huan",
+            "diy_zhang_jiao_tai_ping_heal"
+          ],
+          "portrait": null
+        },
+        {
+          "id": "diy_zhang_bao",
+          "name": "张宝",
+          "hp": 280,
+          "atk": 45,
+          "def": 35,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhang_bao_bao_li_shi",
+            "diy_zhang_bao_di_gong_shield"
+          ],
+          "portrait": null
+        },
+        {
+          "id": "diy_zhang_liang",
+          "name": "张梁",
+          "hp": 220,
+          "atk": 65,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhang_liang_liang_gong_shou",
+            "diy_zhang_liang_liang_huan_shu"
+          ],
+          "portrait": null
+        },
+        {
+          "id": "diy_bo_cai",
+          "name": "波才",
+          "hp": 200,
+          "atk": 50,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_bo_cai_bo_cai_zhao",
+            "diy_bo_cai_bo_cai_yi"
+          ],
+          "portrait": null
+        }
+      ],
+      "skills": [
+        {
+          "id": "diy_zhang_jiao_jiao_huan",
+          "name": "召唤黄巾",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "召唤1名黄巾兵到身边",
+          "preview": {
+            "shape": "+",
+            "n": 1
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.deployMinion(\"huangjin_soldier\", actor.x, actor.y - 1, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nGame.log(actor.name + \" 召唤了一名黄巾兵！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhang_jiao_tai_ping_heal",
+          "name": "太平治愈",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "治愈周围3格内所有友方单位",
+          "preview": {
+            "shape": "r",
+            "n": 3
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "var allies = Effect.searchPiece({shape:\"r\",n:3,center:{x:actor.x,y:actor.y}}, {side:\"ally\"}, {actor:actor});\nallies.forEach(function(a){ Effect.heal(a, 40); });\nGame.log(actor.name + \" 施展太平治愈，范围内友军恢复生命！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhang_bao_bao_li_shi",
+          "name": "召唤力士",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "召唤1名黄巾力士到身边",
+          "preview": {
+            "shape": "+",
+            "n": 1
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.deployMinion(\"huangjin_strongman\", actor.x, actor.y + 1, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nGame.log(actor.name + \" 召唤了一名黄巾力士！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhang_bao_di_gong_shield",
+          "name": "地公护盾",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onAttacked",
+          "desc": "受到攻击时为周围友军加护盾",
+          "preview": null,
+          "filterCode": "return true;",
+          "contentCode": "var allies = Effect.searchPiece({shape:\"+\",n:2,center:{x:actor.x,y:actor.y}}, {side:\"ally\"}, {actor:actor});\nallies.forEach(function(a){ Effect.shield(a, 20); });\nGame.log(actor.name + \" 为周围友军施加地公护盾！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhang_liang_liang_gong_shou",
+          "name": "召唤弓手",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "召唤1名黄巾弓手到身后",
+          "preview": {
+            "shape": "+",
+            "n": 1
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.deployMinion(\"huangjin_archer\", actor.x - 1, actor.y, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nGame.log(actor.name + \" 召唤了一名黄巾弓手！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhang_liang_liang_huan_shu",
+          "name": "唤术",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 4,
+          "trigger": null,
+          "desc": "召唤1名黄巾术士到前方",
+          "preview": {
+            "shape": "+",
+            "n": 1
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.deployMinion(\"huangjin_mage\", actor.x + 1, actor.y, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nGame.log(actor.name + \" 召唤了一名黄巾术士！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_bo_cai_bo_cai_zhao",
+          "name": "聚众",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "召唤2名黄巾兵到身边",
+          "preview": {
+            "shape": "+",
+            "n": 1
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.deployMinion(\"huangjin_soldier\", actor.x - 1, actor.y, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nEffect.deployMinion(\"huangjin_soldier\", actor.x + 1, actor.y, { side: actor.side, ignoreCost: true, ignoreLimit: true, ignoreHalf: true });\nGame.log(actor.name + \" 召集了两名黄巾兵！\");",
+          "aiHint": null
+        },
+        {
+          "id": "diy_bo_cai_bo_cai_yi",
+          "name": "义兵",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onTurnStart",
+          "desc": "每回合开始时恢复1点部署点",
+          "preview": null,
+          "filterCode": "return true;",
+          "contentCode": "Effect.addDeployPoint(actor.side, 1);\nGame.log(actor.name + \" 号召义兵，部署点+1！\");",
+          "aiHint": null
+        }
+      ],
+      "minions": [
+        {
+          "id": "diyminion_huangjin_soldier",
+          "name": "黄巾兵",
+          "hp": 70,
+          "atk": 20,
+          "def": 8,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [],
+          "rarity": "common",
+          "cost": 1,
+          "description": "黄巾起义的基本兵力，身披黄色头巾",
+          "portrait": null
+        },
+        {
+          "id": "diyminion_huangjin_strongman",
+          "name": "黄巾力士",
+          "hp": 140,
+          "atk": 18,
+          "def": 22,
+          "moveRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [],
+          "rarity": "rare",
+          "cost": 2,
+          "description": "身材魁梧的黄巾战士，防御力出众",
+          "portrait": null
+        },
+        {
+          "id": "diyminion_huangjin_mage",
+          "name": "黄巾术士",
+          "hp": 55,
+          "atk": 45,
+          "def": 5,
+          "moveRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "r",
+            "n": 2
+          },
+          "skillIds": [],
+          "rarity": "epic",
+          "cost": 3,
+          "description": "研习太平道法术的术士，能释放范围法术",
+          "portrait": null
+        },
+        {
+          "id": "diyminion_huangjin_archer",
+          "name": "黄巾弓手",
+          "hp": 65,
+          "atk": 32,
+          "def": 6,
+          "moveRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "skillIds": [],
+          "rarity": "rare",
+          "cost": 2,
+          "description": "擅长射箭的远程兵种",
+          "portrait": null
+        },
+        {
+          "id": "diyminion_huangjin_healer",
+          "name": "黄巾医者",
+          "hp": 75,
+          "atk": 8,
+          "def": 8,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "skillIds": [],
+          "rarity": "rare",
+          "cost": 2,
+          "description": "为战友疗伤的医疗单位",
+          "portrait": null
+        }
+      ]
     }
   ]
 }

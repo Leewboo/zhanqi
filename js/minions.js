@@ -109,7 +109,14 @@
     get list() { return dynamicList; },
 
     getById(id) {
-      return dynamicList.find(m => m.id === id);
+      if (!id) return null;
+      const found = dynamicList.find(m => m.id === id);
+      if (found) return found;
+      // 兼容 DIY 小兵：服务端存储时会加前缀 diyminion_，但技能代码引用的是原始 id
+      if (!id.startsWith('diyminion_')) {
+        return dynamicList.find(m => m.id === 'diyminion_' + id);
+      }
+      return null;
     },
 
     getList() {
