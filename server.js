@@ -674,7 +674,7 @@ app.use(async (ctx, next) => {
 // 独立技能接口  /api/skill/*
 // ============================================================
 app.use(async (ctx, next) => {
-  if (!ctx.path.startsWith('/api/skill/')) return next();
+  if (!ctx.path.startsWith('/api/skill/') && !ctx.path.startsWith('/api/diy/minion/')) return next();
 
   // ----------------------------------------------------------
   // POST /api/skill/create  创建独立技能（不属于某个武将）

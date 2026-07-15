@@ -389,6 +389,33 @@
           }
         }
       ]
+    },
+    {
+      "id": "ext_mrm024u189r",
+      "name": "默认拓展",
+      "desc": "",
+      "enabled": true,
+      "generals": [
+        {
+          "id": "diy_testg1",
+          "name": "测试将",
+          "hp": 200,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [],
+          "portrait": null
+        }
+      ],
+      "skills": [],
+      "minions": []
     }
   ]
 }
