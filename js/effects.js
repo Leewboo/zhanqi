@@ -2187,16 +2187,7 @@
         if (g.log) g.log('部署点数不足！', 'turn');
         return false;
       }
-      // 校验同类型上限
-      if (!opts.ignoreLimit) {
-        const sameTypeCount = g.pieces.filter(function (p) {
-          return p.isMinion && p.minionId === cardObj.id && p.side === side;
-        }).length;
-        if (sameTypeCount >= (g.minionMaxPerType || 2)) {
-          if (g.log) g.log('该类型小兵已达上限！', 'turn');
-          return false;
-        }
-      }
+      // 移除同类型上限限制
 
       // 解析技能
       const minionSkills = (typeof g._resolveMinionSkills === 'function') ? g._resolveMinionSkills(cardObj) : [];

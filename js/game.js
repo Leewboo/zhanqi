@@ -333,7 +333,7 @@
           if (!silent) this.log('已加载 DIY 小兵 ' + data.minions.length + ' 个。');
         }
 
-        // 3) 如果 draft 阶段且尚未选将，重新生成将池（包含新加载的 DIY 武将）
+        // 4) 如果 draft 阶段且尚未选将，重新生成将池（包含新加载的 DIY 武将）
         if (changed && this.phase === 'draft') {
           if (this.draftIndex === 0) {
             this._generateDraftPool();
@@ -587,13 +587,7 @@
         return false;
       }
 
-      const sameTypeCount = this.pieces.filter(p =>
-        p.isMinion && p.minionId === card.id && p.side === side
-      ).length;
-      if (sameTypeCount >= this.minionMaxPerType) {
-        this.log('该类型小兵已达上限！', 'turn');
-        return false;
-      }
+      // 移除同类型上限限制，允许无限部署
 
       // 解析小兵技能（DIY 小兵可携带 skillIds/contentCode 定义的技能）
       const minionSkills = this._resolveMinionSkills(card);
@@ -2584,11 +2578,7 @@
 
       // 可部署的卡：消耗足够、且该类型未达上限
       const deployable = hand.filter(c => {
-        if (c.cost > points) return false;
-        const sameTypeCount = this.pieces.filter(p =>
-          p.isMinion && p.minionId === c.id && p.side === side
-        ).length;
-        return sameTypeCount < this.minionMaxPerType;
+        return c.cost <= points;
       });
 
       if (!deployable.length) {
@@ -3691,9 +3681,13 @@
     let galleryFilterMode = 'all';
     let galleryCategory = 'general'; // 'general' | 'minion'
 
-    function showGalleryScreen() {
+    async function showGalleryScreen() {
       document.getElementById('home-screen').classList.add('hidden');
       document.getElementById('gallery-screen').classList.remove('hidden');
+      // 打开图鉴时刷新 DIY 数据，确保最新的武将和小兵能显示
+      if (global.Game && typeof global.Game._loadDiy === 'function') {
+        await global.Game._loadDiy(true);
+      }
       renderGallery();
     }
 

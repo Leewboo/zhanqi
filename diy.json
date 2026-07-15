@@ -1,3 +1,34 @@
 {
-  "extensions": []
+  "extensions": [
+    {
+      "id": "ext_mrm32jni7lp",
+      "name": "黄巾起义",
+      "desc": "东汉末年黄巾起义势力",
+      "enabled": true,
+      "generals": [],
+      "skills": [],
+      "minions": [
+        {
+          "id": "diyminion_huangjin_soldier",
+          "name": "黄巾兵",
+          "hp": 70,
+          "atk": 20,
+          "def": 8,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [],
+          "rarity": "common",
+          "cost": 1,
+          "description": "黄巾起义的基本兵力",
+          "portrait": null
+        }
+      ]
+    }
+  ]
 }
