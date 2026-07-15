@@ -1488,6 +1488,11 @@
       this.pendingSkillId = skill.id;
       this.mode = null;
       this.highlighted = [];
+      if (this.awaitingCell) {
+        const cb = this.awaitingCell;
+        this.awaitingCell = null;
+        try { cb(null); } catch (_) {}
+      }
       this._render();
       this._renderBottom();
     },
@@ -1500,6 +1505,11 @@
       this.mode = mode;
       this.pendingSkillId = null;
       this.highlighted = [];
+      if (this.awaitingCell) {
+        const cb = this.awaitingCell;
+        this.awaitingCell = null;
+        try { cb(null); } catch (_) {}
+      }
 
       if (mode === 'move') {
         if (actor.moved) {
