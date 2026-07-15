@@ -326,7 +326,8 @@
           data.minions.forEach(m => {
             const mDef = Object.assign({}, m, {
               maxHp: m.hp,
-              skills: m.skillIds || m.skills || []
+              skills: m.skillIds || m.skills || [],
+              portrait: m.portrait
             });
             global.Minions.registerMinion(mDef);
           });
@@ -614,7 +615,8 @@
         attackRange: card.attackRange,
         isMinion: true,
         minionId: card.id,
-        rarity: card.rarity
+        rarity: card.rarity,
+        portrait: card.portrait
       };
 
       this.pieces.push(minion);
