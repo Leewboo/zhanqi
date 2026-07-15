@@ -1359,6 +1359,51 @@
       return unit;
     },
 
+    // ========== 小兵系统 API ==========
+    // 召唤指定类型的小兵到指定位置
+    summonMinion(actor, minionId, x, y) {
+      if (!actor || !global.Game || !global.Minions) return null;
+      const template = Minions.getById(minionId);
+      if (!template) return null;
+
+      return Effect.summonUnit(actor, x, y, {
+        id: minionId,
+        name: template.name,
+        hp: template.hp,
+        atk: template.atk,
+        def: template.def,
+        moveRange: template.moveRange,
+        attackRange: template.attackRange,
+        isSummon: true,
+        isMinion: true,
+        minionId: minionId,
+        rarity: template.rarity
+      });
+    },
+
+    // 检查某位置是否可以部署小兵
+    canDeployMinion(actor, x, y) {
+      if (!global.Game) return false;
+      const g = global.Game;
+      if (x < 0 || y < 0 || x >= Range.BOARD_SIZE || y >= Range.BOARD_SIZE) return false;
+      if (g.pieceAt(x, y)) return false;
+
+      const half = Range.BOARD_SIZE / 2;
+      const isOwnHalf = actor.side === 'red' ? y >= half : y < half;
+      return isOwnHalf;
+    },
+
+    // 获取可用的小兵模板列表
+    getAvailableMinions() {
+      return global.Minions ? Minions.list : [];
+    },
+
+    // 获取某方已部署的小兵数量
+    getMinionCount(actor) {
+      if (!global.Game) return 0;
+      return global.Game.pieces.filter(p => p.alive && p.isMinion && p.side === actor.side).length;
+    },
+
     // ========== 技能操作 API ==========
     // 获得技能
     gainSkill(actor, skillDef) {

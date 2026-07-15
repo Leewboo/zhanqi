@@ -218,6 +218,16 @@
       this.pickedRed = [];
       this.pickedBlue = [];
       this.draftPool = null;  // 本局将池（随机刷新的武将子集）
+      // 小兵抽卡系统
+      this.minionDraftPool = [];       // 当前抽卡池
+      this.minionHand = { red: [], blue: [] };  // 双方手牌
+      this.minionPoints = { red: 3, blue: 3 };  // 双方部署点数
+      this.minionDeployPhase = false;  // 是否处于小兵部署阶段
+      this.minionDeploySide = 'red';   // 当前部署方
+      this.minionSelected = null;      // 当前选中的小兵卡牌
+      this.minionMaxHandSize = 3;      // 最大手牌数
+      this.minionMaxPerType = 2;       // 每种小兵最多部署数量
+      this.minionDeployRound = 1;      // 当前部署轮数
       this.selected = null;
       this.mode = null;
       this.pendingSkillId = null;
@@ -471,6 +481,146 @@
     },
 
     _startBattle() {
+      this._startMinionDraft();
+    },
+
+    _startMinionDraft() {
+      this.minionDraftPool = global.Minions ? Minions.generateDraftPool() : [];
+      this.minionHand = { red: [], blue: [] };
+      this.minionPoints = { red: 3, blue: 3 };
+      this.minionDeployPhase = true;
+      this.minionDeploySide = 'red';
+      this.minionDeployRound = 1;
+      this.minionSelected = null;
+
+      this._drawMinionCards('red', this.minionMaxHandSize);
+      this._drawMinionCards('blue', this.minionMaxHandSize);
+
+      this.log('=== 小兵抽卡阶段 ===', 'turn');
+      this.log('红方获得 ' + this.minionHand.red.length + ' 张小兵卡牌。', 'turn');
+      this.log('蓝方获得 ' + this.minionHand.blue.length + ' 张小兵卡牌。', 'turn');
+      this.log('部署点数：双方各 3 点。', 'turn');
+      this.log('红方先部署。', 'turn');
+
+      this.phase = 'minion_deploy';
+      this._clearDeployZones();
+      this._renderMinionHand();
+      this._refreshUi();
+      this._maybeAiAct();
+    },
+
+    _drawMinionCards(side, count) {
+      const hand = this.minionHand[side] || [];
+      for (let i = 0; i < count && this.minionDraftPool.length > 0; i++) {
+        const card = this.minionDraftPool.shift();
+        card.instanceId = side + '_' + Date.now() + '_' + global.RNG.randInt(0, 999999999).toString(36);
+        hand.push(card);
+      }
+      this.minionHand[side] = hand;
+    },
+
+    _deployMinion(card, x, y) {
+      const side = this.minionDeploySide;
+
+      if (this.minionPoints[side] < card.cost) {
+        this.log('部署点数不足！', 'turn');
+        return false;
+      }
+
+      const half = SIZE / 2;
+      const isOwnHalf = side === 'red' ? y >= half : y < half;
+      if (!isOwnHalf) {
+        this.log('只能部署在己方半场！', 'turn');
+        return false;
+      }
+
+      if (this.pieceAt(x, y)) {
+        this.log('该位置已有单位！', 'turn');
+        return false;
+      }
+
+      const sameTypeCount = this.pieces.filter(p =>
+        p.isMinion && p.minionId === card.id && p.side === side
+      ).length;
+      if (sameTypeCount >= this.minionMaxPerType) {
+        this.log('该类型小兵已达上限！', 'turn');
+        return false;
+      }
+
+      const minion = {
+        generalId: card.id + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        name: card.name,
+        side: side,
+        hp: card.hp,
+        maxHp: card.maxHp,
+        atk: card.atk,
+        def: card.def,
+        x: x,
+        y: y,
+        alive: true,
+        moved: true,
+        attacked: true,
+        skilled: true,
+        skills: [],
+        cdMap: {},
+        moveRange: card.moveRange,
+        attackRange: card.attackRange,
+        isMinion: true,
+        minionId: card.id,
+        rarity: card.rarity
+      };
+
+      this.pieces.push(minion);
+      this.minionPoints[side] -= card.cost;
+
+      const hand = this.minionHand[side];
+      const idx = hand.findIndex(c => c.instanceId === card.instanceId);
+      if (idx >= 0) hand.splice(idx, 1);
+
+      this.log((side === 'red' ? '红方' : '蓝方') + ' 部署了 ' + card.name + '！', 'turn');
+      this.minionSelected = null;
+      this._render();
+      this._renderMinionHand();
+      return true;
+    },
+
+    _endMinionDeploy() {
+      const side = this.minionDeploySide;
+      const otherSide = side === 'red' ? 'blue' : 'red';
+
+      if (side === 'red') {
+        this.minionDeploySide = 'blue';
+        this.log('红方结束部署，蓝方部署。', 'turn');
+        this._renderMinionHand();
+        this._refreshUi();
+        this._maybeAiAct();
+      } else {
+        this.minionDeployRound++;
+        if (this.minionDeployRound <= 3) {
+          this.minionPoints.red += 1;
+          this.minionPoints.blue += 1;
+
+          this.log('=== 第 ' + this.minionDeployRound + ' 轮部署 ===', 'turn');
+          this.log('双方各获得 1 点部署点。', 'turn');
+          this.log('当前点数：红方 ' + this.minionPoints.red + '，蓝方 ' + this.minionPoints.blue + '。', 'turn');
+
+          this.minionDeploySide = 'red';
+          this.log('红方先部署。', 'turn');
+          this._renderMinionHand();
+          this._refreshUi();
+          this._maybeAiAct();
+        } else {
+          this._finishMinionDeploy();
+        }
+      }
+    },
+
+    _finishMinionDeploy() {
+      this.minionDeployPhase = false;
+      this.minionSelected = null;
+
+      this.log('=== 小兵部署阶段结束 ===', 'turn');
+
       this.phase = 'battle';
       this._clearDeployZones();
       this.turn = 1;
@@ -481,9 +631,89 @@
       this._aiActing = false;
 
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
-      this._renderDraftCards();
+      this._renderMinionHand();
       this._refreshUi();
       this._maybeAiAct();
+    },
+
+    _renderMinionHand() {
+      const handEl = document.getElementById('minion-hand');
+      if (!handEl) return;
+
+      if (!this.minionDeployPhase) {
+        handEl.classList.add('hidden');
+        return;
+      }
+
+      handEl.classList.remove('hidden');
+      const side = this.minionDeploySide;
+      const hand = this.minionHand[side] || [];
+      const points = this.minionPoints[side];
+
+      let html = '<div class="minion-hand-header">';
+      html += '<span class="minion-side">' + (side === 'red' ? '红方' : '蓝方') + '部署阶段</span>';
+      html += '<span class="minion-points">部署点数: ' + points + '</span>';
+      html += '<button class="minion-end-btn" onclick="Game._endMinionDeploy()">结束部署</button>';
+      html += '</div>';
+
+      html += '<div class="minion-cards">';
+      if (hand.length === 0) {
+        html += '<div class="minion-empty">手牌已空</div>';
+      } else {
+        for (const card of hand) {
+          const isSelected = this.minionSelected && this.minionSelected.instanceId === card.instanceId;
+          html += '<div class="minion-card ' + card.rarity + (isSelected ? ' selected' : '') + '"';
+          html += ' onclick="Game._selectMinionCard(\'' + card.instanceId + '\')">';
+          html += '<div class="minion-card-name">' + card.name + '</div>';
+          html += '<div class="minion-card-stats">';
+          html += '<span>H:' + card.hp + '</span>';
+          html += '<span>A:' + card.atk + '</span>';
+          html += '<span>D:' + card.def + '</span>';
+          html += '</div>';
+          html += '<div class="minion-card-cost">消耗: ' + card.cost + '</div>';
+          html += '<div class="minion-card-desc">' + card.description + '</div>';
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+
+      handEl.innerHTML = html;
+    },
+
+    _selectMinionCard(instanceId) {
+      if (!this.minionDeployPhase) return;
+
+      const side = this.minionDeploySide;
+      const hand = this.minionHand[side] || [];
+      const card = hand.find(c => c.instanceId === instanceId);
+
+      if (this.minionSelected && this.minionSelected.instanceId === instanceId) {
+        this.minionSelected = null;
+      } else {
+        this.minionSelected = card;
+      }
+
+      this._renderMinionHand();
+      this._highlightDeployableCells();
+    },
+
+    _highlightDeployableCells() {
+      this.highlighted = [];
+      if (!this.minionSelected) return;
+
+      const side = this.minionDeploySide;
+      const half = SIZE / 2;
+
+      for (let x = 0; x < SIZE; x++) {
+        for (let y = 0; y < SIZE; y++) {
+          const isOwnHalf = side === 'red' ? y >= half : y < half;
+          if (isOwnHalf && !this.pieceAt(x, y)) {
+            this.highlighted.push({ x, y, kind: 'deploy' });
+          }
+        }
+      }
+
+      this._render();
     },
 
     _buildDom() {
@@ -793,6 +1023,17 @@
       }
       if (this.phase === 'deploy') {
         this._tryPlacePiece(x, y);
+        return;
+      }
+      if (this.phase === 'minion_deploy') {
+        if (this.minionSelected) {
+          const side = this.minionDeploySide;
+          const half = SIZE / 2;
+          const isOwnHalf = side === 'red' ? y >= half : y < half;
+          if (isOwnHalf && !this.pieceAt(x, y)) {
+            this._deployMinion(this.minionSelected, x, y);
+          }
+        }
         return;
       }
       if (this.over) return;
@@ -1772,7 +2013,7 @@
           const p = document.createElement('div');
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
-          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '');
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') + (piece.isMinion ? ' minion ' + piece.rarity : '');
           // 隐身棋子半透明
           if (Effect.isUntargetable(piece)) p.style.opacity = '0.45';
 
@@ -2210,6 +2451,8 @@
           if (side === this._onlineSide) myTurn = true;
         } else if (this.phase === 'deploy') {
           if (this.deploySide === this._onlineSide) myTurn = true;
+        } else if (this.phase === 'minion_deploy') {
+          if (this.minionDeploySide === this._onlineSide) myTurn = true;
         } else if (this.phase === 'battle') {
           if (this.currentSide === this._onlineSide) myTurn = true;
         }
@@ -2227,6 +2470,8 @@
         if (side === this.aiSide) aiShouldAct = true;
       } else if (this.phase === 'deploy') {
         if (this.deploySide === this.aiSide) aiShouldAct = true;
+      } else if (this.phase === 'minion_deploy') {
+        if (this.minionDeploySide === this.aiSide) aiShouldAct = true;
       } else if (this.phase === 'battle') {
         if (this.currentSide === this.aiSide) aiShouldAct = true;
       }
@@ -2252,7 +2497,76 @@
       if (this.phase === 'battle' && this.currentSide !== this.aiSide) return;
       if (this.phase === 'draft') this._aiPickGeneral();
       else if (this.phase === 'deploy') this._aiPlaceOne();
+      else if (this.phase === 'minion_deploy') this._aiDeployMinion();
       else if (this.phase === 'battle') this._aiBattleStep();
+    },
+
+    _aiDeployMinion() {
+      const side = this.minionDeploySide;
+      const hand = this.minionHand[side] || [];
+      const points = this.minionPoints[side];
+
+      const deployable = hand.filter(c => c.cost <= points);
+      if (!deployable.length) {
+        this._endMinionDeploy();
+        return;
+      }
+
+      deployable.sort((a, b) => {
+        const valA = (a.atk + a.def) / a.cost;
+        const valB = (b.atk + b.def) / b.cost;
+        return valB - valA;
+      });
+
+      const card = deployable[0];
+
+      const half = SIZE / 2;
+      const candidates = [];
+
+      for (let x = 0; x < SIZE; x++) {
+        for (let y = 0; y < SIZE; y++) {
+          const isOwnHalf = side === 'red' ? y >= half : y < half;
+          if (isOwnHalf && !this.pieceAt(x, y)) {
+            candidates.push({ x, y });
+          }
+        }
+      }
+
+      if (!candidates.length) {
+        this._endMinionDeploy();
+        return;
+      }
+
+      const allies = this.pieces.filter(p => p.alive && p.side === side && !p.isMinion);
+      let bestPos = candidates[0];
+      let bestScore = -Infinity;
+
+      for (const pos of candidates) {
+        let score = 0;
+
+        for (const ally of allies) {
+          const dist = Math.abs(pos.x - ally.x) + Math.abs(pos.y - ally.y);
+          if (dist <= 2) score += (3 - dist) * 10;
+        }
+
+        const enemyDist = side === 'red' ? pos.y : (SIZE - 1 - pos.y);
+        score += enemyDist * 5;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestPos = pos;
+        }
+      }
+
+      this._deployMinion(card, bestPos.x, bestPos.y);
+
+      if (this.minionPoints[side] > 0 && this.minionHand[side].length > 0) {
+        const self = this;
+        setTimeout(() => self._aiDeployMinion(), 600);
+      } else {
+        const self = this;
+        setTimeout(() => self._endMinionDeploy(), 800);
+      }
     },
 
     _aiPickGeneral() {
