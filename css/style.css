@@ -1936,6 +1936,29 @@ html, body {
   border-color: var(--fg);
 }
 
+.gallery-cat-filter {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.gallery-cat-btn {
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.gallery-cat-btn:hover { background: var(--cell-hover); }
+.gallery-cat-btn.selected {
+  background: #8b6f3a;
+  color: #fff;
+  border-color: #8b6f3a;
+}
+
 .gallery-stats-bar {
   padding: 6px 16px;
   font-size: 12px;
@@ -2009,6 +2032,39 @@ html, body {
   font-size: 10px;
   color: var(--muted);
   letter-spacing: 0;
+}
+
+/* 小兵卡片：稀有度标签 / 消耗 / 描述 */
+.gcard-rarity-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+  color: #fff;
+}
+.gcard-rarity-tag.common { background: #7f8c8d; }
+.gcard-rarity-tag.rare { background: #2980b9; }
+.gcard-rarity-tag.epic { background: #8e44ad; }
+.gcard-cost {
+  font-size: 12px;
+  color: #8b6f3a;
+  font-weight: 700;
+  background: rgba(139,111,58,0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.gcard-minion-desc {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 6px 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--line);
+  font-style: italic;
 }
 
 /* 卡牌属性区 */

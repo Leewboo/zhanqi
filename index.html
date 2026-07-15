@@ -8,7 +8,7 @@
   <link rel="preload" href="fonts/xiaozhuan.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/xingkai.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts/fonts.css" />
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
 </head>
 <body>
   <section id="loading-screen" class="loading-screen">
@@ -169,14 +169,18 @@
   <section id="gallery-screen" class="gallery-screen hidden">
     <div class="gallery-header">
       <button id="btn-gallery-back" class="gallery-back-btn">← 返回</button>
-      <h1 class="gallery-title">武将图鉴</h1>
+      <h1 class="gallery-title">图鉴</h1>
       <div class="gallery-search-wrap">
-        <input type="text" id="gallery-search" class="gallery-search" placeholder="搜索武将名 / 技能名..." />
+        <input type="text" id="gallery-search" class="gallery-search" placeholder="搜索名 / 技能名..." />
       </div>
       <div class="gallery-filter">
         <button class="gallery-filter-btn selected" data-filter="all">全部</button>
         <button class="gallery-filter-btn" data-filter="active">主动技</button>
         <button class="gallery-filter-btn" data-filter="passive">被动技</button>
+      </div>
+      <div class="gallery-cat-filter">
+        <button class="gallery-cat-btn selected" data-cat="general">武将</button>
+        <button class="gallery-cat-btn" data-cat="minion">小兵</button>
       </div>
     </div>
     <div class="gallery-stats-bar" id="gallery-stats-bar"></div>
@@ -310,6 +314,6 @@
   <script src="js/skills.js?v=5"></script>
   <script src="js/generals.js?v=4"></script>
   <script src="js/online.js?v=1"></script>
-  <script src="js/game.js?v=29"></script>
+  <script src="js/game.js?v=30"></script>
 </body>
 </html>
