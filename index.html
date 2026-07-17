@@ -8,7 +8,7 @@
   <link rel="preload" href="fonts/xiaozhuan.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/xingkai.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts/fonts.css" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body>
   <section id="loading-screen" class="loading-screen">
@@ -281,6 +281,16 @@
       </div>
     </section>
 
+    <section id="option-modal" class="option-modal hidden">
+      <div class="option-modal-inner">
+        <div class="option-modal-head">
+          <h3 id="option-title">请选择</h3>
+          <button id="option-close" class="act-btn ghost">取消</button>
+        </div>
+        <div id="option-body" class="option-modal-body"></div>
+      </div>
+    </section>
+
     <section id="report-modal" class="report-modal hidden">
       <div class="report-modal-inner">
         <div class="report-modal-head">
@@ -309,7 +319,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/rng.js?v=1"></script>
   <script src="js/range.js?v=3"></script>
-  <script src="js/effects.js?v=11"></script>
+  <script src="js/effects.js?v=12"></script>
   <script src="js/minions.js?v=4"></script>
   <script src="js/skills.js?v=5"></script>
   <script src="js/generals.js?v=4"></script>

@@ -1059,34 +1059,24 @@
         const g = global.Game;
         if (opts.hintText) g.log(opts.hintText);
 
-        // 创建模态框
-        const mask = document.createElement('div');
-        mask.className = 'option-modal-mask';
-        mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:12px;';
-        const box = document.createElement('div');
-        box.style.cssText = 'background:#fff;border:2px solid #c0392b;border-radius:6px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
-        const head = document.createElement('div');
-        head.style.cssText = 'padding:12px 16px;border-bottom:1px solid #e3d9c4;background:#faf7f1;border-radius:4px 4px 0 0;';
-        head.innerHTML = '<h3 style="margin:0;font-size:15px;letter-spacing:2px;color:#c0392b;">' + (opts.title || '请选择') + '</h3>';
-        const body = document.createElement('div');
-        body.style.cssText = 'padding:12px;overflow-y:auto;flex:1;';
+        // 使用静态 HTML 模态框
+        const modal = document.getElementById('option-modal');
+        const titleEl = document.getElementById('option-title');
+        const bodyEl = document.getElementById('option-body');
+        const closeBtn = document.getElementById('option-close');
+        if (!modal || !bodyEl) return resolve(null);
+
+        titleEl.textContent = opts.title || '请选择';
+        bodyEl.innerHTML = '';
 
         const displayOptions = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
         if (!displayOptions.length) return resolve(null);
         displayOptions.forEach(function (opt, idx) {
           const item = document.createElement('div');
-          item.style.cssText = 'padding:12px;margin-bottom:8px;border:1px solid #e3d9c4;border-radius:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+          item.className = 'option-item';
           item.innerHTML =
-            '<div style="font-weight:bold;color:#333;font-size:14px;margin-bottom:4px;">' + (opt.label || ('选项 ' + (idx + 1))) + '</div>' +
-            (opt.desc ? '<div style="color:#666;font-size:12px;line-height:1.5;">' + opt.desc + '</div>' : '');
-          item.addEventListener('mouseenter', function () {
-            item.style.background = '#faf7f1';
-            item.style.borderColor = '#c0392b';
-          });
-          item.addEventListener('mouseleave', function () {
-            item.style.background = '#fff';
-            item.style.borderColor = '#e3d9c4';
-          });
+            '<div class="opt-label">' + (opt.label || ('选项 ' + (idx + 1))) + '</div>' +
+            (opt.desc ? '<div class="opt-desc">' + opt.desc + '</div>' : '');
           item.addEventListener('click', function () {
             const picked = Object.assign({}, opt, { _index: idx });
             g.log(actor.name + ' 选择了：' + (opt.label || ('选项 ' + (idx + 1))) + '。');
@@ -1098,49 +1088,33 @@
             }
             resolve(picked);
           });
-          body.appendChild(item);
+          bodyEl.appendChild(item);
         });
 
         // 取消按钮
-        const foot = document.createElement('div');
-        foot.style.cssText = 'padding:10px 16px;border-top:1px solid #e3d9c4;text-align:right;';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = '取消';
-        cancelBtn.style.cssText = 'padding:6px 16px;font-size:13px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer;border-radius:3px;';
-        cancelBtn.addEventListener('click', function () {
+        function doCancel() {
           Effect._closeOptionModal();
           if (g.onlineMode && !g._onlineAction && !g._onlineSkillReplay) {
             Effect._onlineRecorded = Effect._onlineRecorded || [];
             Effect._onlineRecorded.push({ opt: null });
           }
           resolve(null);
-        });
-        foot.appendChild(cancelBtn);
-
-        box.appendChild(head);
-        box.appendChild(body);
-        box.appendChild(foot);
-        mask.appendChild(box);
+        }
+        closeBtn.onclick = doCancel;
         // 点击遮罩取消
-        mask.addEventListener('click', function (e) {
-          if (e.target === mask) {
-            Effect._closeOptionModal();
-            if (g.onlineMode && !g._onlineAction && !g._onlineSkillReplay) {
-              Effect._onlineRecorded = Effect._onlineRecorded || [];
-              Effect._onlineRecorded.push({ opt: null });
-            }
-            resolve(null);
-          }
-        });
-        document.body.appendChild(mask);
-        Effect._optionModal = mask;
+        modal.onclick = function (e) {
+          if (e.target === modal) doCancel();
+        };
+
+        modal.classList.remove('hidden');
+        Effect._optionModal = modal;
         Effect._optionResolve = resolve;
       });
     },
 
     _closeOptionModal() {
-      if (Effect._optionModal && Effect._optionModal.parentNode) {
-        Effect._optionModal.parentNode.removeChild(Effect._optionModal);
+      if (Effect._optionModal) {
+        Effect._optionModal.classList.add('hidden');
       }
       Effect._optionModal = null;
       Effect._optionResolve = null;
