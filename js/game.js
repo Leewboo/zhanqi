@@ -538,7 +538,15 @@
 
     _drawMinionCards(side, count) {
       const hand = this.minionHand[side] || [];
-      for (let i = 0; i < count && this.minionDraftPool.length > 0; i++) {
+      for (let i = 0; i < count; i++) {
+        // 抽卡池耗尽时自动重新生成（洗牌），保证整局游戏都能持续抽牌
+        if (this.minionDraftPool.length === 0) {
+          if (global.Minions && Minions.getList().length) {
+            this.minionDraftPool = Minions.generateDraftPool();
+          } else {
+            break;
+          }
+        }
         const card = this.minionDraftPool.shift();
         // instanceId 使用可播种 RNG 生成，保证联机双端一致
         card.instanceId = side + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
