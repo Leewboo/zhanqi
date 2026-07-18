@@ -3341,7 +3341,7 @@
     }
   };
 
-  // 页面启动时立即预拉取 DIY 武将，确保用户点击「开始游戏」时武将已注册
+  // 页面启动时立即预拉取 DIY 武将/技能/小兵，确保用户点击「开始游戏」时数据已注册
   (function preloadDiy() {
     fetch('/api/diy/list').then(function(r) { return r.json(); }).then(function(data) {
       if (!data.ok) return;
@@ -3352,6 +3352,16 @@
         data.generals.forEach(function(g) {
           var gDef = Object.assign({}, g, { skills: g.skillIds || g.skills || [] });
           window.Generals.registerGeneral(gDef);
+        });
+      }
+      if (data.minions && data.minions.length && window.Minions) {
+        data.minions.forEach(function(m) {
+          var mDef = Object.assign({}, m, {
+            maxHp: m.hp,
+            skills: m.skillIds || m.skills || [],
+            portrait: m.portrait
+          });
+          window.Minions.registerMinion(mDef);
         });
       }
     }).catch(function() {});
