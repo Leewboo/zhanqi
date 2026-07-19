@@ -622,6 +622,44 @@ html, body {
 }
 .cell.sel { background: var(--cell-sel); }
 
+/* 城池占领颜色覆盖层 */
+.cell .castle-owner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+  -webkit-border-radius: 4px;
+  border-radius: 4px;
+  border: 2px dashed transparent;
+}
+.cell .castle-owner.red {
+  background-color: rgba(192, 57, 43, 0.32);
+  border-color: rgba(192, 57, 43, 0.85);
+  box-shadow: 0 0 6px rgba(192, 57, 43, 0.6) inset;
+}
+.cell .castle-owner.blue {
+  background-color: rgba(41, 128, 185, 0.32);
+  border-color: rgba(41, 128, 185, 0.85);
+  box-shadow: 0 0 6px rgba(41, 128, 185, 0.6) inset;
+}
+/* 城池标记（小图标提示这是城池） */
+.cell.terrain-w .castle-flag {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  background: #f1c40f;
+  border: 1px solid #7d6608;
+  -webkit-border-radius: 1px;
+  border-radius: 1px;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .piece {
   position: absolute;
   left: 50%;
@@ -2156,6 +2194,9 @@ html, body {
 .gcard-rarity-tag.common { background: #7f8c8d; }
 .gcard-rarity-tag.rare { background: #2980b9; }
 .gcard-rarity-tag.epic { background: #8e44ad; }
+.gcard-rarity-tag.tag-infantry { background: #16a085; }
+.gcard-rarity-tag.tag-scout { background: #d35400; }
+.gcard-rarity-tag.tag-siege { background: #c0392b; }
 .gcard-cost {
   font-size: 12px;
   color: #8b6f3a;
@@ -2572,6 +2613,27 @@ html, body {
 
 .minion-card-stats span {
   background: #f5f5f5;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.minion-card-meta {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 9px;
+  margin-bottom: 2px;
+}
+.minion-card-meta .m-rarity {
+  background: #ffeaa7;
+  color: #5a4500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.minion-card-meta .m-tag {
+  background: #dfe6e9;
+  color: #2d3436;
   padding: 1px 4px;
   border-radius: 3px;
 }

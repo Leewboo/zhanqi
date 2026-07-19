@@ -1,6 +1,29 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
   const DEFAULT_PICKS = 5;
+
+  // ============ 城池占领系统 ============
+  // 城池坐标（与 buildTerrain 中的 'w' 一致）
+  const CASTLE_CELLS = [
+    { x: 0, y: 0 }, { x: 11, y: 0 }, { x: 0, y: 11 }, { x: 11, y: 11 }, // 四角
+    { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 11, y: 5 }, { x: 11, y: 6 },   // 东西桥头
+    { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 5, y: 9 }, { x: 6, y: 9 }       // 双方中场堡
+  ];
+  // 四角城池（围攻胜利用）
+  const CORNER_CASTLES = [
+    { x: 0, y: 0 }, { x: 11, y: 0 }, { x: 0, y: 11 }, { x: 11, y: 11 }
+  ];
+  // 判断坐标是否为城池
+  function isCastle(x, y) {
+    for (let i = 0; i < CASTLE_CELLS.length; i++) {
+      if (CASTLE_CELLS[i].x === x && CASTLE_CELLS[i].y === y) return true;
+    }
+    return false;
+  }
+  // 判断城池属于哪个半场（行0-5=蓝方半场，行6-11=红方半场）
+  function castleSide(x, y) {
+    return y < SIZE / 2 ? 'blue' : 'red';
+  }
   let PICKS_PER_SIDE = DEFAULT_PICKS;
   const DEFAULT_CELL_SIZE = 48;
   const DEFAULT_DRAFT_POOL_SIZE = 12;
@@ -192,6 +215,7 @@
     aiSide: 'blue',        // AI 控制的一方
     _turnEnding: false,    // 防止 endTurn 重入
     _aiActing: false,      // AI 是否正在执行行动
+    castleOwner: {},       // 城池占领状态：'x,y' -> 'red'/'blue'/null
 
     log(text, cls) {
       const box = document.getElementById('log');
@@ -511,6 +535,10 @@
       this.minionPoints = { red: 2, blue: 2 };
       this.minionSelected = null;
 
+      // 初始化城池占领状态：根据棋子初始站位判定
+      this.castleOwner = {};
+      this._refreshCastleOwnership();
+
       // 双方各抽初始手牌
       this._drawMinionCards('red', this.minionMaxHandSize);
       this._drawMinionCards('blue', this.minionMaxHandSize);
@@ -584,10 +612,13 @@
         return false;
       }
 
-      const half = SIZE / 2;
-      const isOwnHalf = side === 'red' ? y >= half : y < half;
-      if (!isOwnHalf) {
-        this.log('只能部署在己方半场！', 'turn');
+      // tag 部署规则：infantry 前线三行 / scout 己方半场任意 / siege 己方占领城池相邻格
+      const tag = card.tag || 'infantry';
+      if (!this._isMinionDeployable(card, x, y, side)) {
+        const tip = tag === 'siege' ? '攻城兵只能部署在己方占领城池的相邻格！'
+          : tag === 'scout' ? '侦察兵只能部署在己方半场！'
+          : '步兵只能部署在己方前线三行！';
+        this.log(tip, 'turn');
         return false;
       }
 
@@ -624,11 +655,21 @@
         isMinion: true,
         minionId: card.id,
         rarity: card.rarity,
+        tag: card.tag || 'infantry',
         portrait: card.portrait
       };
 
       this.pieces.push(minion);
       this.minionPoints[side] -= card.cost;
+      // 城池占领：小兵部署在城池上时触发占领
+      this._captureCastle(minion);
+      // epic 小兵品质被动：部署在己方占领城池上时立即获得行动（不消耗本回合行动点）
+      if (minion.rarity === 'epic' && this._isOwnedCastle(minion.x, minion.y, side)) {
+        minion.moved = false;
+        minion.attacked = false;
+        minion.skilled = false;
+        this.log(minion.name + ' 据守城池，立即进入战斗状态！', 'turn');
+      }
 
       const hand = this.minionHand[side];
       const idx = hand.findIndex(c => c.instanceId === card.instanceId);
@@ -671,18 +712,51 @@
       if (!this.minionSelected) return;
 
       const side = this.currentSide;
-      const half = SIZE / 2;
+      const card = this.minionSelected;
+      const tag = card.tag || 'infantry';
 
       for (let x = 0; x < SIZE; x++) {
         for (let y = 0; y < SIZE; y++) {
-          const isOwnHalf = side === 'red' ? y >= half : y < half;
-          if (isOwnHalf && !this.pieceAt(x, y)) {
+          if (this.pieceAt(x, y)) continue;
+          if (this._isMinionDeployable(card, x, y, side)) {
             this.highlighted.push({ x, y, kind: 'deploy' });
           }
         }
       }
 
       this._render();
+    },
+
+    // 判断小兵是否能部署在指定位置（按 tag 规则）
+    _isMinionDeployable(card, x, y, side) {
+      const tag = (card && card.tag) || 'infantry';
+      const half = SIZE / 2;
+      // 己方半场判断
+      const isOwnHalf = side === 'red' ? y >= half : y < half;
+      if (tag === 'scout') {
+        // 侦察兵：己方半场任意空格
+        return isOwnHalf;
+      }
+      if (tag === 'siege') {
+        // 攻城兵：己方占领城池的相邻格（含城池本身）
+        if (!isOwnHalf) {
+          // 也允许在己方占领的敌方城池上部署（攻城推进）
+          if (!(isCastle(x, y) && this.castleOwner[x + ',' + y] === side)) return false;
+        }
+        if (isCastle(x, y) && this.castleOwner[x + ',' + y] === side) return true;
+        // 检查相邻格是否有己方占领的城池
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+        for (const d of dirs) {
+          const nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE) continue;
+          if (isCastle(nx, ny) && this.castleOwner[nx + ',' + ny] === side) return true;
+        }
+        return false;
+      }
+      // infantry：己方前线三行（蓝方行3-5，红方行6-8）
+      const frontStart = side === 'red' ? half : half - 3;
+      const frontEnd = side === 'red' ? half + 3 : half;
+      return y >= frontStart && y < frontEnd;
     },
 
     // 渲染小兵面板（战斗中显示在 draft-panel 区域）
@@ -760,6 +834,8 @@
           cardEl.style.cursor = 'pointer';
           cardEl.addEventListener('click', () => self._selectMinionCard(card.instanceId));
         }
+        const tagText = card.tag === 'scout' ? '侦察' : card.tag === 'siege' ? '攻城' : '步兵';
+        const rarityText = card.rarity === 'rare' ? '稀有' : card.rarity === 'epic' ? '史诗' : '普通';
         cardEl.innerHTML =
           '<div class="minion-card-name">' + card.name + '</div>' +
           '<div class="minion-card-stats">' +
@@ -767,8 +843,9 @@
             '<span>A:' + card.atk + '</span>' +
             '<span>D:' + card.def + '</span>' +
           '</div>' +
+          '<div class="minion-card-meta"><span class="m-rarity">' + rarityText + '</span><span class="m-tag">' + tagText + '</span></div>' +
           '<div class="minion-card-cost">消耗: ' + card.cost + '</div>' +
-          '<div class="minion-card-desc">' + card.description + '</div>';
+          '<div class="minion-card-desc">' + (card.description || '') + '</div>';
         cardsEl.appendChild(cardEl);
       }
     },
@@ -830,6 +907,30 @@
         Effect.on(sk.trigger, handler);
         passiveHandlers.push({ event: sk.trigger, handler });
       }
+      // 小兵品质被动：common 死亡时 buff 友军
+      const deathBuffHandler = (ctx) => {
+        const victim = ctx && ctx.victim;
+        if (!victim || !victim.isMinion) return;
+        if (victim.rarity !== 'common') return;
+        // 死亡时给 2 格内的友军 +5 攻击，持续 2 回合
+        const allies = this.pieces.filter(p => p.alive && p.side === victim.side && p !== victim);
+        let buffed = 0;
+        for (const ally of allies) {
+          const dist = Math.abs(ally.x - victim.x) + Math.abs(ally.y - victim.y);
+          if (dist <= 2) {
+            Effect.addMark(ally, 'minion_death_buff', 2, {
+              display: '激励',
+              modifiers: { atkBuff: 5 }
+            });
+            buffed++;
+          }
+        }
+        if (buffed > 0) {
+          this.log(victim.name + ' 陨落，激励了 ' + buffed + ' 名友军！', 'turn');
+        }
+      };
+      Effect.on('onKilled', deathBuffHandler);
+      passiveHandlers.push({ event: 'onKilled', handler: deathBuffHandler });
       this._passiveHandlers = passiveHandlers;
     },
 
@@ -1082,12 +1183,10 @@
         this._tryPlacePiece(x, y);
         return;
       }
-      // 战斗阶段：若已选中部署卡牌，点击己方半场空格部署小兵
+      // 战斗阶段：若已选中部署卡牌，点击可部署区域空格部署小兵
       if (this.phase === 'battle' && this.minionSelected) {
         const side = this.currentSide;
-        const half = SIZE / 2;
-        const isOwnHalf = side === 'red' ? y >= half : y < half;
-        if (isOwnHalf && !this.pieceAt(x, y)) {
+        if (!this.pieceAt(x, y) && this._isMinionDeployable(this.minionSelected, x, y, side)) {
           this._deployMinion(this.minionSelected, x, y);
         } else {
           // 点击非部署区域 → 取消选中
@@ -1159,9 +1258,9 @@
       this.deploySelected = generalDef;
       this._highlightDeployZones(this.deploySide);
       this.highlighted = [];
-      const half = Math.floor(SIZE / 2);
-      const yStart = this.deploySide === 'red' ? half : 0;
-      const yEnd = this.deploySide === 'red' ? SIZE : half;
+      // 武将只能部署在己方后三行（蓝方行0-2，红方行9-11）
+      const yStart = this.deploySide === 'red' ? SIZE - 3 : 0;
+      const yEnd = this.deploySide === 'red' ? SIZE : 3;
       for (let y = yStart; y < yEnd; y++) {
         for (let x = 0; x < SIZE; x++) {
           if (!this.pieceAt(x, y)) {
@@ -1169,7 +1268,7 @@
           }
         }
       }
-      this.log('选中【' + generalDef.name + '】' + ' · 点击 ' + (this.deploySide === 'red' ? '底部' : '顶部') + ' 半场空格放置。');
+      this.log('选中【' + generalDef.name + '】' + ' · 点击己方后三行空格放置。');
       this._render();
       this._renderBottom();
     },
@@ -1194,6 +1293,12 @@
         this.log('只能在顶部（己方）半场布阵。');
         return;
       }
+      // 武将部署分区：只能部署在己方后三行（蓝方行0-2，红方行9-11）
+      const isGeneralBackRow = this.deploySide === 'red' ? y >= SIZE - 3 : y <= 2;
+      if (!isGeneralBackRow) {
+        this.log('武将只能部署在己方后三行。');
+        return;
+      }
       if (this.pieceAt(x, y)) {
         this.log('该位置已有棋子。');
         return;
@@ -1201,6 +1306,8 @@
       const piece = Generals.buildPiece(this.deploySelected, this.deploySide, x, y);
       piece.generalId = this.deploySelected.id;
       this.pieces.push(piece);
+      // 城池占领：布阵时若部署在城池上则占领
+      this._captureCastle(piece);
       this.log((this.deploySide === 'red' ? '红方' : '蓝方') + ' ' + this.deploySelected.name + ' 部署到 (' + x + ',' + y + ')。');
 
       // 联机同步：本地布阵发送给对方
@@ -1604,6 +1711,8 @@
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
       Effect._checkTraps(actor); // 陷阱触发
+      // 城池占领：移动到城池上时触发占领
+      if (actor.alive) this._captureCastle(actor);
 
       // 联机同步
       if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
@@ -1679,17 +1788,181 @@
       this.highlighted = [];
     },
 
+    // ========== 城池占领系统 ==========
+    // 刷新所有城池的占领状态：城池上有棋子则归该方，无棋子则保留原归属
+    _refreshCastleOwnership() {
+      for (const c of CASTLE_CELLS) {
+        const piece = this.pieceAt(c.x, c.y);
+        if (piece && piece.alive) {
+          this.castleOwner[c.x + ',' + c.y] = piece.side;
+        }
+      }
+    },
+
+    // 棋子移动/部署到城池时触发占领
+    _captureCastle(piece) {
+      if (!piece || !piece.alive) return;
+      if (!isCastle(piece.x, piece.y)) return;
+      const key = piece.x + ',' + piece.y;
+      const prev = this.castleOwner[key];
+      if (prev !== piece.side) {
+        this.castleOwner[key] = piece.side;
+        const castleName = this._castleName(piece.x, piece.y);
+        this.log((piece.side === 'red' ? '红方' : '蓝方') + ' 占领了' + castleName + '！', 'turn');
+        this._renderCastleOverlay();
+      }
+    },
+
+    _castleName(x, y) {
+      if (CORNER_CASTLES.some(c => c.x === x && c.y === y)) {
+        return '角城(' + x + ',' + y + ')';
+      }
+      if (x === 0 || x === 11) return '桥头堡(' + x + ',' + y + ')';
+      return '中场堡(' + x + ',' + y + ')';
+    },
+
+    // 统计一方占领的城池数
+    _countCastles(side) {
+      let n = 0;
+      for (const c of CASTLE_CELLS) {
+        if (this.castleOwner[c.x + ',' + c.y] === side) n++;
+      }
+      return n;
+    },
+
+    // 统计一方占领的敌方半场城池数（占领胜利用）
+    _countEnemyCastles(side) {
+      const enemySide = side === 'red' ? 'blue' : 'red';
+      let n = 0;
+      for (const c of CASTLE_CELLS) {
+        if (castleSide(c.x, c.y) === enemySide && this.castleOwner[c.x + ',' + c.y] === side) n++;
+      }
+      return n;
+    },
+
+    // 统计一方占领的四角城池数（围攻胜利用）
+    _countCornerCastles(side) {
+      let n = 0;
+      for (const c of CORNER_CASTLES) {
+        if (this.castleOwner[c.x + ',' + c.y] === side) n++;
+      }
+      return n;
+    },
+
+    // 渲染城池占领颜色覆盖层
+    _renderCastleOverlay() {
+      if (!this.boardEl) return;
+      // 先刷新占领状态（处理技能传送/击退等非标准移动方式导致的占领变化）
+      this._refreshCastleOwnership();
+      // 清除旧覆盖层
+      const old = this.boardEl.querySelectorAll('.castle-owner');
+      old.forEach(el => el.remove());
+      // 添加新覆盖层
+      for (const c of CASTLE_CELLS) {
+        const owner = this.castleOwner[c.x + ',' + c.y];
+        if (!owner) continue;
+        const idx = c.y * SIZE + c.x;
+        const cell = this.boardEl.children[idx];
+        if (!cell) continue;
+        const overlay = document.createElement('div');
+        overlay.className = 'castle-owner ' + owner;
+        cell.appendChild(overlay);
+      }
+    },
+
+    // 判断坐标是否为己方占领的城池（可作为额外部署点）
+    _isOwnedCastle(x, y, side) {
+      return isCastle(x, y) && this.castleOwner[x + ',' + y] === side;
+    },
+
+    // 城池增益：回合开始时，站在己方占领城池上的棋子回血 20%
+    _applyCastleHeal(side) {
+      const healTargets = [];
+      for (const c of CASTLE_CELLS) {
+        if (this.castleOwner[c.x + ',' + c.y] !== side) continue;
+        const piece = this.pieceAt(c.x, c.y);
+        if (piece && piece.alive && piece.side === side && piece.hp < piece.maxHp) {
+          healTargets.push(piece);
+        }
+      }
+      for (const p of healTargets) {
+        const heal = Math.max(1, Math.floor(p.maxHp * 0.2));
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + heal);
+        const actual = p.hp - before;
+        if (actual > 0) {
+          this.log(p.name + ' 据守城池，回复 ' + actual + ' 点生命。', 'turn');
+        }
+      }
+    },
+
+    // 城池增益：站在己方占领城池上的棋子获得 +15 防御加成
+    // rare 小兵在城池上额外 +10 防御（城池叠防被动）
+    _getCastleDefenseBonus(piece) {
+      if (!piece || !piece.alive) return 0;
+      if (!isCastle(piece.x, piece.y)) return 0;
+      if (this.castleOwner[piece.x + ',' + piece.y] !== piece.side) return 0;
+      let bonus = 15;
+      if (piece.isMinion && piece.rarity === 'rare') bonus += 10;
+      return bonus;
+    },
+
     _checkWin() {
+      if (this.over) return;
+      // 1. 歼灭胜利：一方棋子全灭（原有规则，含武将和小兵）
       const redAlive = this.pieces.some(p => p.side === 'red' && p.alive);
       const blueAlive = this.pieces.some(p => p.side === 'blue' && p.alive);
       if (!redAlive || !blueAlive) {
         this.over = true;
+        const winner = redAlive ? 'red' : 'blue';
         const title = document.getElementById('banner-title');
-        title.textContent = redAlive ? '红方胜利' : '蓝方胜利';
+        title.textContent = (winner === 'red' ? '红方' : '蓝方') + '胜利（歼灭）';
         document.getElementById('banner').classList.remove('hidden');
         this.log(title.textContent + '！', 'turn');
-        // 对局已分出胜负：清除联机重连会话，避免刷新页面后误重连到已结束的对局
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        return;
+      }
+      // 2. 占领胜利：占领敌方半场全部 5 个城池
+      const redEnemyCastles = this._countEnemyCastles('red');
+      const blueEnemyCastles = this._countEnemyCastles('blue');
+      if (redEnemyCastles >= 5) {
+        this.over = true;
+        const title = document.getElementById('banner-title');
+        title.textContent = '红方胜利（占领敌方全境）';
+        document.getElementById('banner').classList.remove('hidden');
+        this.log(title.textContent + '！', 'turn');
+        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        return;
+      }
+      if (blueEnemyCastles >= 5) {
+        this.over = true;
+        const title = document.getElementById('banner-title');
+        title.textContent = '蓝方胜利（占领敌方全境）';
+        document.getElementById('banner').classList.remove('hidden');
+        this.log(title.textContent + '！', 'turn');
+        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        return;
+      }
+      // 3. 围攻胜利：占领四角城池中至少 3 个
+      const redCorners = this._countCornerCastles('red');
+      const blueCorners = this._countCornerCastles('blue');
+      if (redCorners >= 3) {
+        this.over = true;
+        const title = document.getElementById('banner-title');
+        title.textContent = '红方胜利（围攻四方）';
+        document.getElementById('banner').classList.remove('hidden');
+        this.log(title.textContent + '！', 'turn');
+        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        return;
+      }
+      if (blueCorners >= 3) {
+        this.over = true;
+        const title = document.getElementById('banner-title');
+        title.textContent = '蓝方胜利（围攻四方）';
+        document.getElementById('banner').classList.remove('hidden');
+        this.log(title.textContent + '！', 'turn');
+        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        return;
       }
     },
 
@@ -1738,9 +2011,17 @@
       // 回合开始：当前方获得 1 点部署点并抽 1 张小兵卡
       if (this.minionDraftPool) {
         this.minionPoints[this.currentSide] = (this.minionPoints[this.currentSide] || 0) + 1;
+        // 城池增益：每占领 1 个城池额外获得 1 点部署点
+        const castleBonus = this._countCastles(this.currentSide);
+        if (castleBonus > 0) {
+          this.minionPoints[this.currentSide] += castleBonus;
+          this.log((this.currentSide === 'red' ? '红方' : '蓝方') + ' 城池增益：+' + castleBonus + ' 部署点。', 'turn');
+        }
         this._drawMinionCards(this.currentSide, 1);
         this.minionSelected = null;
       }
+      // 城池增益：棋子站在己方占领城池上回合开始回血 20%
+      this._applyCastleHeal(this.currentSide);
       // 重置 AI 本回合小兵部署标记
       this._aiMinionDeployed = false;
 
@@ -2150,6 +2431,8 @@
           el.appendChild(p);
         }
       }
+      // 渲染城池占领颜色覆盖层
+      this._renderCastleOverlay();
     },
 
     _renderBottom() {
@@ -2513,7 +2796,17 @@
         const placed = this.pieces.filter(p => p.side === side).length;
         el.textContent = '布阵阶段 · ' + (side === 'red' ? '红' : '蓝') + '方 · ' + placed + ' / ' + picked.length;
       } else {
-        el.textContent = '回合 ' + this.turn + ' · ' + (this.currentSide === 'red' ? '红方' : '蓝方');
+        const side = this.currentSide;
+        const redEnemy = this._countEnemyCastles('red');
+        const blueEnemy = this._countEnemyCastles('blue');
+        const redCorners = this._countCornerCastles('red');
+        const blueCorners = this._countCornerCastles('blue');
+        const redTotal = this._countCastles('red');
+        const blueTotal = this._countCastles('blue');
+        el.textContent = '回合 ' + this.turn + ' · ' + (side === 'red' ? '红方' : '蓝方')
+          + ' · 城池 红' + redTotal + '/蓝' + blueTotal
+          + ' · 敌境 红' + redEnemy + '/5 蓝' + blueEnemy + '/5'
+          + ' · 四角 红' + redCorners + '/3 蓝' + blueCorners + '/3';
       }
       if (this.phase === 'battle') {
         this._renderMinionPanel();
@@ -2606,24 +2899,6 @@
         return;
       }
 
-      // 找己方半场空位
-      const half = SIZE / 2;
-      const candidates = [];
-      for (let x = 0; x < SIZE; x++) {
-        for (let y = 0; y < SIZE; y++) {
-          const isOwnHalf = side === 'red' ? y >= half : y < half;
-          if (isOwnHalf && !this.pieceAt(x, y)) {
-            candidates.push({ x, y });
-          }
-        }
-      }
-
-      if (!candidates.length) {
-        const self = this;
-        setTimeout(() => self._aiBattleStep(), 400);
-        return;
-      }
-
       // 选性价比最高的卡
       deployable.sort((a, b) => {
         const valA = (a.atk + a.def) / a.cost;
@@ -2631,6 +2906,25 @@
         return valB - valA;
       });
       const card = deployable[0];
+
+      // 按该卡的 tag 规则寻找可部署位置
+      const half = SIZE / 2;
+      const candidates = [];
+      for (let x = 0; x < SIZE; x++) {
+        for (let y = 0; y < SIZE; y++) {
+          if (this.pieceAt(x, y)) continue;
+          if (this._isMinionDeployable(card, x, y, side)) {
+            candidates.push({ x, y });
+          }
+        }
+      }
+
+      if (!candidates.length) {
+        // 该卡无可部署位置，跳过本回合部署
+        const self = this;
+        setTimeout(() => self._aiBattleStep(), 400);
+        return;
+      }
 
       // 选最优位置：小兵倾向于前线（靠近中线），并靠近友方单位协同
       const allies = this.pieces.filter(p => p.alive && p.side === side);
@@ -2645,6 +2939,8 @@
         // frontDist：距前线（中线）的行数，越靠近前线越好
         const frontDist = side === 'red' ? (pos.y - half) : (half - 1 - pos.y);
         score -= frontDist * 8; // 前线倾向权重更高，保证小兵压向前线
+        // 占领城池额外加分
+        if (isCastle(pos.x, pos.y)) score += 30;
         if (score > bestScore) {
           bestScore = score;
           bestPos = pos;
@@ -2691,10 +2987,9 @@
       }
       // 选一个尚未布置的武将（按列表顺序）
       const gDef = pending[0];
-      // 找己方半场的空位：高数值武将尽量靠前（靠近中线），低数值靠后
-      const half = Math.floor(SIZE / 2);
-      const yStart = side === 'red' ? half : 0;
-      const yEnd = side === 'red' ? SIZE : half;
+      // 找己方后三行的空位（武将部署分区）
+      const yStart = side === 'red' ? SIZE - 3 : 0;
+      const yEnd = side === 'red' ? SIZE : 3;
       const empty = [];
       for (let y = yStart; y < yEnd; y++) {
         for (let x = 1; x < SIZE - 1; x++) {
@@ -3161,6 +3456,22 @@
           if (terrain === 'm') score += 10;
           else if (terrain === 'f') score += 5;
 
+          // 城池争夺优先级：移动到未占领/敌方占领的城池大幅加分
+          if (isCastle(m.x, m.y)) {
+            const curOwner = this.castleOwner[m.x + ',' + m.y];
+            if (curOwner !== side) {
+              // 攻占敌方或中立城池：高优先级
+              score += 50;
+              // 攻占敌方半场城池（占领胜利路径）：额外加分
+              if (castleSide(m.x, m.y) !== side) score += 30;
+              // 四角城池（围攻胜利路径）：额外加分
+              if (CORNER_CASTLES.some(c => c.x === m.x && c.y === m.y)) score += 20;
+            } else {
+              // 已方占领的城池：据守加分（防御加成已隐含）
+              score += 8;
+            }
+          }
+
           let allyProtection = 0;
           for (const a of allies) {
             const allyDist = Math.abs(m.x - a.x) + Math.abs(m.y - a.y);
@@ -3311,6 +3622,8 @@
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       Effect.trigger('onMove', { actor, x, y });
       Effect._checkTraps(actor); // 陷阱触发
+      // 城池占领：移动到城池上时触发占领
+      if (actor.alive) this._captureCastle(actor);
       this.highlighted = [];
       this.mode = null;
       this._render();
@@ -3877,6 +4190,13 @@
       rTag.className = 'gcard-rarity-tag ' + rarityClass(m.rarity);
       rTag.textContent = rarityText(m.rarity);
       portraitWrap.appendChild(rTag);
+      // 类型标签（部署区域）
+      var tagTag = document.createElement('span');
+      tagTag.className = 'gcard-rarity-tag tag-' + (m.tag || 'infantry');
+      tagTag.textContent = (m.tag === 'scout' ? '侦察' : m.tag === 'siege' ? '攻城' : '步兵');
+      tagTag.style.right = '4px';
+      tagTag.style.left = 'auto';
+      portraitWrap.appendChild(tagTag);
       if (m.portrait) {
         var img = document.createElement('img');
         img.src = '/portraits/' + m.portrait;
@@ -3884,6 +4204,7 @@
         img.onerror = function() {
           portraitWrap.innerHTML = '';
           portraitWrap.appendChild(rTag);
+          portraitWrap.appendChild(tagTag);
           portraitWrap.innerHTML += '<span class="gcard-no-portrait">' + (m.name ? m.name.charAt(0) : '?') + '</span>';
         };
         portraitWrap.appendChild(img);
