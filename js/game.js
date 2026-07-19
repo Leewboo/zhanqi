@@ -1390,13 +1390,10 @@
     },
 
     _onKill(actor, target) {
-      if (!actor || !actor.skills) return;
-      for (const sk of actor.skills) {
-        if (sk.type === '被动' && sk.trigger === 'onKill' && sk.filter && sk.filter(actor)) {
-          this.log(actor.name + ' 触发被动【' + sk.name + '】！', 'turn');
-          try { sk.content(actor, { target, victim: target }); } catch (e) {}
-        }
-      }
+      if (!actor) return;
+      // 击杀者触发 onKill 被动技能（统一走 triggerPassive，保持 filter 逻辑一致）
+      this.log(actor.name + ' 击败了 ' + target.name + '！', 'turn');
+      Effect.triggerPassive(actor, 'onKill', { target, victim: target });
     },
 
     // ========== 特效系统 ==========
@@ -1794,7 +1791,8 @@
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
-      Effect.trigger('onMove', { actor, x, y });
+      Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: { x, y } });
+      Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: { x, y } });
       Effect._checkTraps(actor); // 陷阱触发
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
@@ -4204,13 +4202,16 @@
       // 使用 reachableCells 考虑地形消耗（河流消耗2步）
       const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
       if (!cells.find(c => c.x === x && c.y === y)) return false;
+      const fromX = actor.x;
+      const fromY = actor.y;
       actor.x = x;
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
-      Effect.trigger('onMove', { actor, x, y });
+      Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: { x, y } });
+      Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: { x, y } });
       Effect._checkTraps(actor); // 陷阱触发
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);

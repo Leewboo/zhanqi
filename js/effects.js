@@ -177,6 +177,14 @@
       for (const sk of actor.skills) {
         if (sk.type === '被动' && sk.trigger === eventName) {
           if (!sk.filter || sk.filter(actor)) {
+            // 播放被动技能音效（cast 音效 + 技能专属语音，不播放武将通用技能语音以免太吵）
+            if (sk.sound) {
+              const AM = global.AudioManager;
+              if (AM) {
+                if (sk.sound.cast) AM.play(_resolveSoundId(sk.sound.cast, sk));
+                if (sk.sound.voice) AM.play(_resolveSoundId(sk.sound.voice, sk));
+              }
+            }
             try { sk.content(actor, context || {}); } catch (e) { console.error(e); }
           }
         }
