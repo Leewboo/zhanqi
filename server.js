@@ -1455,26 +1455,66 @@ app.use(async (ctx, next) => {
         } catch (e) { console.warn('[project/export] 立绘读取失败:', g.portrait, e.message); }
       }
 
-      // 打包拓展 soundBank 引用的音频文件到 audio/ 目录
-      // soundBank 中 id 形如 sd_<extId>_<key>，对应 /workspace/audio/sd_<extId>_<key>.<ext>
+      // 打包拓展中所有引用的音频文件到 audio/ 目录
+      // 来源：1) soundBank 中声明的音频  2) 武将 voice 字段引用的音频  3) 技能 sound 字段引用的音频  4) 小兵 sound 字段引用的音频
       const audioFolder = zip.folder('audio');
       const soundBankList = Array.isArray(ext.soundBank) ? ext.soundBank : [];
       const packedSounds = [];
+      const allSoundIds = new Set();
+
+      // 从 soundBank 收集
       for (const s of soundBankList) {
-        if (!s || !s.id || packedSounds.includes(s.id)) continue;
-        // 在 audio/ 目录中查找以该 id 开头的所有扩展名变体
+        if (s && s.id) allSoundIds.add(s.id);
+      }
+
+      // 从武将 voice 收集
+      if (Array.isArray(ext.generals)) {
+        for (const g of ext.generals) {
+          if (g.voice && typeof g.voice === 'object') {
+            for (const k of ['select', 'move', 'attack', 'hurt', 'death', 'kill', 'skill', 'victory']) {
+              if (g.voice[k]) allSoundIds.add(g.voice[k]);
+            }
+          }
+        }
+      }
+
+      // 从技能 sound 收集
+      if (Array.isArray(ext.skills)) {
+        for (const s of ext.skills) {
+          if (s.sound && typeof s.sound === 'object') {
+            if (s.sound.cast) allSoundIds.add(s.sound.cast);
+            if (s.sound.hit) allSoundIds.add(s.sound.hit);
+            if (s.sound.voice) allSoundIds.add(s.sound.voice);
+          }
+        }
+      }
+
+      // 从小兵 sound 收集
+      if (Array.isArray(ext.minions)) {
+        for (const m of ext.minions) {
+          if (m.sound && typeof m.sound === 'object') {
+            if (m.sound.deploy) allSoundIds.add(m.sound.deploy);
+            if (m.sound.attack) allSoundIds.add(m.sound.attack);
+            if (m.sound.death) allSoundIds.add(m.sound.death);
+          }
+        }
+      }
+
+      // 打包所有收集到的音频文件
+      for (const soundId of allSoundIds) {
+        if (!soundId || packedSounds.includes(soundId)) continue;
         try {
           const files = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR) : [];
           for (const fname of files) {
-            if (!fname.startsWith(s.id + '.')) continue;
+            if (!fname.startsWith(soundId + '.')) continue;
             const fpath = path.join(AUDIO_DIR, fname);
             if (fs.existsSync(fpath)) {
               const buf = fs.readFileSync(fpath);
               audioFolder.file(fname, buf);
-              packedSounds.push(s.id);
+              packedSounds.push(soundId);
             }
           }
-        } catch (e) { console.warn('[project/export] 音频读取失败:', s.id, e.message); }
+        } catch (e) { console.warn('[project/export] 音频读取失败:', soundId, e.message); }
       }
 
       const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
