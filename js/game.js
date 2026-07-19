@@ -535,8 +535,11 @@
       this.minionPoints = { red: 2, blue: 2 };
       this.minionSelected = null;
 
-      // 初始化城池占领状态：根据棋子初始站位判定
+      // 初始化城池占领状态：己方半场城池默认归属己方，再根据棋子站位刷新
       this.castleOwner = {};
+      for (const c of CASTLE_CELLS) {
+        this.castleOwner[c.x + ',' + c.y] = castleSide(c.x, c.y);
+      }
       this._refreshCastleOwnership();
 
       // 双方各抽初始手牌
