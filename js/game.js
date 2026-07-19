@@ -831,24 +831,29 @@
       for (const card of hand) {
         const isSelected = this.minionSelected && this.minionSelected.instanceId === card.instanceId;
         const canAfford = card.cost <= points;
-        const cardEl = document.createElement('div');
-        cardEl.className = 'minion-card ' + card.rarity + (isSelected ? ' selected' : '') + (canAfford ? '' : ' disabled');
-        if (canClick && canAfford) {
-          cardEl.style.cursor = 'pointer';
-          cardEl.addEventListener('click', () => self._selectMinionCard(card.instanceId));
-        }
-        const tagText = card.tag === 'scout' ? '侦察' : card.tag === 'siege' ? '攻城' : '步兵';
-        const rarityText = card.rarity === 'rare' ? '稀有' : card.rarity === 'epic' ? '史诗' : '普通';
-        cardEl.innerHTML =
-          '<div class="minion-card-name">' + card.name + '</div>' +
-          '<div class="minion-card-stats">' +
-            '<span>H:' + card.hp + '</span>' +
-            '<span>A:' + card.atk + '</span>' +
-            '<span>D:' + card.def + '</span>' +
-          '</div>' +
-          '<div class="minion-card-meta"><span class="m-rarity">' + rarityText + '</span><span class="m-tag">' + tagText + '</span></div>' +
-          '<div class="minion-card-cost">消耗: ' + card.cost + '</div>' +
-          '<div class="minion-card-desc">' + (card.description || '') + '</div>';
+        // 解析技能
+        const mSkills = (card.skills || (card.skill ? [card.skill] : [])).map(function(s) {
+          if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
+          return s;
+        }).filter(Boolean);
+        const cardEl = this._buildCompactCard({
+          name: card.name,
+          hp: card.hp,
+          atk: card.atk,
+          def: card.def,
+          moveRange: card.moveRange,
+          attackRange: card.attackRange,
+          skills: mSkills,
+          portrait: card.portrait,
+          rarity: card.rarity || 'common',
+          tag: card.tag || 'infantry',
+          cost: card.cost != null ? card.cost : 1,
+          side: side
+        }, {
+          selected: isSelected,
+          disabled: !canAfford,
+          onClick: (canClick && canAfford) ? () => self._selectMinionCard(card.instanceId) : null
+        });
         cardsEl.appendChild(cardEl);
       }
     },
@@ -2618,6 +2623,152 @@
       }
     },
 
+    // 紧凑卡通用形状文本（与图鉴一致）
+    _gcShapeText(shape) {
+      if (shape === '+') return '十';
+      if (shape === 'x') return '斜';
+      if (shape === 'r') return '圆';
+      if (shape === 'square') return '方';
+      return shape || '+';
+    },
+
+    // 构建紧凑卡 DOM 元素（武将/小兵通用）
+    // data: { name, hp, atk, def, moveRange, attackRange, skills, portrait,
+    //        rarity?, tag?, cost?, side?, description? }
+    // opts: { onClick, onSkillToggle, selected, disabled, extraClass }
+    _buildCompactCard(data, opts) {
+      opts = opts || {};
+      const card = document.createElement('div');
+      let cls = 'gcard-compact';
+      if (data.side) cls += ' ' + data.side;
+      if (opts.selected) cls += ' selected';
+      if (opts.disabled) cls += ' disabled';
+      if (opts.extraClass) cls += ' ' + opts.extraClass;
+      card.className = cls;
+
+      // 立绘
+      if (data.portrait) {
+        const img = document.createElement('img');
+        img.className = 'gc-portrait';
+        img.src = '/portraits/' + data.portrait;
+        img.alt = data.name || '';
+        img.onerror = function () {
+          img.remove();
+          const ph = document.createElement('div');
+          ph.className = 'gc-no-portrait';
+          ph.textContent = (data.name || '?').charAt(0);
+          card.appendChild(ph);
+        };
+        card.appendChild(img);
+      } else {
+        const ph = document.createElement('div');
+        ph.className = 'gc-no-portrait';
+        ph.textContent = (data.name || '?').charAt(0);
+        card.appendChild(ph);
+      }
+
+      // 小兵专属徽章：品质点 + tag + 消耗
+      if (data.rarity) {
+        const dot = document.createElement('span');
+        dot.className = 'gc-badge gc-rarity-dot ' + (data.rarity || 'common');
+        card.appendChild(dot);
+      }
+      if (data.tag) {
+        const tagEl = document.createElement('span');
+        const tagText = data.tag === 'scout' ? '侦' : data.tag === 'siege' ? '城' : '步';
+        tagEl.className = 'gc-badge gc-tag tag-' + data.tag;
+        tagEl.textContent = tagText;
+        card.appendChild(tagEl);
+      }
+      if (data.cost != null) {
+        const costEl = document.createElement('span');
+        costEl.className = 'gc-badge gc-cost';
+        costEl.textContent = '费' + data.cost;
+        card.appendChild(costEl);
+      }
+
+      // 移动范围
+      const moveShape = (data.moveRange && data.moveRange.shape) || '+';
+      const moveN = (data.moveRange && data.moveRange.n) || 0;
+      const moveEl = document.createElement('span');
+      moveEl.className = 'gc-badge gc-move';
+      moveEl.textContent = '移' + moveN + this._gcShapeText(moveShape);
+      card.appendChild(moveEl);
+
+      // HP / ATK / DEF 圆形徽章
+      const hpEl = document.createElement('span');
+      hpEl.className = 'gc-badge gc-hp';
+      hpEl.textContent = data.hp != null ? data.hp : 0;
+      card.appendChild(hpEl);
+
+      const atkEl = document.createElement('span');
+      atkEl.className = 'gc-badge gc-atk';
+      atkEl.textContent = data.atk != null ? data.atk : 0;
+      card.appendChild(atkEl);
+
+      const defEl = document.createElement('span');
+      defEl.className = 'gc-badge gc-def';
+      defEl.textContent = data.def != null ? data.def : 0;
+      card.appendChild(defEl);
+
+      // 技能数（点击切换悬浮层）
+      const skills = data.skills || [];
+      const skillCountEl = document.createElement('span');
+      skillCountEl.className = 'gc-badge gc-skill-count' + (skills.length === 0 ? ' zero' : '');
+      skillCountEl.textContent = skills.length > 0 ? '技' + skills.length : '无技';
+      if (skills.length > 0) {
+        skillCountEl.addEventListener('click', function (e) {
+          e.stopPropagation();
+          card.classList.toggle('skill-open');
+          if (opts.onSkillToggle) opts.onSkillToggle(card.classList.contains('skill-open'));
+        });
+      }
+      card.appendChild(skillCountEl);
+
+      // 技能悬浮层
+      if (skills.length > 0) {
+        const pop = document.createElement('div');
+        pop.className = 'gc-skill-popover';
+        let popHtml = '';
+        skills.forEach(function (s) {
+          const isPassive = s.type === '被动';
+          const tagClass = isPassive ? 'passive' : 'active';
+          const tagName = isPassive ? '被动' : '主动';
+          const cdText = (!isPassive && s.cooldown) ? 'CD' + s.cooldown : '';
+          popHtml +=
+            '<div class="gc-pop-item">' +
+              '<span class="gc-pop-tag ' + tagClass + '">' + tagName + '</span>' +
+              '<span class="gc-pop-name">' + (s.name || s.id || '未命名') + '</span>' +
+              (cdText ? '<span class="gc-pop-cd">' + cdText + '</span>' : '') +
+              '<div class="gc-pop-desc">' + (s.desc || '暂无描述') + '</div>' +
+            '</div>';
+        });
+        pop.innerHTML = popHtml;
+        card.appendChild(pop);
+      }
+
+      // 底部名字条
+      const nameBar = document.createElement('div');
+      nameBar.className = 'gc-name-bar';
+      nameBar.textContent = data.name || '';
+      card.appendChild(nameBar);
+
+      // 点击事件
+      if (opts.onClick) {
+        card.addEventListener('click', function (e) {
+          // 点击技能数徽章时不触发卡片主点击
+          if (e.target.classList.contains('gc-skill-count')) return;
+          opts.onClick(e);
+        });
+      }
+      // 卡片外部点击时关闭悬浮层
+      card.addEventListener('mouseleave', function () {
+        card.classList.remove('skill-open');
+      });
+
+      return card;
+    },
+
     _renderDraftCards() {
       const panel = document.getElementById('draft-panel');
       const cards = document.getElementById('draft-cards');
@@ -2632,43 +2783,26 @@
         return shape;
       };
 
-      const buildDraftCard = function (g, onClick) {
-        const card = document.createElement('div');
-        card.className = 'draft-card';
-        const showPortrait = GameSettings.showPortraitInDraft !== false;
-        const portraitUrl = g.portrait ? '/portraits/' + g.portrait : null;
-
-        if (showPortrait && portraitUrl) {
-          const imgWrap = document.createElement('div');
-          imgWrap.className = 'draft-card-portrait';
-          const img = document.createElement('img');
-          img.src = portraitUrl;
-          img.alt = g.name;
-          img.onerror = function () { imgWrap.style.display = 'none'; };
-          imgWrap.appendChild(img);
-          card.appendChild(imgWrap);
-        }
-
-        const head = document.createElement('div');
-        head.className = 'draft-card-head';
-        head.textContent = g.name;
-        card.appendChild(head);
-
-        const body = document.createElement('div');
-        body.className = 'draft-card-body';
+      const buildDraftCard = (g, onClick) => {
+        // 解析技能
         const gSkills = (g.skills || (g.skill ? [g.skill] : [])).map(function(s) {
           if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
           return s;
         }).filter(Boolean);
-        body.innerHTML = '生命 ' + g.hp + ' · 攻 ' + g.atk + ' · 防 ' + g.def +
-          '<br/>移动：' + shapeText(g.moveRange.shape) + ' ' + g.moveRange.n + ' · 攻击：' + shapeText(g.attackRange.shape) + ' ' + g.attackRange.n +
-          (gSkills.length ? '<br/>技能：' + gSkills.map(s => s.name).join('、') : '');
-        card.appendChild(body);
-
-        if (onClick) {
-          card.addEventListener('click', onClick);
-        }
-        return card;
+        // 选将时根据 draftIndex 决定阵营色
+        const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
+        const showPortrait = GameSettings.showPortraitInDraft !== false;
+        return this._buildCompactCard({
+          name: g.name,
+          hp: g.hp,
+          atk: g.atk,
+          def: g.def,
+          moveRange: g.moveRange,
+          attackRange: g.attackRange,
+          skills: gSkills,
+          portrait: showPortrait ? g.portrait : null,
+          side: side
+        }, { onClick: onClick || null });
       };
 
       // 顶部：双方已选清单
@@ -2731,8 +2865,6 @@
           const card = buildDraftCard(g, canDeployClick ? () => self._selectForDeploy(g) : null);
           if (this.deploySelected && this.deploySelected.id === g.id) {
             card.classList.add('selected');
-            const headEl = card.querySelector('.draft-card-head');
-            if (headEl) headEl.textContent = g.name + ' ★';
           }
           cards.appendChild(card);
         }
@@ -4142,107 +4274,22 @@
     }
 
     function buildGalleryCardMinion(m) {
-      var card = document.createElement('div');
-      card.className = 'gcard gcard-minion';
-
-      // 立绘 + 稀有度标签
-      var portraitWrap = document.createElement('div');
-      portraitWrap.className = 'gcard-portrait';
-      var rTag = document.createElement('span');
-      rTag.className = 'gcard-rarity-tag ' + rarityClass(m.rarity);
-      rTag.textContent = rarityText(m.rarity);
-      portraitWrap.appendChild(rTag);
-      // 类型标签（部署区域）
-      var tagTag = document.createElement('span');
-      tagTag.className = 'gcard-rarity-tag tag-' + (m.tag || 'infantry');
-      tagTag.textContent = (m.tag === 'scout' ? '侦察' : m.tag === 'siege' ? '攻城' : '步兵');
-      tagTag.style.right = '4px';
-      tagTag.style.left = 'auto';
-      portraitWrap.appendChild(tagTag);
-      if (m.portrait) {
-        var img = document.createElement('img');
-        img.src = '/portraits/' + m.portrait;
-        img.alt = m.name;
-        img.onerror = function() {
-          portraitWrap.innerHTML = '';
-          portraitWrap.appendChild(rTag);
-          portraitWrap.appendChild(tagTag);
-          portraitWrap.innerHTML += '<span class="gcard-no-portrait">' + (m.name ? m.name.charAt(0) : '?') + '</span>';
-        };
-        portraitWrap.appendChild(img);
-      } else {
-        portraitWrap.innerHTML += '<span class="gcard-no-portrait">' + (m.name ? m.name.charAt(0) : '?') + '</span>';
-      }
-      card.appendChild(portraitWrap);
-
-      // 名字条
-      var nameBar = document.createElement('div');
-      nameBar.className = 'gcard-name-bar';
-      nameBar.innerHTML = '<span class="gcard-name">' + m.name + '</span>' +
-        '<span class="gcard-cost">消耗 ' + (m.cost != null ? m.cost : 1) + '</span>';
-      card.appendChild(nameBar);
-
-      // 属性
-      var stats = document.createElement('div');
-      stats.className = 'gcard-stats';
-      stats.innerHTML =
-        '<div class="gcard-stat hp"><div class="gcard-stat-val">' + m.hp + '</div><div class="gcard-stat-label">生命</div></div>' +
-        '<div class="gcard-stat atk"><div class="gcard-stat-val">' + m.atk + '</div><div class="gcard-stat-label">攻击</div></div>' +
-        '<div class="gcard-stat def"><div class="gcard-stat-val">' + m.def + '</div><div class="gcard-stat-label">防御</div></div>';
-      card.appendChild(stats);
-
-      // 移动/攻击范围
-      var rangeDiv = document.createElement('div');
-      rangeDiv.className = 'gcard-range';
-      var moveShape = (m.moveRange && m.moveRange.shape) || '+';
-      var moveN = (m.moveRange && m.moveRange.n) || 0;
-      var atkShape = (m.attackRange && m.attackRange.shape) || '+';
-      var atkN = (m.attackRange && m.attackRange.n) || 0;
-      rangeDiv.innerHTML =
-        '<span class="gcard-range-item">移动 ' + shapeText(moveShape) + moveN + '</span>' +
-        '<span class="gcard-range-item">攻击 ' + shapeText(atkShape) + atkN + '</span>';
-      card.appendChild(rangeDiv);
-
-      // 描述
-      if (m.description) {
-        var descDiv = document.createElement('div');
-        descDiv.className = 'gcard-minion-desc';
-        descDiv.textContent = m.description;
-        card.appendChild(descDiv);
-      }
-
-      // 技能列表
-      var skillsDiv = document.createElement('div');
-      skillsDiv.className = 'gcard-skills';
       var skills = resolveMinionSkills(m);
-      if (skills.length === 0) {
-        skillsDiv.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0;">无技能</div>';
-      } else {
-        skills.forEach(function(s) {
-          var skillDiv = document.createElement('div');
-          skillDiv.className = 'gcard-skill';
-          var isPassive = s.type === '被动';
-          var tagClass = isPassive ? 'passive' : 'active';
-          var tagName = isPassive ? '被动' : '主动';
-          var cdText = (!isPassive && s.cooldown) ? 'CD ' + s.cooldown : '';
-          skillDiv.innerHTML =
-            '<div class="gcard-skill-head">' +
-              '<span class="gcard-skill-tag ' + tagClass + '">' + tagName + '</span>' +
-              '<span class="gcard-skill-name">' + (s.name || s.id || '未命名') + '</span>' +
-              (cdText ? '<span class="gcard-skill-cd">' + cdText + '</span>' : '') +
-            '</div>' +
-            '<div class="gcard-skill-desc">' + (s.desc || '暂无描述') + '</div>';
-          skillsDiv.appendChild(skillDiv);
-        });
-      }
-      card.appendChild(skillsDiv);
-
-      // 点击打开详情
-      card.addEventListener('click', function() {
-        openGalleryDetailMinion(m);
+      return Game._buildCompactCard({
+        name: m.name,
+        hp: m.hp,
+        atk: m.atk,
+        def: m.def,
+        moveRange: m.moveRange,
+        attackRange: m.attackRange,
+        skills: skills,
+        portrait: m.portrait,
+        rarity: m.rarity || 'common',
+        tag: m.tag || 'infantry',
+        cost: m.cost != null ? m.cost : 1
+      }, {
+        onClick: function() { openGalleryDetailMinion(m); }
       });
-
-      return card;
     }
 
     function openGalleryDetailMinion(m) {
@@ -4321,85 +4368,19 @@
     }
 
     function buildGalleryCard(g) {
-      var card = document.createElement('div');
-      card.className = 'gcard';
-
-      // 立绘
-      var portraitWrap = document.createElement('div');
-      portraitWrap.className = 'gcard-portrait';
-      if (g.portrait) {
-        var img = document.createElement('img');
-        img.src = '/portraits/' + g.portrait;
-        img.alt = g.name;
-        img.onerror = function() {
-          portraitWrap.innerHTML = '<span class="gcard-no-portrait">' + g.name.charAt(0) + '</span>';
-        };
-        portraitWrap.appendChild(img);
-      } else {
-        portraitWrap.innerHTML = '<span class="gcard-no-portrait">' + (g.name ? g.name.charAt(0) : '?') + '</span>';
-      }
-      card.appendChild(portraitWrap);
-
-      // 名字条
-      var nameBar = document.createElement('div');
-      nameBar.className = 'gcard-name-bar';
-      nameBar.innerHTML = '<span class="gcard-name">' + g.name + '</span>' +
-        '<span class="gcard-id">' + g.id + '</span>';
-      card.appendChild(nameBar);
-
-      // 属性
-      var stats = document.createElement('div');
-      stats.className = 'gcard-stats';
-      stats.innerHTML =
-        '<div class="gcard-stat hp"><div class="gcard-stat-val">' + g.hp + '</div><div class="gcard-stat-label">生命</div></div>' +
-        '<div class="gcard-stat atk"><div class="gcard-stat-val">' + g.atk + '</div><div class="gcard-stat-label">攻击</div></div>' +
-        '<div class="gcard-stat def"><div class="gcard-stat-val">' + g.def + '</div><div class="gcard-stat-label">防御</div></div>';
-      card.appendChild(stats);
-
-      // 移动/攻击范围
-      var rangeDiv = document.createElement('div');
-      rangeDiv.className = 'gcard-range';
-      var moveShape = (g.moveRange && g.moveRange.shape) || '+';
-      var moveN = (g.moveRange && g.moveRange.n) || 0;
-      var atkShape = (g.attackRange && g.attackRange.shape) || '+';
-      var atkN = (g.attackRange && g.attackRange.n) || 0;
-      rangeDiv.innerHTML =
-        '<span class="gcard-range-item">移动 ' + shapeText(moveShape) + moveN + '</span>' +
-        '<span class="gcard-range-item">攻击 ' + shapeText(atkShape) + atkN + '</span>';
-      card.appendChild(rangeDiv);
-
-      // 技能列表
-      var skillsDiv = document.createElement('div');
-      skillsDiv.className = 'gcard-skills';
       var skills = resolveGeneralSkills(g);
-      if (skills.length === 0) {
-        skillsDiv.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0;">无技能</div>';
-      } else {
-        skills.forEach(function(s) {
-          var skillDiv = document.createElement('div');
-          skillDiv.className = 'gcard-skill';
-          var isPassive = s.type === '被动';
-          var tagClass = isPassive ? 'passive' : 'active';
-          var tagName = isPassive ? '被动' : '主动';
-          var cdText = (!isPassive && s.cooldown) ? 'CD ' + s.cooldown : '';
-          skillDiv.innerHTML =
-            '<div class="gcard-skill-head">' +
-              '<span class="gcard-skill-tag ' + tagClass + '">' + tagName + '</span>' +
-              '<span class="gcard-skill-name">' + (s.name || s.id || '未命名') + '</span>' +
-              (cdText ? '<span class="gcard-skill-cd">' + cdText + '</span>' : '') +
-            '</div>' +
-            '<div class="gcard-skill-desc">' + (s.desc || '暂无描述') + '</div>';
-          skillsDiv.appendChild(skillDiv);
-        });
-      }
-      card.appendChild(skillsDiv);
-
-      // 点击打开详情
-      card.addEventListener('click', function() {
-        openGalleryDetail(g);
+      return Game._buildCompactCard({
+        name: g.name,
+        hp: g.hp,
+        atk: g.atk,
+        def: g.def,
+        moveRange: g.moveRange,
+        attackRange: g.attackRange,
+        skills: skills,
+        portrait: g.portrait
+      }, {
+        onClick: function() { openGalleryDetail(g); }
       });
-
-      return card;
     }
 
     function openGalleryDetail(g) {

@@ -2322,6 +2322,296 @@ html, body {
   word-break: break-all;
 }
 
+/* ============================================================
+   紧凑卡（武将/小兵通用）—— 所有属性叠加在立绘上
+   ============================================================ */
+.gcard-compact {
+  position: relative;
+  width: 110px;
+  height: 140px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid var(--line);
+  background: linear-gradient(180deg, #e8e0d0 0%, #d4cbb8 100%);
+  flex-shrink: 0;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+.gcard-compact.red  { border-color: var(--red); }
+.gcard-compact.blue { border-color: var(--blue); }
+.gcard-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+.gcard-compact.selected {
+  border-color: #d4a84b;
+  box-shadow: 0 0 0 2px #ffd966, 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.gcard-compact.disabled {
+  opacity: 0.45;
+  filter: saturate(0.4);
+  cursor: not-allowed;
+}
+.gcard-compact.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 立绘铺满整张卡 */
+.gcard-compact .gc-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  z-index: 0;
+}
+
+/* 无立绘时的占位字 */
+.gcard-compact .gc-no-portrait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-title);
+  font-size: 40px;
+  color: rgba(0, 0, 0, 0.18);
+  letter-spacing: 2px;
+  z-index: 0;
+}
+
+/* 渐变遮罩：让角标可读 */
+.gcard-compact::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0) 28%,
+    rgba(0, 0, 0, 0) 55%,
+    rgba(0, 0, 0, 0.7) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 通用徽章 */
+.gc-badge {
+  position: absolute;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border-radius: 8px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+/* 左上：品质点（小兵） */
+.gc-rarity-dot {
+  top: 4px;
+  left: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.gc-rarity-dot.common { background: #7f8c8d; }
+.gc-rarity-dot.rare   { background: #2980b9; }
+.gc-rarity-dot.epic   { background: #8e44ad; }
+
+/* 左上：tag 标签（小兵，品质点右侧） */
+.gc-tag {
+  top: 3px;
+  left: 18px;
+  padding: 1px 5px;
+  color: #fff;
+  border-radius: 3px;
+}
+.gc-tag.tag-infantry { background: #16a085; }
+.gc-tag.tag-scout    { background: #d35400; }
+.gc-tag.tag-siege    { background: #c0392b; }
+
+/* 左上：移动范围（品质点/tag 下方） */
+.gc-move {
+  top: 20px;
+  left: 4px;
+  font-size: 9px;
+  padding: 1px 4px;
+}
+
+/* 右上：HP 圆形徽章 */
+.gc-hp {
+  top: 3px;
+  right: 3px;
+  background: #c0392b;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* 右下：ATK 圆形徽章 */
+.gc-atk {
+  bottom: 22px;
+  right: 3px;
+  background: #e67e22;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* 右下：DEF 圆形徽章 */
+.gc-def {
+  bottom: 3px;
+  right: 3px;
+  background: #2980b9;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* 右上：消耗徽章（小兵，HP 左侧） */
+.gc-cost {
+  top: 4px;
+  right: 28px;
+  background: #8b6f3a;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* 左下：技能数（点击展开悬浮层） */
+.gc-skill-count {
+  bottom: 3px;
+  left: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.gc-skill-count:hover { background: #8e44ad; }
+.gc-skill-count.zero { opacity: 0.5; }
+
+/* 底部名字条 */
+.gc-name-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 4px 3px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.75));
+  color: #fff;
+  font-family: var(--font-piece);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 1px;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+/* 技能悬浮展开层 */
+.gc-skill-popover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  background: rgba(20, 20, 20, 0.96);
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 10px;
+  line-height: 1.45;
+  border-radius: 6px 6px 0 0;
+  z-index: 10;
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  pointer-events: none;
+}
+.gcard-compact.skill-open .gc-skill-popover {
+  display: block;
+  pointer-events: auto;
+}
+.gc-skill-popover .gc-pop-item {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.gc-skill-popover .gc-pop-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.gc-skill-popover .gc-pop-tag {
+  display: inline-block;
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.gc-skill-popover .gc-pop-tag.active  { background: #c0392b; }
+.gc-skill-popover .gc-pop-tag.passive { background: #2980b9; }
+.gc-skill-popover .gc-pop-name {
+  font-weight: 700;
+  font-size: 11px;
+}
+.gc-skill-popover .gc-pop-cd {
+  font-size: 9px;
+  color: #ffd966;
+  margin-left: 4px;
+}
+.gc-skill-popover .gc-pop-desc {
+  color: #bbb;
+  font-size: 9px;
+  margin-top: 1px;
+  word-break: break-all;
+}
+.gc-skill-popover .gc-pop-empty {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 6px 0;
+}
+
+/* 已行动/已选状态覆盖 */
+.gcard-compact.acted {
+  opacity: 0.55;
+  filter: saturate(0.4);
+}
+
 /* 详情弹窗 */
 .gallery-detail-modal {
   position: fixed;
