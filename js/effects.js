@@ -400,9 +400,10 @@
       let threat = (atk * 2 + def) * (2 - hpFactor);
       if (piece.skills) {
         for (const sk of piece.skills) {
-          if (sk.type !== '被动' && sk.aiHint) {
-            threat += (sk.aiHint.power || 30) * 0.5;
-          }
+          if (sk.type === '被动') continue;
+          // 通过 SkillAnalyzer 推断技能威力（自动分析或回退到 aiHint）
+          const hint = (global.SkillAnalyzer && global.SkillAnalyzer.analyze(sk)) || sk.aiHint;
+          if (hint) threat += (hint.power || 30) * 0.5;
         }
       }
       return threat;

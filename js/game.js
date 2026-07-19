@@ -3207,7 +3207,8 @@
             if ((p.cdMap[sk.id] || 0) > 0) continue;
             if (sk.limited && this._limitedUsed && this._limitedUsed[sk.id]) continue;
             if (sk.filter && !sk.filter(p)) continue;
-            score += (sk.aiHint && sk.aiHint.power || 20) * 0.2;
+            const hint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(sk) : sk.aiHint;
+            score += ((hint && hint.power) || 20) * 0.2;
           }
         }
 
@@ -3271,9 +3272,10 @@
 
       // ---- 计划 A：原地技能 + 攻击（增益后攻击）----
       if (directSkill && canAttack && directAtk) {
-        const buffAtk = (directSkill.skill.aiHint && directSkill.skill.aiHint.types &&
-                         (directSkill.skill.aiHint.types.includes('buff_atk') || directSkill.skill.aiHint.types.includes('damage')))
-                       ? (directSkill.skill.aiHint.power || 30) : 0;
+        const skHint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(directSkill.skill) : directSkill.skill.aiHint;
+        const skTypes = skHint ? (skHint.types || [skHint.type]) : [];
+        const buffAtk = (skHint && (skTypes.includes('buff_atk') || skTypes.includes('buff') || skTypes.includes('damage')))
+                       ? (skHint.power || 30) : 0;
         let planScore = directSkillScore + directAtkScore;
         if (buffAtk > 0) {
           // 增益后能多造成的伤害
@@ -3519,7 +3521,8 @@
 
     // 执行单步技能（包装 _aiExecuteSkill 的异步流程，done 回调统一收尾）
     _aiExecuteSkillStep(actor, skill, done) {
-      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: skill.aiHint };
+      const aiHint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(skill) : skill.aiHint;
+      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: aiHint };
       const before = !!actor.skilled;
       const self = this;
       const promise = skill.content(actor);
@@ -3605,13 +3608,11 @@
       return best;
     },
 
-    // 评估技能得分
+    // 评估技能得分（使用 SkillAnalyzer 自动推断的语义）
     _aiScoreSkill(actor, skill) {
-      const hint = skill.aiHint;
-      if (!hint) {
-        // 无 aiHint 的技能给保守低分（AI 会优先用有 hint 的技能和攻击）
-        return 8;
-      }
+      // 通过 SkillAnalyzer 获取语义（自动分析 content 源码，或回退到 aiHint）
+      const hint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(skill) : skill.aiHint;
+      if (!hint) return 8;
       const power = hint.power || 30;
       const priority = hint.priority || 5;
       const side = actor.side;
@@ -3648,15 +3649,15 @@
       // ===== 2. 基础得分 =====
       let score = power * (0.5 + priority / 10);
 
-      // ===== 2.5 多类型技能评估（支持 types 数组）=====
-      const types = hint.types || [hint.type];
+      // ===== 2.5 多类型技能评估（支持 types 数组或单 type）=====
+      // SkillAnalyzer 输出单 type；aiHint 可能是 types 数组。统一为数组处理。
+      const rawTypes = hint.types || [hint.type];
       const hpRatio = actor.hp / (actor.maxHp || 200);
-      const hpMissing = (actor.maxHp || 200) - actor.hp;
       let hasHealType = false, hasBuffAtkType = false, hasBuffDefType = false, hasDamageType = false;
-      for (const t of types) {
+      for (const t of rawTypes) {
         if (t === 'heal') hasHealType = true;
-        else if (t === 'buff_atk') hasBuffAtkType = true;
-        else if (t === 'buff_def' || t === 'buff') hasBuffDefType = true;
+        else if (t === 'buff_atk' || t === 'buff') hasBuffAtkType = true;  // buff 视为 buff_atk（增益后攻击）
+        else if (t === 'buff_def') hasBuffDefType = true;
         else if (t === 'damage') hasDamageType = true;
       }
 
@@ -3676,15 +3677,12 @@
       if (hasBuffAtkType && !actor.attacked) {
         const atkTarget = this._aiBestAttackTarget(actor);
         if (atkTarget) {
-          // 增益后攻击能多造成的伤害值
           const buffAmount = hint.power || 30;
           const currentAtk = Effect.getEffectiveAttack(actor);
           const buffedAtk = currentAtk + buffAmount;
-          // 增益前无法击杀、增益后能击杀 → 大幅加分
           if (atkTarget.hp > currentAtk && atkTarget.hp <= buffedAtk) {
             score += Effect._aiThreat(atkTarget) * 1.5 + 60;
           } else {
-            // 增益后多造成的伤害价值
             score += buffAmount * 0.8 + 25;
           }
         }
@@ -4017,7 +4015,8 @@
     // 内部的 await Effect.chooseCell/chooseEnemy/chooseAlly/chooseOption
     // 会自动走 AI 分支，立即返回 AI 选择的结果（不阻塞）。
     _aiExecuteSkill(actor, skill) {
-      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: skill.aiHint };
+      const aiHint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(skill) : skill.aiHint;
+      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: aiHint };
       const before = !!actor.skilled;
       const self = this;
       const promise = skill.content(actor);
