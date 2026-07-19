@@ -3124,36 +3124,439 @@
       const side = this.currentSide;
 
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
-      const cand = myAlive.find(p => !(p.moved && p.attacked && p.skilled));
-      if (!cand) {
+      const cand = myAlive.filter(p => !(p.moved && p.attacked && p.skilled));
+      if (!cand.length) {
         // 所有人都已行动，解锁后调用 endTurn() 切换回合
         this._turnEnding = false;
         this._aiActing = false;
         this.endTurn();
         return;
       }
-      const actor = cand;
-      // 选出最佳行动（技能 > 攻击 > 移动）
-      const action = this._aiPickBestAction(actor);
-      if (!action) {
-        // 没有可行行动，标记完成
+
+      // 1) 选最优行动者（按"潜在行动价值"挑最值得行动的棋子，而不是第一个未行动的）
+      const actor = this._aiPickActor(cand);
+      if (!actor) {
+        cand.forEach(p => { p.moved = true; p.attacked = true; p.skilled = true; });
+        this._render(); this._renderBottom();
+        this._scheduleNext();
+        return;
+      }
+
+      // 2) 为该棋子规划完整行动序列（多步骤组合）
+      const plan = this._aiPlanActorAction(actor);
+      if (!plan || !plan.steps.length) {
+        // 无可执行行动，标记完成
         actor.moved = true; actor.attacked = true; actor.skilled = true;
         this._render(); this._renderBottom();
         this._scheduleNext();
         return;
       }
-      if (action.type === 'skill') {
-        this._aiExecuteSkill(actor, action.skill);
-      } else if (action.type === 'attack') {
-        this._executeAttack(actor, action.target);
-        this._scheduleNext();
-      } else if (action.type === 'move') {
-        this._aiExecuteMoveAndAttack(actor, action.dest);
-      } else {
-        actor.moved = true; actor.attacked = true; actor.skilled = true;
-        this._render(); this._renderBottom();
-        this._scheduleNext();
+
+      // 3) 执行规划
+      this._aiExecutePlannedAction(actor, plan);
+    },
+
+    // ========== 棋子优先级选择：选出最值得行动的棋子 ==========
+    // 战术优先级：能击杀 > 受到致命威胁 > 高威胁单位 > 城池争夺者 > 普通
+    _aiPickActor(candidates) {
+      if (!candidates || !candidates.length) return null;
+      if (candidates.length === 1) return candidates[0];
+
+      const side = candidates[0].side;
+      let best = null, bestScore = -Infinity;
+
+      for (const p of candidates) {
+        let score = 0;
+        const atk = Effect.getEffectiveAttack(p);
+        const atkRange = Effect.getEffectiveAttackRange(p);
+
+        // (a) 当前能直接攻击到敌人且能击杀 → 极高优先级
+        if (!p.attacked) {
+          const atkCells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, p.x, p.y, {
+            pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
+          });
+          for (const c of atkCells) {
+            const e = this.pieceAt(c.x, c.y);
+            if (e && e.alive && e.side !== side && !Effect.isUntargetable(e)) {
+              if (e.hp <= atk) {
+                score += Effect._aiThreat(e) * 1.5 + 100;  // 必杀优先
+              } else {
+                score += Effect._aiThreat(e) * 0.4;
+              }
+            }
+          }
+        }
+
+        // (b) 即将受到致命威胁 → 必须立刻行动（反击/逃离/治疗）
+        const posThreat = Effect._aiPositionThreat(p);
+        const willDie = posThreat > p.hp * 1.2;
+        if (willDie) {
+          score += 60;
+          // 如果当前能反击杀手 → 强烈优先
+          if (!p.attacked) score += 30;
+        }
+
+        // (c) 自身威胁度（高威胁武将优先动）
+        score += Effect._aiThreat(p) * 0.15;
+
+        // (d) 已就绪的强力技能可用 → 加分
+        if (!p.skilled && p.skills) {
+          p.cdMap = p.cdMap || {};
+          for (const sk of p.skills) {
+            if (sk.type === '被动') continue;
+            if ((p.cdMap[sk.id] || 0) > 0) continue;
+            if (sk.limited && this._limitedUsed && this._limitedUsed[sk.id]) continue;
+            if (sk.filter && !sk.filter(p)) continue;
+            score += (sk.aiHint && sk.aiHint.power || 20) * 0.2;
+          }
+        }
+
+        // (e) 城池争夺者：靠近未占领/敌方城池时优先
+        for (const c of CASTLE_CELLS) {
+          const owner = this.castleOwner[c.x + ',' + c.y];
+          if (owner !== side) {
+            const dist = Math.abs(p.x - c.x) + Math.abs(p.y - c.y);
+            const reachableNow = !p.moved && dist <= Effect.getEffectiveMoveRange(p).n;
+            if (reachableNow) {
+              score += 25;
+              if (castleSide(c.x, c.y) !== side) score += 15;  // 敌方半场城池
+            } else if (dist <= 4) {
+              score += 8;
+            }
+          }
+        }
+
+        // (f) 阵营平衡：低血量时优先逃离或治疗
+        const hpRatio = p.hp / (p.maxHp || 200);
+        if (hpRatio < 0.3) score += 15;
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
       }
+      return best || candidates[0];
+    },
+
+    // ========== 行动规划：为单个棋子规划完整行动序列 ==========
+    // 返回 { steps: [{type, ...}], score }
+    // 行动序列类型：
+    //   skill_then_attack:  先技能后攻击（增益/控制 → 攻击）
+    //   move_then_attack:   先移动后攻击
+    //   move_skill_attack:  移动 → 技能 → 攻击（最强组合）
+    //   skill_only:         只用技能
+    //   attack_only:        只攻击
+    //   move_only:          只移动
+    _aiPlanActorAction(actor) {
+      const side = actor.side;
+      const canMove = !actor.moved;
+      const canAttack = !actor.attacked;
+      const canSkill = !actor.skilled && actor.skills;
+
+      // 当前位置直接可用的最佳技能 + 最佳攻击目标
+      const directSkill = canSkill ? this._aiBestSkillNow(actor) : null;
+      const directAtk = canAttack ? this._aiBestAttackTarget(actor) : null;
+
+      // 当前位置的"原地行动"最高分
+      const directSkillScore = directSkill ? directSkill.score : 0;
+      let directAtkScore = 0;
+      if (directAtk) {
+        directAtkScore = Effect._aiThreat(directAtk) + 20;
+        const dmg = Effect.getEffectiveAttack(actor);
+        if (directAtk.hp <= dmg) directAtkScore *= 2;  // 能击杀翻倍
+      }
+
+      // 候选规划
+      const plans = [];
+
+      // ---- 计划 A：原地技能 + 攻击（增益后攻击）----
+      if (directSkill && canAttack && directAtk) {
+        const buffAtk = (directSkill.skill.aiHint && directSkill.skill.aiHint.types &&
+                         (directSkill.skill.aiHint.types.includes('buff_atk') || directSkill.skill.aiHint.types.includes('damage')))
+                       ? (directSkill.skill.aiHint.power || 30) : 0;
+        let planScore = directSkillScore + directAtkScore;
+        if (buffAtk > 0) {
+          // 增益后能多造成的伤害
+          const atkTarget = directAtk;
+          const currentAtk = Effect.getEffectiveAttack(actor);
+          if (atkTarget.hp > currentAtk && atkTarget.hp <= currentAtk + buffAtk) {
+            planScore += Effect._aiThreat(atkTarget) * 1.2 + 40;  // 增益后变必杀
+          } else {
+            planScore += buffAtk * 0.5;
+          }
+        }
+        plans.push({
+          steps: [
+            { type: 'skill', skill: directSkill.skill },
+            { type: 'attack', target: directAtk }
+          ],
+          score: planScore,
+          kind: 'skill_then_attack'
+        });
+      }
+
+      // ---- 计划 B：原地技能（无攻击目标或攻击太弱）----
+      if (directSkill) {
+        plans.push({
+          steps: [{ type: 'skill', skill: directSkill.skill }],
+          score: directSkillScore,
+          kind: 'skill_only'
+        });
+      }
+
+      // ---- 计划 C：原地攻击 ----
+      if (directAtk) {
+        plans.push({
+          steps: [{ type: 'attack', target: directAtk }],
+          score: directAtkScore,
+          kind: 'attack_only'
+        });
+      }
+
+      // ---- 计划 D：移动 + 攻击 ----
+      if (canMove && canAttack) {
+        const movePlan = this._aiBestMoveDest(actor);
+        if (movePlan) {
+          // 评估移动后能否攻击到敌人
+          const atkAfterMove = this._aiAttackTargetAt(actor, movePlan.x, movePlan.y);
+          let planScore = movePlan.score * 0.6;  // 移动本身价值打折
+          if (atkAfterMove) {
+            const dmg = Effect.getEffectiveAttack(actor);
+            const t = Effect._aiThreat(atkAfterMove) + 20;
+            planScore += t;
+            if (atkAfterMove.hp <= dmg) planScore += 60;  // 移动后必杀
+          }
+          plans.push({
+            steps: [
+              { type: 'move', dest: { x: movePlan.x, y: movePlan.y } },
+              { type: 'attack', target: atkAfterMove }
+            ].filter(s => s.type !== 'attack' || s.target),
+            score: planScore,
+            kind: atkAfterMove ? 'move_then_attack' : 'move_only'
+          });
+        }
+      }
+
+      // ---- 计划 E：移动 + 技能 + 攻击（最强组合，仅当移动后技能价值高）----
+      if (canMove && canSkill && canAttack) {
+        const movePlan = this._aiBestMoveDest(actor);
+        if (movePlan) {
+          const skillAfterMove = this._aiBestSkillAt(actor, movePlan.x, movePlan.y);
+          if (skillAfterMove && skillAfterMove.score > 25) {
+            const atkAfterMove = this._aiAttackTargetAt(actor, movePlan.x, movePlan.y);
+            let planScore = movePlan.score * 0.4 + skillAfterMove.score;
+            if (atkAfterMove) {
+              planScore += Effect._aiThreat(atkAfterMove) + 20;
+              const dmg = Effect.getEffectiveAttack(actor);
+              if (atkAfterMove.hp <= dmg) planScore += 50;
+            }
+            plans.push({
+              steps: [
+                { type: 'move', dest: { x: movePlan.x, y: movePlan.y } },
+                { type: 'skill', skill: skillAfterMove.skill },
+                { type: 'attack', target: atkAfterMove }
+              ].filter(s => s.type !== 'attack' || s.target),
+              score: planScore * 1.05,  // 完整组合轻微加权
+              kind: 'move_skill_attack'
+            });
+          }
+        }
+      }
+
+      // ---- 计划 F：移动 + 技能 ----
+      if (canMove && canSkill) {
+        const movePlan = this._aiBestMoveDest(actor);
+        if (movePlan) {
+          const skillAfterMove = this._aiBestSkillAt(actor, movePlan.x, movePlan.y);
+          if (skillAfterMove && skillAfterMove.score > 20) {
+            plans.push({
+              steps: [
+                { type: 'move', dest: { x: movePlan.x, y: movePlan.y } },
+                { type: 'skill', skill: skillAfterMove.skill }
+              ],
+              score: movePlan.score * 0.5 + skillAfterMove.score,
+              kind: 'move_then_skill'
+            });
+          }
+        }
+      }
+
+      // ---- 计划 G：纯移动（无可攻击/技能时）----
+      if (canMove) {
+        const movePlan = this._aiBestMoveDest(actor);
+        if (movePlan) {
+          plans.push({
+            steps: [{ type: 'move', dest: { x: movePlan.x, y: movePlan.y } }],
+            score: movePlan.score * 0.5,
+            kind: 'move_only'
+          });
+        }
+      }
+
+      // 取最高分计划
+      if (!plans.length) return null;
+      plans.sort((a, b) => b.score - a.score);
+      return plans[0];
+    },
+
+    // 当前位置可用的最佳技能
+    _aiBestSkillNow(actor) {
+      if (!actor.skills) return null;
+      const skipped = actor._aiSkippedSkills || [];
+      let best = null, bestScore = -1;
+      for (const skill of actor.skills) {
+        if (skill.type === '被动') continue;
+        if (skipped.includes(skill.id)) continue;
+        if (skill.limited && this._limitedUsed && this._limitedUsed[skill.id]) continue;
+        actor.cdMap = actor.cdMap || {};
+        if ((actor.cdMap[skill.id] || 0) > 0) continue;
+        if (skill.filter && !skill.filter(actor)) continue;
+        const s = this._aiScoreSkill(actor, skill);
+        if (s > bestScore) { bestScore = s; best = skill; }
+      }
+      if (!best || bestScore <= 0) return null;
+      return { skill: best, score: bestScore };
+    },
+
+    // 评估在指定位置（虚拟）时的最佳技能
+    _aiBestSkillAt(actor, x, y) {
+      const saved = { x: actor.x, y: actor.y };
+      actor.x = x; actor.y = y;
+      const result = this._aiBestSkillNow(actor);
+      actor.x = saved.x; actor.y = saved.y;
+      return result;
+    },
+
+    // 评估在指定位置（虚拟）时的最佳攻击目标
+    _aiAttackTargetAt(actor, x, y) {
+      const saved = { x: actor.x, y: actor.y };
+      actor.x = x; actor.y = y;
+      const result = this._aiBestAttackTarget(actor);
+      actor.x = saved.x; actor.y = saved.y;
+      return result;
+    },
+
+    // ========== 执行规划的行动序列 ==========
+    _aiExecutePlannedAction(actor, plan) {
+      // 克隆 steps 作为执行队列
+      const queue = plan.steps.slice();
+      this._aiRunStep(actor, queue, 0);
+    },
+
+    // 递归执行队列中的下一步
+    _aiRunStep(actor, queue, idx) {
+      if (this.over) return;
+      if (idx >= queue.length) {
+        // 队列执行完毕，安排下一个棋子
+        this._scheduleNext();
+        return;
+      }
+      const step = queue[idx];
+      const self = this;
+
+      if (step.type === 'skill') {
+        // 检查技能是否仍可用（前置步骤可能改变了状态）
+        if (actor.skilled || !actor.alive) {
+          this._aiRunStep(actor, queue, idx + 1);
+          return;
+        }
+        actor.cdMap = actor.cdMap || {};
+        const stillValid = !actor.skilled && actor.alive &&
+          (!step.skill.filter || step.skill.filter(actor)) &&
+          (actor.cdMap[step.skill.id] || 0) <= 0;
+        if (!stillValid) {
+          this._aiRunStep(actor, queue, idx + 1);
+          return;
+        }
+        this._aiExecuteSkillStep(actor, step.skill, function () {
+          self._aiRunStep(actor, queue, idx + 1);
+        });
+      } else if (step.type === 'attack') {
+        if (actor.attacked || !actor.alive) {
+          this._aiRunStep(actor, queue, idx + 1);
+          return;
+        }
+        // 目标可能已死亡或位置已变，重新验证
+        const target = (step.target && step.target.alive) ? step.target : this._aiBestAttackTarget(actor);
+        if (!target) {
+          actor.attacked = true;
+          this._render(); this._renderBottom();
+          this._aiRunStep(actor, queue, idx + 1);
+          return;
+        }
+        this._executeAttack(actor, target);
+        // _executeAttack 是同步的，直接进入下一步
+        setTimeout(function () {
+          self._aiRunStep(actor, queue, idx + 1);
+        }, 200);
+      } else if (step.type === 'move') {
+        if (actor.moved || !actor.alive) {
+          this._aiRunStep(actor, queue, idx + 1);
+          return;
+        }
+        // 目标格可能已被占用，重新校验
+        const occ = this.pieceAt(step.dest.x, step.dest.y);
+        if (occ) {
+          // 找替代落点
+          const alt = this._aiBestMoveDest(actor);
+          if (!alt) {
+            actor.moved = true;
+            this._render(); this._renderBottom();
+            this._aiRunStep(actor, queue, idx + 1);
+            return;
+          }
+          step.dest = { x: alt.x, y: alt.y };
+        }
+        this._executeMove(actor, step.dest.x, step.dest.y);
+        setTimeout(function () {
+          self._aiRunStep(actor, queue, idx + 1);
+        }, 350);
+      } else {
+        // 未知步骤，跳过
+        this._aiRunStep(actor, queue, idx + 1);
+      }
+    },
+
+    // 执行单步技能（包装 _aiExecuteSkill 的异步流程，done 回调统一收尾）
+    _aiExecuteSkillStep(actor, skill, done) {
+      Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: skill.aiHint };
+      const before = !!actor.skilled;
+      const self = this;
+      const promise = skill.content(actor);
+      Promise.resolve(promise).then(function () {
+        Effect._aiContext = null;
+        const used = actor.skilled && !before;
+        if (used) {
+          self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
+          Effect.trigger('onSkillCast', { actor: actor, skill: skill });
+          Effect.triggerPassive(actor, 'onSkillCast', { skill: skill });
+          if (skill.cooldown) {
+            actor.cdMap = actor.cdMap || {};
+            actor.cdMap[skill.id] = skill.cooldown;
+          }
+          if (skill.limited) {
+            self._limitedUsed = self._limitedUsed || {};
+            self._limitedUsed[skill.id] = true;
+          }
+          self._render(); self._renderBottom();
+          self._checkWin();
+        } else {
+          actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+          if (!actor._aiSkippedSkills.includes(skill.id)) {
+            actor._aiSkippedSkills.push(skill.id);
+          }
+        }
+        done();
+      }).catch(function (e) {
+        Effect._aiContext = null;
+        console.error('[AI 技能错误]', skill.name, e);
+        actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+        if (!actor._aiSkippedSkills.includes(skill.id)) {
+          actor._aiSkippedSkills.push(skill.id);
+        }
+        self.log('【' + skill.name + '】AI 执行出错：' + e.message);
+        done();
+      });
     },
 
     // ========== AI 决策核心：评估所有可选行动，返回得分最高的 ==========
