@@ -76,6 +76,61 @@ function writeStore(data) {
   }
 }
 
+// 收集拓展中所有武将/技能/小兵引用的音频 id，生成 soundBank
+// 同时保留 soundBank 中已有的 type/volume/subtitle 等元数据
+function rebuildExtensionSoundBank(ext) {
+  if (!ext) return [];
+  const existingMap = new Map();
+  if (Array.isArray(ext.soundBank)) {
+    for (const s of ext.soundBank) {
+      if (s && s.id) existingMap.set(s.id, Object.assign({}, s));
+    }
+  }
+  const collected = new Set();
+  const addSound = (id, defaultType) => {
+    if (!id || typeof id !== 'string') return;
+    id = id.trim();
+    if (!id) return;
+    collected.add(id);
+    if (!existingMap.has(id)) {
+      existingMap.set(id, { id, type: defaultType || 'sfx', volume: 0.7, subtitle: '', loop: false });
+    }
+  };
+  // 武将 voice
+  if (Array.isArray(ext.generals)) {
+    for (const g of ext.generals) {
+      if (g.voice && typeof g.voice === 'object') {
+        for (const k of ['select', 'move', 'attack', 'hurt', 'death', 'kill', 'skill', 'victory']) {
+          if (g.voice[k]) addSound(g.voice[k], 'voice');
+        }
+      }
+    }
+  }
+  // 技能 sound
+  if (Array.isArray(ext.skills)) {
+    for (const s of ext.skills) {
+      if (s.sound && typeof s.sound === 'object') {
+        if (s.sound.cast) addSound(s.sound.cast, 'sfx');
+        if (s.sound.hit) addSound(s.sound.hit, 'sfx');
+        if (s.sound.voice) addSound(s.sound.voice, 'voice');
+      }
+    }
+  }
+  // 小兵 sound
+  if (Array.isArray(ext.minions)) {
+    for (const m of ext.minions) {
+      if (m.sound && typeof m.sound === 'object') {
+        if (m.sound.deploy) addSound(m.sound.deploy, 'sfx');
+        if (m.sound.attack) addSound(m.sound.attack, 'sfx');
+        if (m.sound.death) addSound(m.sound.death, 'sfx');
+      }
+    }
+  }
+  // 移除不再被引用的条目（保留已上传但未引用的也可以，这里选择保留）
+  // 这里选择保留所有已有条目，只新增不删除，避免误删用户手动添加的
+  return Array.from(existingMap.values());
+}
+
 function genId(prefix) {
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 }
@@ -759,6 +814,9 @@ app.use(async (ctx, next) => {
     ext.skills = ext.skills.filter(s => !existingSkillIds.has(s.id));
     ext.skills.push(...skillObjs);
 
+    // 重建拓展 soundBank（收集所有引用的音频）
+    ext.soundBank = rebuildExtensionSoundBank(ext);
+
     if (!writeStore(store)) {
       ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
     }
@@ -813,6 +871,8 @@ app.use(async (ctx, next) => {
       }
       ext.generals = ext.generals.filter(g => g.id !== fullId);
       ext.skills   = ext.skills.filter(s => !s.id.startsWith(fullId + '_'));
+      // 重建 soundBank
+      ext.soundBank = rebuildExtensionSoundBank(ext);
     }
     writeStore(store);
     ctx.type = 'application/json; charset=utf-8';
@@ -909,6 +969,9 @@ app.use(async (ctx, next) => {
 
     ext.skills = ext.skills.filter(s => s.id !== fullSid);
     ext.skills.push(skillObj);
+
+    // 重建拓展 soundBank（收集所有引用的音频）
+    ext.soundBank = rebuildExtensionSoundBank(ext);
 
     if (!writeStore(store)) {
       ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
@@ -1081,7 +1144,13 @@ app.use(async (ctx, next) => {
       cost: cost,
       description: String(minion.description || '').slice(0, 200),
       portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null,
-      inDeck: minion.inDeck === false ? false : true
+      inDeck: minion.inDeck === false ? false : true,
+      // 小兵音效：deploy/attack/death
+      sound: minion.sound && typeof minion.sound === 'object' ? {
+        deploy: String(minion.sound.deploy || '').slice(0, 80),
+        attack: String(minion.sound.attack || '').slice(0, 80),
+        death:  String(minion.sound.death  || '').slice(0, 80)
+      } : null
     };
 
     // 找到或创建拓展
@@ -1121,6 +1190,9 @@ app.use(async (ctx, next) => {
     const existingSkillIds = new Set(skillObjs.map(s => s.id));
     ext.skills = ext.skills.filter(s => !existingSkillIds.has(s.id));
     ext.skills.push(...skillObjs);
+
+    // 重建拓展 soundBank（收集所有引用的音频）
+    ext.soundBank = rebuildExtensionSoundBank(ext);
 
     if (!writeStore(store)) {
       ctx.status = 500; ctx.body = { ok: false, error: '写入文件失败' }; return;
@@ -1180,6 +1252,8 @@ app.use(async (ctx, next) => {
       }
       ext.minions = ext.minions.filter(m => m.id !== fullId);
       ext.skills  = ext.skills.filter(s => !s.id.startsWith(fullId + '_'));
+      // 重建 soundBank
+      ext.soundBank = rebuildExtensionSoundBank(ext);
     }
     writeStore(store);
     ctx.type = 'application/json; charset=utf-8';

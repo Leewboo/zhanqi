@@ -429,12 +429,23 @@
     },
 
     // 播放武将事件语音（select/move/attack/hurt/death/kill/victory）
+    // 若 piece 是小兵（isMinion），播放小兵对应音效（attack/death 等）
     playPieceVoice(piece, eventKey) {
-      if (!piece || !piece.voice) return;
-      const soundId = piece.voice[eventKey];
-      if (!soundId) return;
+      if (!piece) return;
       const AM = global.AudioManager;
       if (!AM) return;
+      // 小兵音效
+      if (piece.isMinion) {
+        const minionDef = global.Minions ? global.Minions.getById(piece.minionId) : null;
+        if (minionDef && minionDef.sound && minionDef.sound[eventKey]) {
+          AM.play(minionDef.sound[eventKey]);
+          return;
+        }
+      }
+      // 武将语音
+      if (!piece.voice) return;
+      const soundId = piece.voice[eventKey];
+      if (!soundId) return;
       AM.play(_resolveSoundId(soundId, piece));
     },
 
@@ -2529,6 +2540,11 @@
 
       g.pieces.push(minion);
       if (!opts.ignoreCost) g.minionPoints[side] = Math.max(0, (g.minionPoints[side] || 0) - (cardObj.cost || 0));
+
+      // 小兵部署音效
+      if (cardObj.sound && cardObj.sound.deploy && global.AudioManager) {
+        global.AudioManager.play(cardObj.sound.deploy);
+      }
 
       // 若卡牌来自手牌，则从手牌移除
       const hand = g.minionHand[side];

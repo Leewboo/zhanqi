@@ -329,6 +329,40 @@
             // 注册该拓展的音频资源（含 soundBank 中声明的 id）
             global.AudioManager.registerExtension(ext);
           }
+          // 从武将/技能/小兵的 voice/sound 字段中收集所有音频 id 并注册
+          // （兼容旧拓展 soundBank 可能为空的情况）
+          const collectFrom = (obj, defaultType) => {
+            if (!obj || typeof obj !== 'object') return;
+            for (const k in obj) {
+              const v = obj[k];
+              if (typeof v === 'string' && v && /^sd_/.test(v)) {
+                global.AudioManager.register({ id: v, type: defaultType, volume: 0.7 });
+              }
+            }
+          };
+          if (Array.isArray(data.generals)) {
+            for (const g of data.generals) {
+              if (g.voice) collectFrom(g.voice, 'voice');
+            }
+          }
+          if (Array.isArray(data.skills)) {
+            for (const s of data.skills) {
+              if (s.sound) {
+                if (s.sound.cast) global.AudioManager.register({ id: s.sound.cast, type: 'sfx', volume: 0.7 });
+                if (s.sound.hit) global.AudioManager.register({ id: s.sound.hit, type: 'sfx', volume: 0.7 });
+                if (s.sound.voice) global.AudioManager.register({ id: s.sound.voice, type: 'voice', volume: 1.0 });
+              }
+            }
+          }
+          if (Array.isArray(data.minions)) {
+            for (const m of data.minions) {
+              if (m.sound) {
+                if (m.sound.deploy) global.AudioManager.register({ id: m.sound.deploy, type: 'sfx', volume: 0.7 });
+                if (m.sound.attack) global.AudioManager.register({ id: m.sound.attack, type: 'sfx', volume: 0.7 });
+                if (m.sound.death) global.AudioManager.register({ id: m.sound.death, type: 'sfx', volume: 0.7 });
+              }
+            }
+          }
           // 预加载所有已注册音频（不阻塞游戏）
           try { global.AudioManager.preloadAll(); } catch (e) {}
         }
@@ -4221,6 +4255,37 @@
         data.extensions.forEach(function(ext) {
           if (ext && ext.id) window.AudioManager.registerExtension(ext);
         });
+        // 从武将/技能/小兵的 voice/sound 字段收集音频 id（兼容旧拓展）
+        var registerSound = function(id, type) {
+          if (id && typeof id === 'string' && /^sd_/.test(id)) {
+            window.AudioManager.register({ id: id, type: type || 'sfx', volume: 0.7 });
+          }
+        };
+        if (Array.isArray(data.generals)) {
+          data.generals.forEach(function(g) {
+            if (g.voice) {
+              for (var k in g.voice) registerSound(g.voice[k], 'voice');
+            }
+          });
+        }
+        if (Array.isArray(data.skills)) {
+          data.skills.forEach(function(s) {
+            if (s.sound) {
+              registerSound(s.sound.cast, 'sfx');
+              registerSound(s.sound.hit, 'sfx');
+              registerSound(s.sound.voice, 'voice');
+            }
+          });
+        }
+        if (Array.isArray(data.minions)) {
+          data.minions.forEach(function(m) {
+            if (m.sound) {
+              registerSound(m.sound.deploy, 'sfx');
+              registerSound(m.sound.attack, 'sfx');
+              registerSound(m.sound.death, 'sfx');
+            }
+          });
+        }
         try { window.AudioManager.preloadAll(); } catch (e) {}
       }
       if (window.SkillsAPI && data.skills && data.skills.length) {

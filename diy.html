@@ -1338,6 +1338,26 @@
     cursor: pointer;
   }
   .sound-upload-btn:hover { background: #f5efd9; }
+  .sound-preview-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #c8be9e;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b5c2f;
+  }
+  .sound-preview-btn:hover { background: #f5efd9; }
+  .sound-preview-btn.playing {
+    background: #e8d9a8;
+    color: #3a3010;
+  }
   @media (max-width: 720px) {
     .voice-grid, .sound-grid { grid-template-columns: 1fr; }
   }
@@ -2401,14 +2421,14 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
             <div class="voice-row">
               <div class="voice-row-title">武将语音（每类事件绑定一个音频 id，留空则不播放）</div>
               <div class="voice-grid">
-                <div class="voice-item"><label>选中</label><select id="g-voice-select" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>移动</label><select id="g-voice-move" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>攻击</label><select id="g-voice-attack" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>受击</label><select id="g-voice-hurt" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>阵亡</label><select id="g-voice-death" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>击杀</label><select id="g-voice-kill" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>技能</label><select id="g-voice-skill" class="sound-select" data-sound-type="voice"></select></div>
-                <div class="voice-item"><label>胜利</label><select id="g-voice-victory" class="sound-select" data-sound-type="voice"></select></div>
+                <div class="voice-item"><label>选中</label><select id="g-voice-select" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-select" title="试听">▶</button></div>
+                <div class="voice-item"><label>移动</label><select id="g-voice-move" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-move" title="试听">▶</button></div>
+                <div class="voice-item"><label>攻击</label><select id="g-voice-attack" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-attack" title="试听">▶</button></div>
+                <div class="voice-item"><label>受击</label><select id="g-voice-hurt" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-hurt" title="试听">▶</button></div>
+                <div class="voice-item"><label>阵亡</label><select id="g-voice-death" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-death" title="试听">▶</button></div>
+                <div class="voice-item"><label>击杀</label><select id="g-voice-kill" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-kill" title="试听">▶</button></div>
+                <div class="voice-item"><label>技能</label><select id="g-voice-skill" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-skill" title="试听">▶</button></div>
+                <div class="voice-item"><label>胜利</label><select id="g-voice-victory" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-victory" title="试听">▶</button></div>
               </div>
               <div style="margin-top:8px;">
                 <input type="file" id="g-voice-file" accept="audio/*" class="hidden" />
@@ -2656,9 +2676,9 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
             <div class="sound-row">
               <div class="sound-row-title">技能音效（绑定音频 id，留空则不播放）</div>
               <div class="sound-grid">
-                <div class="sound-item"><label>释放</label><select id="s-sound-cast" class="sound-select" data-sound-type="sfx"></select></div>
-                <div class="sound-item"><label>命中</label><select id="s-sound-hit" class="sound-select" data-sound-type="sfx"></select></div>
-                <div class="sound-item"><label>专属语音</label><select id="s-sound-voice" class="sound-select" data-sound-type="voice"></select></div>
+                <div class="sound-item"><label>释放</label><select id="s-sound-cast" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-cast" title="试听">▶</button></div>
+                <div class="sound-item"><label>命中</label><select id="s-sound-hit" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-hit" title="试听">▶</button></div>
+                <div class="sound-item"><label>专属语音</label><select id="s-sound-voice" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-voice" title="试听">▶</button></div>
               </div>
               <div style="margin-top:8px;">
                 <input type="file" id="s-sound-file" accept="audio/*" class="hidden" />
@@ -2796,6 +2816,16 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
                 <td><input type="text" id="m-desc" placeholder="简短描述（可选）" /></td>
               </tr>
             </table>
+
+            <!-- 小兵音效 -->
+            <div class="sound-row" style="margin-top:12px;">
+              <div class="sound-row-title">小兵音效（绑定音频 id，留空则不播放）</div>
+              <div class="sound-grid">
+                <div class="sound-item"><label>部署</label><select id="m-sound-deploy" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-deploy" title="试听">▶</button></div>
+                <div class="sound-item"><label>攻击</label><select id="m-sound-attack" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-attack" title="试听">▶</button></div>
+                <div class="sound-item"><label>死亡</label><select id="m-sound-death" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-death" title="试听">▶</button></div>
+              </div>
+            </div>
 
             <!-- 立绘上传 -->
             <div class="portrait-row">
@@ -4127,9 +4157,9 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
       '<div class="s-new-fields sound-row" style="margin-top: 12px;">' +
         '<div class="sound-row-title">技能音效（可选，留空则不播放）</div>' +
         '<div class="sound-grid">' +
-          '<div class="sound-item"><label>释放</label><select class="s-sound-cast sound-select" data-sound-type="sfx" data-value="' + escapeHtmlAttr((p.sound && p.sound.cast) || '') + '"></select></div>' +
-          '<div class="sound-item"><label>命中</label><select class="s-sound-hit sound-select" data-sound-type="sfx" data-value="' + escapeHtmlAttr((p.sound && p.sound.hit) || '') + '"></select></div>' +
-          '<div class="sound-item"><label>专属语音</label><select class="s-sound-voice sound-select" data-sound-type="voice" data-value="' + escapeHtmlAttr((p.sound && p.sound.voice) || '') + '"></select></div>' +
+          '<div class="sound-item"><label>释放</label><select class="s-sound-cast sound-select" data-sound-type="sfx" data-value="' + escapeHtmlAttr((p.sound && p.sound.cast) || '') + '"></select><button type="button" class="sound-preview-btn" data-preview-class="s-sound-cast" title="试听">▶</button></div>' +
+          '<div class="sound-item"><label>命中</label><select class="s-sound-hit sound-select" data-sound-type="sfx" data-value="' + escapeHtmlAttr((p.sound && p.sound.hit) || '') + '"></select><button type="button" class="sound-preview-btn" data-preview-class="s-sound-hit" title="试听">▶</button></div>' +
+          '<div class="sound-item"><label>专属语音</label><select class="s-sound-voice sound-select" data-sound-type="voice" data-value="' + escapeHtmlAttr((p.sound && p.sound.voice) || '') + '"></select><button type="button" class="sound-preview-btn" data-preview-class="s-sound-voice" title="试听">▶</button></div>' +
         '</div>' +
       '</div>';
 
@@ -4440,6 +4470,11 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         $('m-tag').value = 'infantry';
         $('m-cost').value = 1;
         $('m-desc').value = '';
+        $('m-in-deck').checked = true;
+        // 重置小兵音效
+        if ($('m-sound-deploy')) { $('m-sound-deploy').value = ''; $('m-sound-deploy').dataset.value = ''; }
+        if ($('m-sound-attack')) { $('m-sound-attack').value = ''; $('m-sound-attack').dataset.value = ''; }
+        if ($('m-sound-death'))  { $('m-sound-death').value = '';  $('m-sound-death').dataset.value = ''; }
         var mCont = $('m-skills-container');
         mCont.innerHTML = '';
         mCont.dataset.skillIdx = 0;
@@ -5066,6 +5101,79 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     sels.forEach(populateSoundSelect);
   }
 
+  // ========== 音频试听功能 ==========
+  var _currentPreviewAudio = null;
+  var _currentPreviewBtn = null;
+
+  function stopPreviewAudio() {
+    if (_currentPreviewAudio) {
+      try { _currentPreviewAudio.pause(); _currentPreviewAudio.src = ''; } catch (e) {}
+      _currentPreviewAudio = null;
+    }
+    if (_currentPreviewBtn) {
+      _currentPreviewBtn.classList.remove('playing');
+      _currentPreviewBtn.textContent = '▶';
+      _currentPreviewBtn = null;
+    }
+  }
+
+  function previewSound(soundId, btn) {
+    if (!soundId) {
+      if (typeof showMsg === 'function') showMsg('请先选择一个音频', 'info');
+      return;
+    }
+    // 如果正在播放同一个，停止
+    if (_currentPreviewBtn === btn && _currentPreviewAudio) {
+      stopPreviewAudio();
+      return;
+    }
+    // 停止之前的
+    stopPreviewAudio();
+    try {
+      var audio = new Audio('/api/sound/get?id=' + encodeURIComponent(soundId));
+      audio.addEventListener('ended', function () {
+        if (btn) { btn.classList.remove('playing'); btn.textContent = '▶'; }
+        if (_currentPreviewBtn === btn) { _currentPreviewBtn = null; _currentPreviewAudio = null; }
+      });
+      audio.addEventListener('error', function () {
+        if (typeof showMsg === 'function') showMsg('音频加载失败：' + soundId, 'error');
+        stopPreviewAudio();
+      });
+      var p = audio.play();
+      if (p && p.catch) {
+        p.catch(function () {
+          if (typeof showMsg === 'function') showMsg('播放失败，请检查浏览器音频权限', 'error');
+          stopPreviewAudio();
+        });
+      }
+      _currentPreviewAudio = audio;
+      _currentPreviewBtn = btn;
+      if (btn) { btn.classList.add('playing'); btn.textContent = '■'; }
+    } catch (e) {
+      if (typeof showMsg === 'function') showMsg('播放失败：' + e.message, 'error');
+    }
+  }
+
+  // 绑定所有试听按钮（事件委托）
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.sound-preview-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var targetId = btn.dataset.preview;
+    var targetClass = btn.dataset.previewClass;
+    var sel = null;
+    if (targetId) {
+      sel = document.getElementById(targetId);
+    } else if (targetClass) {
+      // 在同一个 .sound-item 或父级卡片中查找
+      var item = btn.closest('.sound-item') || btn.closest('.voice-item');
+      if (item) sel = item.querySelector('.' + targetClass);
+    }
+    var soundId = sel ? sel.value : '';
+    previewSound(soundId, btn);
+  });
+
   // 上传音频文件到 /api/sound/upload
   // file: File 对象，soundId: 可选 id（不含 sd_ 前缀），onDone: 回调(soundId)
   function uploadSoundFile(file, soundId, onDone) {
@@ -5565,7 +5673,12 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
       tag: $('m-tag').value || 'infantry',
       cost:   Math.max(1, Math.min(5, parseInt($('m-cost').value, 10) || 1)),
       inDeck: $('m-in-deck').checked,
-      description: ($('m-desc').value || '').trim()
+      description: ($('m-desc').value || '').trim(),
+      sound: {
+        deploy: ($('m-sound-deploy')  || {}).value || '',
+        attack: ($('m-sound-attack')  || {}).value || '',
+        death:  ($('m-sound-death')   || {}).value || ''
+      }
     };
 
     var skills = [];
@@ -5694,6 +5807,14 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         if (m.cost !== undefined && m.cost !== null) $('m-cost').value = m.cost;
         $('m-in-deck').checked = m.inDeck !== false;
         $('m-desc').value = m.description || '';
+
+        // 回填小兵音效
+        if (m.sound && typeof m.sound === 'object') {
+          if ($('m-sound-deploy')) $('m-sound-deploy').dataset.value = m.sound.deploy || '';
+          if ($('m-sound-attack')) $('m-sound-attack').dataset.value = m.sound.attack || '';
+          if ($('m-sound-death')) $('m-sound-death').dataset.value = m.sound.death || '';
+        }
+        populateAllSoundSelects($('m-sound-deploy') ? $('m-sound-deploy').closest('.sound-row') : null);
 
         // 切换拓展下拉
         var extSel = $('m-ext');
