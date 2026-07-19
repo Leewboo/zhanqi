@@ -258,6 +258,15 @@
         if (final > 0) {
           global.Game._showFloatText(target.x, target.y, '-' + final, 'damage');
         }
+        // 大伤害自动追加视觉特效（不影响游戏逻辑，仅增强反馈）
+        if (final > 80) {
+          // 巨额伤害：扩散光环 + 屏幕震动
+          Effect.fx.ring(target.x, target.y, { color: 'rgba(255,80,80,0.9)', maxRadius: 70, duration: 500 });
+          Effect.fx.screenShake({ intensity: 6, duration: 350 });
+        } else if (final > 40) {
+          // 较高伤害：轻微光环
+          Effect.fx.ring(target.x, target.y, { color: 'rgba(255,150,80,0.7)', maxRadius: 50, duration: 400 });
+        }
 
         const note = hasZeroDef ? '（' + markNames + '，防御归零）' : '';
         const shieldNote = shieldAbsorbed > 0 ? '（护盾吸收 ' + shieldAbsorbed + '）' : '';
@@ -427,6 +436,270 @@
       const AM = global.AudioManager;
       if (!AM) return;
       AM.play(_resolveSoundId(soundId, piece));
+    },
+
+    // ========== 视觉特效系统 Effect.fx ==========
+    // 通用视觉特效原语，技能 content 代码可直接调用：
+    //   Effect.fx.shake(piece, { axis: 'h', intensity: 6, duration: 400 })
+    //   Effect.fx.line(fromX, fromY, toX, toY, { color: '#ff0', arrow: true })
+    //   Effect.fx.ring(x, y, { color: '#f0f', maxRadius: 100 })
+    //   Effect.fx.particles(x, y, { count: 12, color: '#fc0' })
+    //   Effect.fx.beam(fromX, fromY, toX, toY, { color: '#6cf', width: 16 })
+    //   Effect.fx.flashCell(x, y, { color: 'rgba(255,80,80,0.5)' })
+    //   Effect.fx.pulse(piece, { color: '#fc0' })
+    //   Effect.fx.glow(piece, { color: '#fc0', duration: 1000 })
+    //   Effect.fx.screenShake({ intensity: 8, duration: 400 })
+    //
+    // target 既可以是 piece 对象（含 x/y），也可以直接是 {x, y} 坐标。
+    // 所有方法都安全幂等：DOM 不存在时静默返回。
+    fx: {
+      // 工具：根据 target 解析出棋盘格坐标 {x, y}
+      _resolveXY(target) {
+        if (!target) return null;
+        if (typeof target.x === 'number' && typeof target.y === 'number') {
+          return { x: target.x, y: target.y };
+        }
+        return null;
+      },
+
+      // 工具：根据坐标查询 cell DOM 元素
+      _cellAt(x, y) {
+        const g = global.Game;
+        if (!g || !g.boardEl) return null;
+        return g.boardEl.querySelector('.cell[data-x="' + x + '"][data-y="' + y + '"]');
+      },
+
+      // 工具：根据坐标或 piece 对象查询 piece DOM 元素
+      _pieceElAt(target) {
+        const xy = this._resolveXY(target);
+        if (!xy) return null;
+        const cell = this._cellAt(xy.x, xy.y);
+        return cell ? cell.querySelector('.piece') : null;
+      },
+
+      // 工具：获取格子中心的视口坐标 { left, top, width, height }
+      _cellRect(x, y) {
+        const cell = this._cellAt(x, y);
+        if (!cell) return null;
+        return cell.getBoundingClientRect();
+      },
+
+      // 工具：注入 CSS 变量到元素
+      _setVars(el, opts) {
+        if (!el || !opts) return;
+        if (opts.color) el.style.setProperty('--fx-color', opts.color);
+        if (opts.duration != null) el.style.setProperty('--fx-duration', (opts.duration / 1000) + 's');
+        if (opts.width != null) el.style.setProperty('--fx-width', opts.width + 'px');
+        if (opts.intensity != null) el.style.setProperty('--fx-intensity', opts.intensity + 'px');
+        if (opts.maxRadius != null) el.style.setProperty('--fx-max-radius', opts.maxRadius + 'px');
+      },
+
+      // 1. 棋子抖动
+      // opts: { axis: 'h'|'v'|'r'(随机/双向), intensity: 4, duration: 400 }
+      shake(target, opts) {
+        opts = opts || {};
+        const el = this._pieceElAt(target);
+        if (!el) return;
+        const axis = opts.axis === 'v' ? 'fx-shake-v'
+                   : opts.axis === 'r' ? 'fx-shake-r'
+                   : 'fx-shake';
+        const tmp = document.createElement('div');
+        this._setVars(tmp, opts);
+        // 把变量从临时元素拷到 piece（CSS 变量可继承，直接设在 piece 上）
+        if (tmp.style.getPropertyValue('--fx-intensity')) {
+          el.style.setProperty('--fx-intensity', tmp.style.getPropertyValue('--fx-intensity'));
+        }
+        if (tmp.style.getPropertyValue('--fx-duration')) {
+          el.style.setProperty('--fx-duration', tmp.style.getPropertyValue('--fx-duration'));
+        }
+        el.classList.remove('fx-shake', 'fx-shake-v', 'fx-shake-r');
+        // 强制 reflow 让动画重启
+        void el.offsetWidth;
+        el.classList.add(axis);
+        const dur = opts.duration || 400;
+        setTimeout(() => {
+          el.classList.remove(axis);
+          el.style.removeProperty('--fx-intensity');
+          el.style.removeProperty('--fx-duration');
+        }, dur + 30);
+      },
+
+      // 2. 棋子脉动：放大并消退
+      // opts: { color: '#ffcc00', duration: 500 }
+      pulse(target, opts) {
+        opts = opts || {};
+        const el = this._pieceElAt(target);
+        if (!el) return;
+        this._setVars(el, opts);
+        el.classList.remove('fx-pulse');
+        void el.offsetWidth;
+        el.classList.add('fx-pulse');
+        const dur = opts.duration || 500;
+        setTimeout(() => {
+          el.classList.remove('fx-pulse');
+          el.style.removeProperty('--fx-color');
+          el.style.removeProperty('--fx-duration');
+        }, dur + 30);
+      },
+
+      // 3. 棋子发光：边框/外发光
+      // opts: { color: '#ffcc00', duration: 800 }
+      glow(target, opts) {
+        opts = opts || {};
+        const el = this._pieceElAt(target);
+        if (!el) return;
+        this._setVars(el, opts);
+        el.classList.remove('fx-glow');
+        void el.offsetWidth;
+        el.classList.add('fx-glow');
+        const dur = opts.duration || 800;
+        setTimeout(() => {
+          el.classList.remove('fx-glow');
+          el.style.removeProperty('--fx-color');
+          el.style.removeProperty('--fx-duration');
+        }, dur + 30);
+      },
+
+      // 4. 格子闪烁：覆盖在 cell 上的色块
+      // opts: { color: 'rgba(255,80,80,0.5)', duration: 400 }
+      flashCell(x, y, opts) {
+        opts = opts || {};
+        const cell = this._cellAt(x, y);
+        if (!cell) return;
+        // cell 需要是相对定位容器
+        if (getComputedStyle(cell).position === 'static') {
+          cell.style.position = 'relative';
+        }
+        const div = document.createElement('div');
+        div.className = 'fx-flash-cell';
+        if (opts.dashed) div.classList.add('dashed');
+        this._setVars(div, opts);
+        cell.appendChild(div);
+        const dur = opts.duration || 400;
+        setTimeout(() => div.remove(), dur + 30);
+      },
+
+      // 5. 通用指示线：两格之间画线
+      // opts: { color, width: 3, duration: 500, arrow: true, dashed: false }
+      line(fromX, fromY, toX, toY, opts) {
+        opts = opts || {};
+        const fromRect = this._cellRect(fromX, fromY);
+        const toRect = this._cellRect(toX, toY);
+        if (!fromRect || !toRect) return;
+        const startX = fromRect.left + fromRect.width / 2;
+        const startY = fromRect.top + fromRect.height / 2;
+        const endX = toRect.left + toRect.width / 2;
+        const endY = toRect.top + toRect.height / 2;
+        const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+        const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+        const line = document.createElement('div');
+        line.className = 'fx-line';
+        if (opts.dashed) line.classList.add('dashed');
+        this._setVars(line, opts);
+        line.style.left = startX + 'px';
+        line.style.top = startY + 'px';
+        line.style.width = length + 'px';
+        line.style.transform = 'rotate(' + angle + 'deg)';
+        if (opts.arrow) {
+          const arrow = document.createElement('span');
+          arrow.className = 'fx-arrow';
+          line.appendChild(arrow);
+        }
+        document.body.appendChild(line);
+        const dur = opts.duration || 500;
+        setTimeout(() => line.remove(), dur + 30);
+      },
+
+      // 6. 光束：粗线带渐变淡入淡出
+      // opts: { color, width: 14, duration: 400 }
+      beam(fromX, fromY, toX, toY, opts) {
+        opts = opts || {};
+        const fromRect = this._cellRect(fromX, fromY);
+        const toRect = this._cellRect(toX, toY);
+        if (!fromRect || !toRect) return;
+        const startX = fromRect.left + fromRect.width / 2;
+        const startY = fromRect.top + fromRect.height / 2;
+        const endX = toRect.left + toRect.width / 2;
+        const endY = toRect.top + toRect.height / 2;
+        const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+        const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+        const beam = document.createElement('div');
+        beam.className = 'fx-beam';
+        this._setVars(beam, opts);
+        beam.style.left = startX + 'px';
+        beam.style.top = (startY - (opts.width || 14) / 2) + 'px';
+        beam.style.width = length + 'px';
+        beam.style.transform = 'rotate(' + angle + 'deg)';
+        beam.style.transformOrigin = '0 50%';
+        document.body.appendChild(beam);
+        const dur = opts.duration || 400;
+        setTimeout(() => beam.remove(), dur + 30);
+      },
+
+      // 7. 扩散光环：从格子中心向外扩散的圆环
+      // opts: { color, maxRadius: 80, duration: 600 }
+      ring(x, y, opts) {
+        opts = opts || {};
+        const rect = this._cellRect(x, y);
+        if (!rect) return;
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const r = document.createElement('div');
+        r.className = 'fx-ring';
+        this._setVars(r, opts);
+        r.style.left = cx + 'px';
+        r.style.top = cy + 'px';
+        document.body.appendChild(r);
+        const dur = opts.duration || 600;
+        setTimeout(() => r.remove(), dur + 30);
+      },
+
+      // 8. 粒子爆发：从格子中心向外飞散
+      // opts: { count: 12, color, spread: 60, duration: 600 }
+      particles(x, y, opts) {
+        opts = opts || {};
+        const rect = this._cellRect(x, y);
+        if (!rect) return;
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const count = Math.max(1, Math.min(40, opts.count || 12));
+        const spread = opts.spread || 60;
+        const dur = opts.duration || 600;
+        for (let i = 0; i < count; i++) {
+          const p = document.createElement('div');
+          p.className = 'fx-particle';
+          this._setVars(p, opts);
+          p.style.left = cx + 'px';
+          p.style.top = cy + 'px';
+          // 在圆周上均匀分布 + 随机偏移
+          const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+          const dist = spread * (0.6 + Math.random() * 0.4);
+          p.style.setProperty('--fx-dx', Math.cos(angle) * dist + 'px');
+          p.style.setProperty('--fx-dy', Math.sin(angle) * dist + 'px');
+          document.body.appendChild(p);
+          // 粒子稍微错开清理时间
+          setTimeout(() => p.remove(), dur + 30 + Math.random() * 100);
+        }
+      },
+
+      // 9. 屏幕震动：给棋盘容器加震动
+      // opts: { intensity: 6, duration: 400 }
+      screenShake(opts) {
+        opts = opts || {};
+        const g = global.Game;
+        if (!g || !g.boardEl) return;
+        const board = g.boardEl;
+        this._setVars(board, opts);
+        board.classList.remove('fx-screen-shake');
+        void board.offsetWidth;
+        board.classList.add('fx-screen-shake');
+        const dur = opts.duration || 400;
+        setTimeout(() => {
+          board.classList.remove('fx-screen-shake');
+          board.style.removeProperty('--fx-intensity');
+          board.style.removeProperty('--fx-duration');
+        }, dur + 30);
+      }
     },
 
     // ========== 联机技能同步系统 ==========

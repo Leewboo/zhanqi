@@ -1001,6 +1001,195 @@ html, body {
   100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
 }
 
+/* ========== Effect.fx 通用特效系统 ==========
+   供技能代码主动调用的视觉特效原语。所有 .fx-* 元素均 pointer-events:none，
+   由 JS 创建后通过 setTimeout 自动清理。
+   颜色/时长等通过 CSS 变量 --fx-color / --fx-duration 动态注入。
+================================================================ */
+
+/* 1. 棋子抖动：可叠加在 piece 上，不破坏既有 hit 动画 */
+@keyframes fx-shake-h {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(calc(var(--fx-intensity, 4px) * -1)); }
+  30% { transform: translateX(var(--fx-intensity, 4px)); }
+  45% { transform: translateX(calc(var(--fx-intensity, 4px) * -0.7)); }
+  60% { transform: translateX(calc(var(--fx-intensity, 4px) * 0.7)); }
+  75% { transform: translateX(calc(var(--fx-intensity, 4px) * -0.4)); }
+}
+@keyframes fx-shake-v {
+  0%, 100% { transform: translateY(0); }
+  15% { transform: translateY(calc(var(--fx-intensity, 4px) * -1)); }
+  30% { transform: translateY(var(--fx-intensity, 4px)); }
+  45% { transform: translateY(calc(var(--fx-intensity, 4px) * -0.7)); }
+  60% { transform: translateY(calc(var(--fx-intensity, 4px) * 0.7)); }
+  75% { transform: translateY(calc(var(--fx-intensity, 4px) * -0.4)); }
+}
+@keyframes fx-shake-r {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(calc(var(--fx-intensity, 4px) * -1), var(--fx-intensity, 4px)); }
+  40% { transform: translate(var(--fx-intensity, 4px), calc(var(--fx-intensity, 4px) * -0.6)); }
+  60% { transform: translate(calc(var(--fx-intensity, 4px) * -0.6), calc(var(--fx-intensity, 4px) * -1)); }
+  80% { transform: translate(var(--fx-intensity, 4px), var(--fx-intensity, 4px)); }
+}
+.piece.fx-shake {
+  animation: fx-shake-h var(--fx-duration, 0.4s) ease-in-out;
+}
+.piece.fx-shake-v {
+  animation: fx-shake-v var(--fx-duration, 0.4s) ease-in-out;
+}
+.piece.fx-shake-r {
+  animation: fx-shake-r var(--fx-duration, 0.4s) ease-in-out;
+}
+
+/* 2. 棋子脉动：放大并消退 */
+@keyframes fx-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 var(--fx-color, #ffcc00); }
+  50% { transform: scale(1.15); box-shadow: 0 0 16px 4px var(--fx-color, #ffcc00); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 var(--fx-color, #ffcc00); }
+}
+.piece.fx-pulse {
+  animation: fx-pulse var(--fx-duration, 0.5s) ease-out;
+}
+
+/* 3. 棋子发光：边框/外发光 */
+@keyframes fx-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--fx-color, #ffcc00); }
+  50% { box-shadow: 0 0 12px 3px var(--fx-color, #ffcc00); }
+}
+.piece.fx-glow {
+  animation: fx-glow var(--fx-duration, 0.8s) ease-in-out;
+}
+
+/* 4. 格子闪烁：覆盖在 cell 上的色块 */
+.fx-flash-cell {
+  position: absolute;
+  inset: 0;
+  background: var(--fx-color, #ffcc00);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  animation: fx-flash-cell var(--fx-duration, 0.4s) ease-out;
+}
+@keyframes fx-flash-cell {
+  0% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* 5. 通用指示线：两格之间画线，支持颜色/粗细/虚线/箭头 */
+.fx-line {
+  position: fixed;
+  pointer-events: none;
+  z-index: 60;
+  height: var(--fx-width, 3px);
+  background: var(--fx-color, #ffcc00);
+  border-radius: calc(var(--fx-width, 3px) / 2);
+  box-shadow: 0 0 6px var(--fx-color, #ffcc00);
+  transform-origin: 0 50%;
+  animation: fx-line-fade var(--fx-duration, 0.5s) ease-out forwards;
+}
+.fx-line.dashed {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--fx-color, #ffcc00) 0 8px,
+    transparent 8px 14px
+  );
+  box-shadow: none;
+}
+.fx-line .fx-arrow {
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid var(--fx-color, #ffcc00);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+@keyframes fx-line-fade {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 6. 光束：更粗、带渐变淡入淡出 */
+.fx-beam {
+  position: fixed;
+  pointer-events: none;
+  z-index: 55;
+  height: var(--fx-width, 14px);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--fx-color, #66ccff) 20%,
+    var(--fx-color, #66ccff) 80%,
+    transparent 100%);
+  filter: blur(1px);
+  border-radius: 50%;
+  transform-origin: 0 50%;
+  animation: fx-beam-pulse var(--fx-duration, 0.4s) ease-out forwards;
+}
+@keyframes fx-beam-pulse {
+  0% { opacity: 0; transform: scaleX(0); }
+  30% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+/* 7. 扩散光环：从格子中心向外扩散的圆环 */
+.fx-ring {
+  position: fixed;
+  pointer-events: none;
+  z-index: 50;
+  width: 0;
+  height: 0;
+  border: 3px solid var(--fx-color, #ffcc00);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: fx-ring-spread var(--fx-duration, 0.6s) ease-out forwards;
+}
+@keyframes fx-ring-spread {
+  0% { width: 8px; height: 8px; opacity: 1; border-width: 4px; }
+  100% { width: var(--fx-max-radius, 80px); height: var(--fx-max-radius, 80px); opacity: 0; border-width: 1px; }
+}
+
+/* 8. 粒子：从中心向外飞散的小点 */
+.fx-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 52;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fx-color, #ffcc00);
+  box-shadow: 0 0 4px var(--fx-color, #ffcc00);
+  transform: translate(-50%, -50%);
+  animation: fx-particle-fly var(--fx-duration, 0.6s) ease-out forwards;
+}
+@keyframes fx-particle-fly {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--fx-dx, 0px)), calc(-50% + var(--fx-dy, 0px))) scale(0.3);
+  }
+}
+
+/* 9. 屏幕震动：给棋盘容器加 */
+@keyframes fx-screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(calc(var(--fx-intensity, 6px) * -1), calc(var(--fx-intensity, 6px) * 0.5)); }
+  20% { transform: translate(var(--fx-intensity, 6px), calc(var(--fx-intensity, 6px) * -0.5)); }
+  30% { transform: translate(calc(var(--fx-intensity, 6px) * -0.7), var(--fx-intensity, 6px)); }
+  40% { transform: translate(var(--fx-intensity, 6px), calc(var(--fx-intensity, 6px) * -1)); }
+  50% { transform: translate(calc(var(--fx-intensity, 6px) * -0.5), calc(var(--fx-intensity, 6px) * 0.7)); }
+  60% { transform: translate(var(--fx-intensity, 6px), calc(var(--fx-intensity, 6px) * -0.3)); }
+  70% { transform: translate(calc(var(--fx-intensity, 6px) * -0.3), var(--fx-intensity, 6px)); }
+  80% { transform: translate(calc(var(--fx-intensity, 6px) * 0.3), calc(var(--fx-intensity, 6px) * -0.5)); }
+  90% { transform: translate(calc(var(--fx-intensity, 6px) * -0.2), 0); }
+}
+.fx-screen-shake {
+  animation: fx-screen-shake var(--fx-duration, 0.4s) ease-in-out;
+}
+
 /* ========== 字幕显示层 ========== */
 .subtitle-layer {
   position: fixed;
