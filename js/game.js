@@ -1916,10 +1916,10 @@
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
         return;
       }
-      // 2. 占领胜利：占领敌方半场全部 5 个城池
+      // 2. 占领胜利：占领敌方半场全部 6 个城池
       const redEnemyCastles = this._countEnemyCastles('red');
       const blueEnemyCastles = this._countEnemyCastles('blue');
-      if (redEnemyCastles >= 5) {
+      if (redEnemyCastles >= 6) {
         this.over = true;
         const title = document.getElementById('banner-title');
         title.textContent = '红方胜利（占领敌方全境）';
@@ -1928,7 +1928,7 @@
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
         return;
       }
-      if (blueEnemyCastles >= 5) {
+      if (blueEnemyCastles >= 6) {
         this.over = true;
         const title = document.getElementById('banner-title');
         title.textContent = '蓝方胜利（占领敌方全境）';
@@ -2770,7 +2770,7 @@
         const blueTotal = this._countCastles('blue');
         el.textContent = '回合 ' + this.turn + ' · ' + (side === 'red' ? '红方' : '蓝方')
           + ' · 城池 红' + redTotal + '/蓝' + blueTotal
-          + ' · 敌境 红' + redEnemy + '/5 蓝' + blueEnemy + '/5';
+          + ' · 敌境 红' + redEnemy + '/6 蓝' + blueEnemy + '/6';
       }
       if (this.phase === 'battle') {
         this._renderMinionPanel();
