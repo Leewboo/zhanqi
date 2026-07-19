@@ -268,6 +268,9 @@ html, body {
   }
   .home-title { font-size: 30px; letter-spacing: 8px; }
   .home-subtitle { font-size: 11px; letter-spacing: 4px; }
+  .top-bar .turn { font-size: 11px; letter-spacing: 0.5px; }
+  .top-bar .top-row { gap: 6px; }
+  .top-buttons .act-btn.small { padding: 4px 8px; font-size: 11px; letter-spacing: 0.5px; }
 }
 
 /* 横屏手机：棋盘更多空间，按钮更小 */
@@ -346,13 +349,18 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .top-bar .turn {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .top-buttons {
