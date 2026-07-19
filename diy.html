@@ -4972,13 +4972,15 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     var mRows = '';
     if (ext.minions && ext.minions.length) {
       mRows = '<div style="margin-top:10px;font-size:11px;color:#888;letter-spacing:1px;">小兵</div>' +
-        '<table class="ext-generals-table"><thead><tr><th>小兵名</th><th>品质</th><th>消耗</th><th>操作</th></tr></thead><tbody>';
+        '<table class="ext-generals-table"><thead><tr><th>小兵名</th><th>品质</th><th>类型</th><th>消耗</th><th>操作</th></tr></thead><tbody>';
       ext.minions.forEach(function (mn) {
         var rarityText = ({ common: '普通', rare: '稀有', epic: '史诗' })[mn.rarity] || mn.rarity || 'common';
+        var tagText = ({ infantry: '步兵', scout: '侦察', siege: '攻城' })[mn.tag] || '步兵';
         mRows +=
           '<tr>' +
           '<td class="name">' + escapeHtml(mn.name) + '</td>' +
           '<td>' + escapeHtml(rarityText) + '</td>' +
+          '<td>' + escapeHtml(tagText) + '</td>' +
           '<td>' + (mn.cost != null ? mn.cost : '') + '</td>' +
           '<td>' +
             '<button class="edit-minion" data-mid="' + escapeHtmlAttr(mn.id) + '" data-ext-id="' + escapeHtmlAttr(ext.id) + '">编辑</button>' +
