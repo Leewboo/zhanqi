@@ -44,6 +44,12 @@
       desc: def.desc || '',
       preview: def.preview || null,
       aiHint: def.aiHint || null,
+      sound: def.sound && typeof def.sound === 'object' ? {
+        cast: def.sound.cast || '',
+        hit: def.sound.hit || '',
+        voice: def.sound.voice || ''
+      } : null,
+      _extId: def._extId || null,
       filter: filterFn,
       content: function (actor, context) {
         try {
