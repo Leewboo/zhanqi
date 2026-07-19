@@ -1,5 +1,20 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
+
+  // 工具：把拓展中的 soundId 解析为完整的 sd_xxx 格式
+  // 拓展作者可写 "wusheng_cast" 或 "sd_wusheng_cast"，这里统一加前缀
+  // owner 是技能或武将对象，含 _extId 时拼接（避免不同拓展同名冲突）
+  function _resolveSoundId(rawId, owner) {
+    if (!rawId) return null;
+    const id = String(rawId);
+    if (id.startsWith('sd_')) return id;
+    // 拓展前缀（extId + 原id），保证唯一
+    if (owner && owner._extId) {
+      return 'sd_' + owner._extId + '_' + id;
+    }
+    return 'sd_' + id;
+  }
+
   const Effect = {
     // ========== 标记系统 ==========
     // marks: { 'actorId_markName': { actor, name, display, data, modifiers } }
@@ -229,6 +244,8 @@
 
       if (final > 0) {
         target.hp -= final;
+        // 受伤音效：目标播放 hurt 语音
+        Effect.playPieceVoice(target, 'hurt');
         // 伤害分摊：受伤时转移部分伤害给链接的友军
         if (!opts._isShared) {
           const shared = Effect._checkLinkDamage(target, final);
@@ -287,6 +304,9 @@
           // 复活：保留 revive 标记，死亡后供回合处理检查
           target.hp = 0;
           target.alive = false;
+          // 阵亡音效：目标播放 death 语音，击杀者播放 kill 语音
+          Effect.playPieceVoice(target, 'death');
+          Effect.playPieceVoice(actor, 'kill');
           // 触发被击杀事件
           Effect.trigger('onKilled', { actor, victim: target, damage: final });
           Effect.triggerPassive(target, 'onKilled', { killer: actor, damage: final });
@@ -370,6 +390,44 @@
     // 而是根据技能 aiHint 自动选择最优目标。
     // _aiContext = { mode: true, actor, skill, hint }
     _aiContext: null,
+
+    // ========== 音效/语音系统接入 ==========
+    // 播放技能释放音效（cast + voice）
+    playSkillCastSound(actor, skill) {
+      if (!skill || !skill.sound) return;
+      const AM = global.AudioManager;
+      if (!AM) return;
+      // 1. 技能释放音效
+      if (skill.sound.cast) {
+        AM.play(_resolveSoundId(skill.sound.cast, skill));
+      }
+      // 2. 武将通用技能语音（兜底）
+      if (actor && actor.voice && actor.voice.skill) {
+        AM.play(_resolveSoundId(actor.voice.skill, actor));
+      }
+      // 3. 技能专属语音
+      if (skill.sound.voice) {
+        AM.play(_resolveSoundId(skill.sound.voice, skill));
+      }
+    },
+
+    // 播放技能命中音效
+    playSkillHitSound(skill) {
+      if (!skill || !skill.sound || !skill.sound.hit) return;
+      const AM = global.AudioManager;
+      if (!AM) return;
+      AM.play(_resolveSoundId(skill.sound.hit, skill));
+    },
+
+    // 播放武将事件语音（select/move/attack/hurt/death/kill/victory）
+    playPieceVoice(piece, eventKey) {
+      if (!piece || !piece.voice) return;
+      const soundId = piece.voice[eventKey];
+      if (!soundId) return;
+      const AM = global.AudioManager;
+      if (!AM) return;
+      AM.play(_resolveSoundId(soundId, piece));
+    },
 
     // ========== 联机技能同步系统 ==========
     // 回放远端技能时，把对方已选定的目标/选项按序注入：

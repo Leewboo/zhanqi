@@ -8,7 +8,7 @@
   <link rel="preload" href="fonts/xiaozhuan.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/xingkai.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts/fonts.css" />
-  <link rel="stylesheet" href="css/style.css?v=13" />
+  <link rel="stylesheet" href="css/style.css?v=14" />
 </head>
 <body>
   <section id="loading-screen" class="loading-screen">
@@ -41,6 +41,38 @@
           <span class="settings-label">自动播放</span>
           <label class="settings-switch">
             <input id="music-autoplay" type="checkbox" checked />
+            <span class="settings-switch-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">音效 / 语音</div>
+        <div class="settings-row">
+          <span class="settings-label">启用音效</span>
+          <label class="settings-switch">
+            <input id="audio-enabled" type="checkbox" checked />
+            <span class="settings-switch-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">音效音量</span>
+          <input id="sfx-volume" type="range" min="0" max="100" value="70" />
+          <span id="sfx-volume-val" class="settings-val">70</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">语音音量</span>
+          <input id="voice-volume" type="range" min="0" max="100" value="100" />
+          <span id="voice-volume-val" class="settings-val">100</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">BGM 音量</span>
+          <input id="bgm-volume" type="range" min="0" max="100" value="40" />
+          <span id="bgm-volume-val" class="settings-val">40</span>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">显示字幕</span>
+          <label class="settings-switch">
+            <input id="audio-subtitle" type="checkbox" checked />
             <span class="settings-switch-slider"></span>
           </label>
         </div>
@@ -271,6 +303,8 @@
       </div>
     </section>
 
+    <div id="subtitle-layer" class="subtitle-layer hidden"></div>
+
     <section id="detail-modal" class="detail-modal hidden">
       <div class="detail-modal-inner">
         <div class="detail-modal-head">
@@ -319,12 +353,13 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/rng.js?v=1"></script>
   <script src="js/range.js?v=3"></script>
-  <script src="js/effects.js?v=14"></script>
+  <script src="js/audioManager.js?v=2"></script>
+  <script src="js/effects.js?v=16"></script>
   <script src="js/minions.js?v=4"></script>
-  <script src="js/skills.js?v=5"></script>
+  <script src="js/skills.js?v=6"></script>
   <script src="js/skillAnalyzer.js?v=1"></script>
   <script src="js/generals.js?v=4"></script>
   <script src="js/online.js?v=1"></script>
-  <script src="js/game.js?v=41"></script>
+  <script src="js/game.js?v=43"></script>
 </body>
 </html>

@@ -1001,6 +1001,45 @@ html, body {
   100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
 }
 
+/* ========== 字幕显示层 ========== */
+.subtitle-layer {
+  position: fixed;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: 8px 18px;
+  background: rgba(20, 18, 14, 0.78);
+  border: 1px solid rgba(201, 191, 158, 0.5);
+  border-radius: 8px;
+  color: #f5e9c8;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 80;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subtitle-layer.hidden { display: none; }
+.subtitle-layer.subtitle-in {
+  animation: subtitle-in 0.18s ease-out forwards;
+}
+.subtitle-layer.subtitle-out {
+  animation: subtitle-out 0.25s ease-in forwards;
+}
+@keyframes subtitle-in {
+  0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes subtitle-out {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+}
+
 /* 选择目标指示线 */
 .target-line {
   position: fixed;

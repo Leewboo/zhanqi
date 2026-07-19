@@ -18,6 +18,14 @@ if (!fs.existsSync(PORTRAIT_DIR)) {
 const ALLOWED_PORTRAIT_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
 const MAX_PORTRAIT_SIZE = 5 * 1024 * 1024;
 
+// 音频文件目录（音效/语音/BGM）
+const AUDIO_DIR = path.join(ROOT, 'audio');
+if (!fs.existsSync(AUDIO_DIR)) {
+  try { fs.mkdirSync(AUDIO_DIR, { recursive: true }); } catch (e) {}
+}
+const ALLOWED_AUDIO_EXT = ['.mp3', '.ogg', '.wav', '.m4a', '.aac'];
+const MAX_AUDIO_SIZE = 5 * 1024 * 1024;  // 单音频上限 5MB
+
 // ============================================================
 // 工具函数：读写拓展数据（新格式 { extensions: [...] }）
 // ============================================================
@@ -290,12 +298,13 @@ app.use(async (ctx, next) => {
 
 // ============================================================
 // 管理员守卫：除公开读取接口外，所有 /api/* 均需管理员 token
-// 公开接口：GET /api/diy/list、GET /api/skill/list（游戏加载用）
+// 公开接口：GET /api/diy/list、GET /api/skill/list、GET /api/sound/*（游戏加载用）
 // ============================================================
 app.use(async (ctx, next) => {
   if (!ctx.path.startsWith('/api/')) return next();
   if (ctx.path.startsWith('/api/auth/')) return next();
   if (ctx.method === 'GET' && (ctx.path === '/api/diy/list' || ctx.path === '/api/skill/list')) return next();
+  if (ctx.method === 'GET' && (ctx.path === '/api/sound/get' || ctx.path === '/api/sound/list')) return next();
 
   const user = getSessionUser(ctx);
   if (!isAdminUser(user)) {
@@ -459,6 +468,123 @@ app.use(async (ctx, next) => {
 });
 
 // ============================================================
+// 音频接口  /api/sound/*
+// 音频文件统一以 sd_<id>.<ext> 命名存储在 audio/ 目录
+// 拓展 soundBank 中声明的 id 与文件名前缀对应
+// ============================================================
+app.use(async (ctx, next) => {
+  if (!ctx.path.startsWith('/api/sound/')) return next();
+
+  // GET /api/sound/get?id=xxx  获取单个音频文件流
+  if (ctx.path === '/api/sound/get' && ctx.method === 'GET') {
+    const id = String(ctx.query.id || '').trim();
+    if (!id || !/^sd_[a-z0-9_]+$/i.test(id)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '无效的音频 id' }; return;
+    }
+    // 遍历允许的扩展名查找实际文件
+    let foundFile = null;
+    for (const ext of ALLOWED_AUDIO_EXT) {
+      const candidate = path.join(AUDIO_DIR, id + ext);
+      if (fs.existsSync(candidate)) { foundFile = candidate; break; }
+    }
+    if (!foundFile) {
+      ctx.status = 404; ctx.body = { ok: false, error: '音频文件不存在' }; return;
+    }
+    // 流式返回
+    const stat = fs.statSync(foundFile);
+    ctx.type = path.extname(foundFile).slice(1);
+    ctx.set('Content-Length', stat.size);
+    ctx.set('Cache-Control', 'public, max-age=86400, immutable');  // 音频可长期缓存
+    ctx.body = fs.createReadStream(foundFile);
+    return;
+  }
+
+  // GET /api/sound/list  列出所有已上传的音频文件（含元数据）
+  if (ctx.path === '/api/sound/list' && ctx.method === 'GET') {
+    const sounds = [];
+    try {
+      const files = fs.readdirSync(AUDIO_DIR);
+      for (const f of files) {
+        const ext = path.extname(f).toLowerCase();
+        if (!ALLOWED_AUDIO_EXT.includes(ext)) continue;
+        const base = path.basename(f, ext);
+        if (!/^sd_/.test(base)) continue;
+        const stat = fs.statSync(path.join(AUDIO_DIR, f));
+        sounds.push({
+          id: base,
+          file: f,
+          size: stat.size,
+          mtime: stat.mtime.toISOString()
+        });
+      }
+    } catch (e) {}
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, sounds };
+    return;
+  }
+
+  // POST /api/sound/upload  上传音频（multipart：file, soundId, type）
+  if (ctx.path === '/api/sound/upload' && ctx.method === 'POST') {
+    const file = ctx.request.files?.file;
+    if (!file) { ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return; }
+    const originalName = String(file.originalFilename || file.name || '');
+    const ext = path.extname(originalName).toLowerCase();
+    if (!ALLOWED_AUDIO_EXT.includes(ext)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '仅支持音频格式：' + ALLOWED_AUDIO_EXT.join(', ') }; return;
+    }
+    try {
+      const stat = fs.statSync(file.filepath);
+      if (stat.size > MAX_AUDIO_SIZE) {
+        ctx.status = 400; ctx.body = { ok: false, error: '音频文件不能超过 5MB' }; return;
+      }
+    } catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '读取文件失败' }; return; }
+
+    const body = ctx.request.body || {};
+    const requestedId = String(body.soundId || '').trim();
+    // soundId 只允许字母数字下划线，自动加 sd_ 前缀
+    let soundId = '';
+    if (requestedId && /^[a-z0-9_]+$/i.test(requestedId)) {
+      soundId = requestedId.startsWith('sd_') ? requestedId : 'sd_' + requestedId;
+    } else {
+      soundId = 'sd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+    const filename = soundId + ext;
+    const dest = path.join(AUDIO_DIR, filename);
+    // 若同名但扩展名不同，先删除旧文件
+    for (const oldExt of ALLOWED_AUDIO_EXT) {
+      if (oldExt === ext) continue;
+      const oldPath = path.join(AUDIO_DIR, soundId + oldExt);
+      try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch (e) {}
+    }
+    try {
+      const buf = fs.readFileSync(file.filepath);
+      fs.writeFileSync(dest, buf);
+    } catch (e) { ctx.status = 500; ctx.body = { ok: false, error: '保存音频失败: ' + e.message }; return; }
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, soundId: soundId, file: filename };
+    return;
+  }
+
+  // POST /api/sound/delete  删除音频
+  if (ctx.path === '/api/sound/delete' && ctx.method === 'POST') {
+    const body = ctx.request.body || {};
+    const id = String(body.soundId || '').trim();
+    if (!id || !/^sd_[a-z0-9_]+$/i.test(id)) {
+      ctx.status = 400; ctx.body = { ok: false, error: '无效的音频 id' }; return;
+    }
+    for (const ext of ALLOWED_AUDIO_EXT) {
+      const full = path.join(AUDIO_DIR, id + ext);
+      try { if (fs.existsSync(full)) fs.unlinkSync(full); } catch (e) {}
+    }
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true };
+    return;
+  }
+
+  await next();
+});
+
+// ============================================================
 // DIY 武将接口  /api/diy/*
 // ============================================================
 app.use(async (ctx, next) => {
@@ -466,18 +592,28 @@ app.use(async (ctx, next) => {
 
   // ----------------------------------------------------------
   // GET /api/diy/list  游戏端：拉取所有「已启用」拓展的武将+技能+小兵（扁平）
+  // 同时返回拓展级 soundBank 与 _extId 标记，供 AudioManager 注册
   // ----------------------------------------------------------
   if (ctx.path === '/api/diy/list' && ctx.method === 'GET') {
     const store = readStore();
-    const generals = [], skills = [], minions = [];
+    const generals = [], skills = [], minions = [], extensions = [];
     for (const ext of store.extensions) {
       if (!ext.enabled) continue;
-      if (Array.isArray(ext.generals)) generals.push(...ext.generals);
-      if (Array.isArray(ext.skills))   skills.push(...ext.skills);
-      if (Array.isArray(ext.minions))  minions.push(...ext.minions);
+      const extId = String(ext.id || '');
+      // 给每个实体打上 _extId，便于浏览器端解析 soundId 时拼前缀
+      const tag = (obj) => Object.assign({}, obj, { _extId: extId });
+      if (Array.isArray(ext.generals)) generals.push(...ext.generals.map(tag));
+      if (Array.isArray(ext.skills))   skills.push(...ext.skills.map(tag));
+      if (Array.isArray(ext.minions))  minions.push(...ext.minions.map(tag));
+      // 拓展级 soundBank：声音资源定义
+      extensions.push({
+        id: extId,
+        name: ext.name || extId,
+        soundBank: Array.isArray(ext.soundBank) ? ext.soundBank : []
+      });
     }
     ctx.type = 'application/json; charset=utf-8';
-    ctx.body = { ok: true, generals, skills, minions };
+    ctx.body = { ok: true, generals, skills, minions, extensions };
     return;
   }
 
@@ -541,6 +677,12 @@ app.use(async (ctx, next) => {
           preview:     s.preview ? validateRange(s.preview, null) : null,
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
           contentCode: String(s.contentCode || ''),
+          // 技能音效：cast/hit/voice 均为音频 id 字符串（形如 sd_xxx）
+          sound: s.sound && typeof s.sound === 'object' ? {
+            cast:  String(s.sound.cast  || '').slice(0, 80),
+            hit:   String(s.sound.hit   || '').slice(0, 80),
+            voice: String(s.sound.voice || '').slice(0, 80)
+          } : null,
           aiHint:     s.aiHint ? {
             type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
             target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
@@ -566,7 +708,18 @@ app.use(async (ctx, next) => {
       moveRange:   validateRange(general.moveRange,   { shape: '+', n: 3 }),
       attackRange: validateRange(general.attackRange, { shape: '+', n: 1 }),
       skillIds: skillIds,
-      portrait: typeof general.portrait === 'string' && general.portrait ? String(general.portrait) : null
+      portrait: typeof general.portrait === 'string' && general.portrait ? String(general.portrait) : null,
+      // 武将事件语音：8 类事件，每类绑定一个音频 id 字符串（形如 sd_xxx）
+      voice: general.voice && typeof general.voice === 'object' ? {
+        select:  String(general.voice.select  || '').slice(0, 80),
+        move:    String(general.voice.move    || '').slice(0, 80),
+        attack:  String(general.voice.attack  || '').slice(0, 80),
+        hurt:    String(general.voice.hurt    || '').slice(0, 80),
+        death:   String(general.voice.death   || '').slice(0, 80),
+        kill:    String(general.voice.kill    || '').slice(0, 80),
+        skill:   String(general.voice.skill   || '').slice(0, 80),
+        victory: String(general.voice.victory || '').slice(0, 80)
+      } : null
     };
 
     // 找到或创建拓展
@@ -713,6 +866,12 @@ app.use(async (ctx, next) => {
       preview:     skill.preview ? validateRange(skill.preview, null) : null,
       filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
       contentCode: String(skill.contentCode || ''),
+      // 技能音效：cast/hit/voice 均为音频 id 字符串（形如 sd_xxx）
+      sound: skill.sound && typeof skill.sound === 'object' ? {
+        cast:  String(skill.sound.cast  || '').slice(0, 80),
+        hit:   String(skill.sound.hit   || '').slice(0, 80),
+        voice: String(skill.sound.voice || '').slice(0, 80)
+      } : null,
       aiHint:      skill.aiHint ? {
         type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(skill.aiHint.type) ? skill.aiHint.type : 'mixed',
         target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(skill.aiHint.target) ? skill.aiHint.target : 'enemy',
@@ -1053,7 +1212,8 @@ app.use(async (ctx, next) => {
         skillsCount:   Array.isArray(e.skills)   ? e.skills.length   : 0,
         minionsCount:  Array.isArray(e.minions)  ? e.minions.length  : 0,
         generals:      Array.isArray(e.generals) ? e.generals : [],
-        minions:       Array.isArray(e.minions)  ? e.minions  : []
+        minions:       Array.isArray(e.minions)  ? e.minions  : [],
+        soundBank:     Array.isArray(e.soundBank) ? e.soundBank : []
       }))
     };
     return;
@@ -1127,6 +1287,37 @@ app.use(async (ctx, next) => {
     return;
   }
 
+  // ----------------------------------------------------------
+  // POST /api/ext/soundbank  保存拓展 soundBank（音频资源元数据）
+  // body: { extId, soundBank: [{id, type, volume, subtitle, loop}] }
+  // ----------------------------------------------------------
+  if (ctx.path === '/api/ext/soundbank' && ctx.method === 'POST') {
+    const body = ctx.request.body || {};
+    const store = readStore();
+    const ext = store.extensions.find(e => e.id === body.extId);
+    if (!ext) { ctx.status = 404; ctx.body = { ok: false, error: '拓展不存在' }; return; }
+    const list = Array.isArray(body.soundBank) ? body.soundBank : [];
+    // 校验每条记录：id 必填且形如 sd_xxx 或纯 key；type 限定枚举
+    const cleaned = [];
+    for (const s of list) {
+      if (!s || !s.id || typeof s.id !== 'string') continue;
+      const id = String(s.id).trim();
+      if (!/^sd_[a-z0-9_]+$/i.test(id) && !/^[a-z0-9_]+$/i.test(id)) continue;
+      cleaned.push({
+        id,
+        type: ['sfx', 'voice', 'bgm'].includes(s.type) ? s.type : 'sfx',
+        volume: s.volume != null ? Math.max(0, Math.min(1, Number(s.volume))) : 0.7,
+        subtitle: typeof s.subtitle === 'string' ? s.subtitle.slice(0, 200) : '',
+        loop: !!s.loop
+      });
+    }
+    ext.soundBank = cleaned;
+    writeStore(store);
+    ctx.type = 'application/json; charset=utf-8';
+    ctx.body = { ok: true, soundBank: cleaned };
+    return;
+  }
+
   await next();
 });
 
@@ -1167,6 +1358,8 @@ app.use(async (ctx, next) => {
       zip.file('generals.json', JSON.stringify(Array.isArray(ext.generals) ? ext.generals : [], null, 2));
       zip.file('skills.json',   JSON.stringify(Array.isArray(ext.skills)   ? ext.skills   : [], null, 2));
       zip.file('minions.json',  JSON.stringify(Array.isArray(ext.minions)  ? ext.minions  : [], null, 2));
+      // 拓展级 soundBank（音频资源元数据）一并导出
+      zip.file('soundBank.json', JSON.stringify(Array.isArray(ext.soundBank) ? ext.soundBank : [], null, 2));
 
       // 打包武将和小兵引用的立绘文件到 portraits/ 目录
       const portraitFolder = zip.folder('portraits');
@@ -1185,6 +1378,28 @@ app.use(async (ctx, next) => {
             packedPortraits.push(g.portrait);
           }
         } catch (e) { console.warn('[project/export] 立绘读取失败:', g.portrait, e.message); }
+      }
+
+      // 打包拓展 soundBank 引用的音频文件到 audio/ 目录
+      // soundBank 中 id 形如 sd_<extId>_<key>，对应 /workspace/audio/sd_<extId>_<key>.<ext>
+      const audioFolder = zip.folder('audio');
+      const soundBankList = Array.isArray(ext.soundBank) ? ext.soundBank : [];
+      const packedSounds = [];
+      for (const s of soundBankList) {
+        if (!s || !s.id || packedSounds.includes(s.id)) continue;
+        // 在 audio/ 目录中查找以该 id 开头的所有扩展名变体
+        try {
+          const files = fs.existsSync(AUDIO_DIR) ? fs.readdirSync(AUDIO_DIR) : [];
+          for (const fname of files) {
+            if (!fname.startsWith(s.id + '.')) continue;
+            const fpath = path.join(AUDIO_DIR, fname);
+            if (fs.existsSync(fpath)) {
+              const buf = fs.readFileSync(fpath);
+              audioFolder.file(fname, buf);
+              packedSounds.push(s.id);
+            }
+          }
+        } catch (e) { console.warn('[project/export] 音频读取失败:', s.id, e.message); }
       }
 
       const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
@@ -1217,6 +1432,7 @@ app.use(async (ctx, next) => {
       const generalsJson = await zip.file('generals.json')?.async('string');
       const skillsJson   = await zip.file('skills.json')?.async('string');
       const minionsJson  = await zip.file('minions.json')?.async('string');
+      const soundBankJson = await zip.file('soundBank.json')?.async('string');
 
       if (!generalsJson || !skillsJson) {
         ctx.status = 400; ctx.body = { ok: false, error: 'ZIP 内缺少 generals.json 或 skills.json' }; return;
@@ -1225,6 +1441,7 @@ app.use(async (ctx, next) => {
       const generals    = JSON.parse(generalsJson);
       const skills      = JSON.parse(skillsJson);
       const minions     = minionsJson ? JSON.parse(minionsJson) : [];
+      const soundBank   = soundBankJson ? JSON.parse(soundBankJson) : [];
       const projectMeta = projectJson ? JSON.parse(projectJson) : {};
 
       const store = readStore();
@@ -1237,6 +1454,7 @@ app.use(async (ctx, next) => {
         ext.generals = Array.isArray(generals) ? generals : [];
         ext.skills   = Array.isArray(skills)   ? skills   : [];
         ext.minions  = Array.isArray(minions)  ? minions  : [];
+        ext.soundBank = Array.isArray(soundBank) ? soundBank : [];
       } else {
         ext = {
           id:       projectMeta.id || genId('ext'),
@@ -1245,7 +1463,8 @@ app.use(async (ctx, next) => {
           enabled:  true,
           generals: Array.isArray(generals) ? generals : [],
           skills:   Array.isArray(skills)   ? skills   : [],
-          minions:  Array.isArray(minions)  ? minions  : []
+          minions:  Array.isArray(minions)  ? minions  : [],
+          soundBank: Array.isArray(soundBank) ? soundBank : []
         };
         store.extensions.push(ext);
       }
@@ -1279,6 +1498,34 @@ app.use(async (ctx, next) => {
         }
       }
 
+      // 从 ZIP 中恢复音频文件到 /workspace/audio/ 目录
+      // 音频文件名形如 sd_<extId>_<key>.<ext>，导入时统一用拓展 id 重写前缀避免冲突
+      const restoredSounds = [];
+      const audioFiles = Object.keys(zip.files).filter(function (p) {
+        return p.startsWith('audio/') && !zip.files[p].dir;
+      });
+      const newExtId = ext.id;
+      for (const audioPath of audioFiles) {
+        const originalName = path.basename(audioPath);
+        // 仅接受 sd_*.ext 格式的音频文件名
+        const m = originalName.match(/^sd_(.+?)\.([a-z0-9]+)$/i);
+        if (!m) continue;
+        const ext2 = '.' + m[2].toLowerCase();
+        if (!ALLOWED_AUDIO_EXT.includes(ext2)) continue;
+        try {
+          const audBuf = await zip.files[audioPath].async('nodebuffer');
+          if (audBuf.length > MAX_AUDIO_SIZE) {
+            console.warn('[project/import] 音频过大跳过:', originalName);
+            continue;
+          }
+          // 原 id 可能含旧 extId 前缀（sd_<oldExtId>_<key>），这里替换为新 extId
+          // 简单策略：保留原 id 不变；若发生同名冲突则覆盖（同一拓展导入应保持一致）
+          const targetName = originalName;
+          fs.writeFileSync(path.join(AUDIO_DIR, targetName), audBuf);
+          restoredSounds.push(targetName);
+        } catch (e) { console.warn('[project/import] 音频恢复失败:', originalName, e.message); }
+      }
+
       if (!writeStore(store)) {
         for (const r of restoredPortraits) {
           try { fs.unlinkSync(path.join(PORTRAIT_DIR, r.newName)); } catch (e) {}
@@ -1294,7 +1541,8 @@ app.use(async (ctx, next) => {
         generalsCount: ext.generals.length,
         skillsCount:   ext.skills.length,
         minionsCount:  ext.minions.length,
-        portraitsCount: restoredPortraits.length
+        portraitsCount: restoredPortraits.length,
+        soundsCount:   restoredSounds.length
       };
     } catch (e) {
       console.error('[project/import]', e.message);

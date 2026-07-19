@@ -322,9 +322,24 @@
 
         let changed = false;
 
+        // 0) 注册拓展声明的 soundBank 到 AudioManager，并给技能/武将打 _extId
+        if (global.AudioManager && Array.isArray(data.extensions)) {
+          for (const ext of data.extensions) {
+            if (!ext || !ext.id) continue;
+            // 注册该拓展的音频资源（含 soundBank 中声明的 id）
+            global.AudioManager.registerExtension(ext);
+          }
+          // 预加载所有已注册音频（不阻塞游戏）
+          try { global.AudioManager.preloadAll(); } catch (e) {}
+        }
+
         // 1) 先注册技能（保证武将用到时已就绪）
         if (global.SkillsAPI && data.skills && data.skills.length) {
           const compiled = global.SkillsAPI.registerSkills(data.skills);
+          // 把 _extId 从数据对象透传到编译后的技能实例上，供音效前缀解析使用
+          data.skills.forEach((s, i) => {
+            if (s && s._extId && compiled[i]) compiled[i]._extId = s._extId;
+          });
           if (compiled.some(Boolean)) changed = true;
           if (!silent) this.log('已加载 DIY 技能 ' + compiled.filter(Boolean).length + ' 个。');
         }
@@ -1240,6 +1255,8 @@
           return;
         }
         this.selected = target;
+        // 选中音效：播放 select 语音
+        Effect.playPieceVoice(target, 'select');
         this.mode = null;
         this.highlighted = [];
         this._render();
@@ -1408,10 +1425,10 @@
     _showFloatText(x, y, text, type) {
       const board = this.boardEl;
       if (!board) return;
-      
+
       const cell = board.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
       if (!cell) return;
-      
+
       const rect = cell.getBoundingClientRect();
       const float = document.createElement('div');
       if (type === 'heal') float.className = 'heal-float';
@@ -1423,12 +1440,34 @@
       float.style.left = (rect.left + rect.width / 2) + 'px';
       float.style.top = rect.top + 'px';
       float.style.transform = 'translateX(-50%)';
-      
+
       document.body.appendChild(float);
-      
+
       setTimeout(() => {
         float.remove();
       }, 800);
+    },
+
+    // 字幕显示层：在棋盘底部短暂显示语音/音效的字幕文本
+    // text: 字幕内容，duration: 显示毫秒数
+    _subtitleTimer: null,
+    showSubtitle(text, duration) {
+      if (!text) return;
+      const layer = document.getElementById('subtitle-layer');
+      if (!layer) return;
+      layer.textContent = text;
+      layer.classList.remove('hidden');
+      // 重置入场动画
+      layer.classList.remove('subtitle-out');
+      layer.classList.add('subtitle-in');
+      if (this._subtitleTimer) clearTimeout(this._subtitleTimer);
+      this._subtitleTimer = setTimeout(() => {
+        layer.classList.remove('subtitle-in');
+        layer.classList.add('subtitle-out');
+        setTimeout(() => {
+          if (layer.classList.contains('subtitle-out')) layer.classList.add('hidden');
+        }, 250);
+      }, duration || 1500);
     },
 
     _showTargetLine(fromX, fromY, toX, toY) {
@@ -1536,6 +1575,8 @@
         const actuallyUsed = actor.skilled && !beforeSkilled;
         if (actuallyUsed) {
           self.log(actor.name + ' 发动技能：' + skill.name);
+          // 技能释放音效：播放 cast 音效 + 武将技能语音 + 技能专属语音
+          Effect.playSkillCastSound(actor, skill);
           Effect.trigger('onSkillCast', { actor, skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill });
           if (cooldown) actor.cdMap[skill.id] = cooldown;
@@ -1717,6 +1758,8 @@
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
+      // 移动音效：播放 move 语音
+      Effect.playPieceVoice(actor, 'move');
       Effect.trigger('onMove', { actor, x, y });
       Effect._checkTraps(actor); // 陷阱触发
       // 城池占领：移动到城池上时触发占领
@@ -1919,6 +1962,7 @@
         document.getElementById('banner').classList.remove('hidden');
         this.log(title.textContent + '！', 'turn');
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        this._playVictoryVoice(winner);
         return;
       }
       // 2. 占领胜利：占领敌方半场全部 6 个城池
@@ -1931,6 +1975,7 @@
         document.getElementById('banner').classList.remove('hidden');
         this.log(title.textContent + '！', 'turn');
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        this._playVictoryVoice('red');
         return;
       }
       if (blueEnemyCastles >= 6) {
@@ -1940,8 +1985,15 @@
         document.getElementById('banner').classList.remove('hidden');
         this.log(title.textContent + '！', 'turn');
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
+        this._playVictoryVoice('blue');
         return;
       }
+    },
+
+    // 胜利音效：胜方任一存活武将播放 victory 语音
+    _playVictoryVoice(side) {
+      const winner = this.pieces.find(p => p.side === side && p.alive);
+      if (winner) Effect.playPieceVoice(winner, 'victory');
     },
 
     endTurn() {
@@ -2570,6 +2622,8 @@
               if (p.side !== this.currentSide) return;
               if (!this._onlineCanAct(this.currentSide, this._onlineAction)) return;
               this.selected = p;
+              // 选中音效：播放 select 语音
+              Effect.playPieceVoice(p, 'select');
               this.mode = null;
               this.highlighted = [];
               document.getElementById('report-modal').classList.add('hidden');
@@ -3531,6 +3585,8 @@
         const used = actor.skilled && !before;
         if (used) {
           self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
+          // 技能释放音效：播放 cast 音效 + 武将技能语音 + 技能专属语音
+          Effect.playSkillCastSound(actor, skill);
           Effect.trigger('onSkillCast', { actor: actor, skill: skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill: skill });
           if (skill.cooldown) {
@@ -4026,6 +4082,8 @@
         const used = actor.skilled && !before;
         if (used) {
           self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
+          // 技能释放音效：播放 cast 音效 + 武将技能语音 + 技能专属语音
+          Effect.playSkillCastSound(actor, skill);
           Effect.trigger('onSkillCast', { actor: actor, skill: skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill: skill });
           if (skill.cooldown) {
@@ -4116,6 +4174,8 @@
       actor.y = y;
       actor.moved = true;
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
+      // 移动音效：播放 move 语音
+      Effect.playPieceVoice(actor, 'move');
       Effect.trigger('onMove', { actor, x, y });
       Effect._checkTraps(actor); // 陷阱触发
       // 城池占领：移动到城池上时触发占领
@@ -4139,6 +4199,8 @@
       });
       if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
       const atkVal = Effect.getEffectiveAttack(actor);
+      // 攻击音效：播放 attack 语音
+      Effect.playPieceVoice(actor, 'attack');
       const dmg = Effect.damage(actor, target, atkVal);
       actor.attacked = true;
       this.highlighted = [];
@@ -4154,8 +4216,19 @@
   (function preloadDiy() {
     fetch('/api/diy/list').then(function(r) { return r.json(); }).then(function(data) {
       if (!data.ok) return;
+      // 注册拓展音频资源
+      if (window.AudioManager && Array.isArray(data.extensions)) {
+        data.extensions.forEach(function(ext) {
+          if (ext && ext.id) window.AudioManager.registerExtension(ext);
+        });
+        try { window.AudioManager.preloadAll(); } catch (e) {}
+      }
       if (window.SkillsAPI && data.skills && data.skills.length) {
-        window.SkillsAPI.registerSkills(data.skills);
+        var compiled = window.SkillsAPI.registerSkills(data.skills);
+        // 透传 _extId 到编译后的技能实例，供音效前缀解析
+        data.skills.forEach(function(s, i) {
+          if (s && s._extId && compiled[i]) compiled[i]._extId = s._extId;
+        });
       }
       if (data.generals && data.generals.length && window.Generals) {
         data.generals.forEach(function(g) {
@@ -4398,6 +4471,57 @@
         if (settings.autoPlay && bgm && bgm.paused) tryPlayBgm(true);
       });
     }
+
+    // ========== 音效/语音/BGM 音量与字幕开关（AudioManager）==========
+    (function wireAudioSettings() {
+      const AM = global.AudioManager;
+      if (!AM) return;
+      const sfxSlider = document.getElementById('sfx-volume');
+      const sfxVal = document.getElementById('sfx-volume-val');
+      const voiceSlider = document.getElementById('voice-volume');
+      const voiceVal = document.getElementById('voice-volume-val');
+      const bgmVolSlider = document.getElementById('bgm-volume');
+      const bgmVolVal = document.getElementById('bgm-volume-val');
+      const enabledBox = document.getElementById('audio-enabled');
+      const subtitleBox = document.getElementById('audio-subtitle');
+
+      // 从 AudioManager 恢复设置（其 loadSettings 在模块初始化时已读取 localStorage）
+      const vols = AM.getVolumes();
+      if (sfxSlider) sfxSlider.value = String(Math.round(vols.sfx * 100));
+      if (sfxVal) sfxVal.textContent = String(Math.round(vols.sfx * 100));
+      if (voiceSlider) voiceSlider.value = String(Math.round(vols.voice * 100));
+      if (voiceVal) voiceVal.textContent = String(Math.round(vols.voice * 100));
+      if (bgmVolSlider) bgmVolSlider.value = String(Math.round(vols.bgm * 100));
+      if (bgmVolVal) bgmVolVal.textContent = String(Math.round(vols.bgm * 100));
+      if (enabledBox) enabledBox.checked = AM.isEnabled();
+      if (subtitleBox) subtitleBox.checked = AM.isSubtitleEnabled();
+
+      function bind(slider, val, setter) {
+        if (!slider) return;
+        slider.addEventListener('input', () => {
+          const v = (parseInt(slider.value, 10) || 0) / 100;
+          setter(v);
+          if (val) val.textContent = String(Math.round(v * 100));
+          AM.saveSettings();
+        });
+      }
+      bind(sfxSlider, sfxVal, v => AM.setSfxVolume(v));
+      bind(voiceSlider, voiceVal, v => AM.setVoiceVolume(v));
+      bind(bgmVolSlider, bgmVolVal, v => AM.setBgmVolume(v));
+
+      if (enabledBox) {
+        enabledBox.addEventListener('change', () => {
+          AM.setEnabled(enabledBox.checked);
+          AM.saveSettings();
+        });
+      }
+      if (subtitleBox) {
+        subtitleBox.addEventListener('change', () => {
+          AM.setSubtitleEnabled(subtitleBox.checked);
+          AM.saveSettings();
+        });
+      }
+    })();
 
     // ========== 按钮：拖动 + 点击切换 + 长按弹菜单 ==========
     if (musicBtn) {
