@@ -43,6 +43,8 @@
       const weights = { common: 6, rare: 3, epic: 1 };
 
       for (const minion of dynamicList) {
+        // inDeck = false 的小兵不进入抽卡池（可通过技能 Effect.deployMinion 召唤）
+        if (minion.inDeck === false) continue;
         const count = weights[minion.rarity] || 1;
         for (let i = 0; i < count; i++) {
           pool.push(Object.assign({}, minion));

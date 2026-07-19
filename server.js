@@ -1080,7 +1080,8 @@ app.use(async (ctx, next) => {
       tag: tag,
       cost: cost,
       description: String(minion.description || '').slice(0, 200),
-      portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null
+      portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null,
+      inDeck: minion.inDeck === false ? false : true
     };
 
     // 找到或创建拓展
