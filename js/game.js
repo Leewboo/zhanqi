@@ -9,10 +9,10 @@
     { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 11, y: 5 }, { x: 11, y: 6 },   // 东西桥头
     { x: 5, y: 2 }, { x: 6, y: 2 }, { x: 5, y: 9 }, { x: 6, y: 9 }       // 双方中场堡
   ];
-  // 四角城池（围攻胜利用）
-  const CORNER_CASTLES = [
-    { x: 0, y: 0 }, { x: 11, y: 0 }, { x: 0, y: 11 }, { x: 11, y: 11 }
-  ];
+  // 判断坐标是否为四角城池（仅用于城池命名）
+  function isCornerCastle(x, y) {
+    return (x === 0 || x === 11) && (y === 0 || y === 11);
+  }
   // 判断坐标是否为城池
   function isCastle(x, y) {
     for (let i = 0; i < CASTLE_CELLS.length; i++) {
@@ -1817,7 +1817,7 @@
     },
 
     _castleName(x, y) {
-      if (CORNER_CASTLES.some(c => c.x === x && c.y === y)) {
+      if (isCornerCastle(x, y)) {
         return '角城(' + x + ',' + y + ')';
       }
       if (x === 0 || x === 11) return '桥头堡(' + x + ',' + y + ')';
@@ -1839,15 +1839,6 @@
       let n = 0;
       for (const c of CASTLE_CELLS) {
         if (castleSide(c.x, c.y) === enemySide && this.castleOwner[c.x + ',' + c.y] === side) n++;
-      }
-      return n;
-    },
-
-    // 统计一方占领的四角城池数（围攻胜利用）
-    _countCornerCastles(side) {
-      let n = 0;
-      for (const c of CORNER_CASTLES) {
-        if (this.castleOwner[c.x + ',' + c.y] === side) n++;
       }
       return n;
     },
@@ -1946,27 +1937,6 @@
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
         return;
       }
-      // 3. 围攻胜利：占领四角城池中至少 3 个
-      const redCorners = this._countCornerCastles('red');
-      const blueCorners = this._countCornerCastles('blue');
-      if (redCorners >= 3) {
-        this.over = true;
-        const title = document.getElementById('banner-title');
-        title.textContent = '红方胜利（围攻四方）';
-        document.getElementById('banner').classList.remove('hidden');
-        this.log(title.textContent + '！', 'turn');
-        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
-        return;
-      }
-      if (blueCorners >= 3) {
-        this.over = true;
-        const title = document.getElementById('banner-title');
-        title.textContent = '蓝方胜利（围攻四方）';
-        document.getElementById('banner').classList.remove('hidden');
-        this.log(title.textContent + '！', 'turn');
-        if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
-        return;
-      }
     },
 
     endTurn() {
@@ -2014,12 +1984,6 @@
       // 回合开始：当前方获得 1 点部署点并抽 1 张小兵卡
       if (this.minionDraftPool) {
         this.minionPoints[this.currentSide] = (this.minionPoints[this.currentSide] || 0) + 1;
-        // 城池增益：每占领 1 个城池额外获得 1 点部署点
-        const castleBonus = this._countCastles(this.currentSide);
-        if (castleBonus > 0) {
-          this.minionPoints[this.currentSide] += castleBonus;
-          this.log((this.currentSide === 'red' ? '红方' : '蓝方') + ' 城池增益：+' + castleBonus + ' 部署点。', 'turn');
-        }
         this._drawMinionCards(this.currentSide, 1);
         this.minionSelected = null;
       }
@@ -2802,14 +2766,11 @@
         const side = this.currentSide;
         const redEnemy = this._countEnemyCastles('red');
         const blueEnemy = this._countEnemyCastles('blue');
-        const redCorners = this._countCornerCastles('red');
-        const blueCorners = this._countCornerCastles('blue');
         const redTotal = this._countCastles('red');
         const blueTotal = this._countCastles('blue');
         el.textContent = '回合 ' + this.turn + ' · ' + (side === 'red' ? '红方' : '蓝方')
           + ' · 城池 红' + redTotal + '/蓝' + blueTotal
-          + ' · 敌境 红' + redEnemy + '/5 蓝' + blueEnemy + '/5'
-          + ' · 四角 红' + redCorners + '/3 蓝' + blueCorners + '/3';
+          + ' · 敌境 红' + redEnemy + '/5 蓝' + blueEnemy + '/5';
       }
       if (this.phase === 'battle') {
         this._renderMinionPanel();
@@ -3467,8 +3428,6 @@
               score += 50;
               // 攻占敌方半场城池（占领胜利路径）：额外加分
               if (castleSide(m.x, m.y) !== side) score += 30;
-              // 四角城池（围攻胜利路径）：额外加分
-              if (CORNER_CASTLES.some(c => c.x === m.x && c.y === m.y)) score += 20;
             } else {
               // 已方占领的城池：据守加分（防御加成已隐含）
               score += 8;
