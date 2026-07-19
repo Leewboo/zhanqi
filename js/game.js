@@ -942,28 +942,11 @@
         }
       }
       const passiveHandlers = [];
-      // 遍历所有技能，找到被动技能并注册
-      const allSkills = Object.values(Skills || {});
-      for (const sk of allSkills) {
-        if (sk.type !== '被动' || !sk.trigger) continue;
-        const handler = (context) => {
-          // 如果事件携带触发者 actor，只对该棋子执行（避免触发其他持有同技能的棋子）
-          // 如果没有 actor（全局事件），则遍历己方所有存活棋子
-          const candidates = (context && context.actor)
-            ? [context.actor]
-            : this.pieces.filter(p => p.alive && p.side === this.currentSide);
-          for (const p of candidates) {
-            if (!p.alive) continue;
-            const hasSkill = (p.skills || []).some(s => s.id === sk.id);
-            if (hasSkill && (!sk.filter || sk.filter(p))) {
-              const skill = (p.skills || []).find(s => s.id === sk.id);
-              try { skill.content(p, context); } catch (e) { console.error(e); }
-            }
-          }
-        };
-        Effect.on(sk.trigger, handler);
-        passiveHandlers.push({ event: sk.trigger, handler });
-      }
+      // 注意：DIY 被动技能的触发统一由 Effect.triggerPassive 负责，
+      // 这里不再注册全局监听器，否则会用 context.actor（攻击者/击杀者）
+      // 错误触发 onAttacked/onKilled 等被动技能。
+      // 全局事件监听器仅保留非棋子技能的系统级处理（如小兵品质被动）。
+
       // 小兵品质被动：common 死亡时 buff 友军
       const deathBuffHandler = (ctx) => {
         const victim = ctx && ctx.victim;
