@@ -4444,22 +4444,41 @@
     // 全局首次手势兜底：若自动播放被拦截，则在任意首次操作后开始播放
     function onFirstGesture() {
       if (firstGestureDone) return;
-      firstGestureDone = true;
-      if (settings.autoPlay && bgm && bgm.paused) tryPlayBgm(true);
-      document.removeEventListener('pointerdown', onFirstGesture);
-      document.removeEventListener('keydown', onFirstGesture);
+      if (!settings.autoPlay || !bgm || !bgm.paused) {
+        firstGestureDone = true;
+        document.removeEventListener('pointerdown', onFirstGesture);
+        document.removeEventListener('keydown', onFirstGesture);
+        return;
+      }
+      // 尝试播放，成功后才标记完成（避免播放失败时没有重试机会）
+      const p = bgm.play();
+      const finish = () => {
+        firstGestureDone = true;
+        document.removeEventListener('pointerdown', onFirstGesture);
+        document.removeEventListener('keydown', onFirstGesture);
+        syncMusicBtn();
+      };
+      if (p && p.then) p.then(finish).catch(finish);
+      else finish();
     }
     document.addEventListener('pointerdown', onFirstGesture);
     document.addEventListener('keydown', onFirstGesture);
 
-    // 音量滑块
+    // 音量滑块（与"音效/语音"区的 BGM 音量滑块双向同步）
+    const _bgmVolSlider2 = document.getElementById('bgm-volume');
+    const _bgmVolVal2 = document.getElementById('bgm-volume-val');
     if (volSlider && bgm) {
       volSlider.addEventListener('input', () => {
         const v = parseInt(volSlider.value, 10) || 0;
         settings.volume = v;
         bgm.volume = v / 100;
         if (volVal) volVal.textContent = String(v);
+        // 同步到"音效/语音"区的 BGM 音量滑块
+        if (_bgmVolSlider2) _bgmVolSlider2.value = String(v);
+        if (_bgmVolVal2) _bgmVolVal2.textContent = String(v);
+        if (global.AudioManager) global.AudioManager.setBgmVolume(v / 100);
         saveSettings();
+        if (global.AudioManager) global.AudioManager.saveSettings();
       });
     }
 
@@ -4507,7 +4526,21 @@
       }
       bind(sfxSlider, sfxVal, v => AM.setSfxVolume(v));
       bind(voiceSlider, voiceVal, v => AM.setVoiceVolume(v));
-      bind(bgmVolSlider, bgmVolVal, v => AM.setBgmVolume(v));
+      // BGM 音量滑块：同时更新 AudioManager 和实际 <audio id="bgm"> 元素，并与 music-volume 滑块同步
+      if (bgmVolSlider) {
+        bgmVolSlider.addEventListener('input', () => {
+          const v = (parseInt(bgmVolSlider.value, 10) || 0) / 100;
+          AM.setBgmVolume(v);
+          if (bgmVolVal) bgmVolVal.textContent = String(Math.round(v * 100));
+          // 同步到实际 BGM 元素和 music-volume 滑块
+          if (bgm) bgm.volume = v;
+          settings.volume = Math.round(v * 100);
+          if (volSlider) volSlider.value = String(Math.round(v * 100));
+          if (volVal) volVal.textContent = String(Math.round(v * 100));
+          saveSettings();
+          AM.saveSettings();
+        });
+      }
 
       if (enabledBox) {
         enabledBox.addEventListener('change', () => {

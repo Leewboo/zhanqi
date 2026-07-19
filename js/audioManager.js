@@ -83,15 +83,28 @@
           const audio = new Audio(def.url);
           audio.preload = 'auto';
           audio.volume = def.volume * this._getCatVolume(def.type);
+          let settled = false;
           const onReady = () => {
+            if (settled) return;
+            settled = true;
             loaded.add(soundId);
             cache.set(soundId, audio);
             resolve();
           };
           audio.addEventListener('canplaythrough', onReady, { once: true });
-          audio.addEventListener('error', () => resolve(), { once: true });
-          // 兜底超时（避免卡住）
-          setTimeout(() => resolve(), 3000);
+          audio.addEventListener('error', () => {
+            if (settled) return;
+            settled = true;
+            resolve();  // 错误时不存入 cache（文件不存在等）
+          }, { once: true });
+          // 兜底超时：即使未 canplaythrough，音频可能已部分加载，仍存入 cache
+          setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            loaded.add(soundId);
+            cache.set(soundId, audio);
+            resolve();
+          }, 3000);
           audio.load();
         } catch (e) { resolve(); }
       });
@@ -112,19 +125,23 @@
       }
 
       return this._load(soundId).then(() => {
-        const audio = cache.get(soundId);
-        if (!audio) return null;
+        const cached = cache.get(soundId);
+        if (!cached) return null;
         try {
-          audio.currentTime = 0;
+          // 克隆 audio 元素以支持同一音效同时播放多个实例（如多个棋子同时受伤）
+          // 预加载阶段已让浏览器缓存了音频文件，此处新建元素可快速从缓存读取
+          const audio = new Audio(def.url);
           audio.volume = (opts.volume != null ? opts.volume : def.volume) * this._getCatVolume(def.type);
           const p = audio.play();
           if (p && p.catch) p.catch(() => {});  // 忽略自动播放限制错误
+          // 播放结束后释放资源
+          audio.addEventListener('ended', () => { try { audio.src = ''; } catch (e) {} }, { once: true });
         } catch (e) {}
         // 字幕
         if (def.subtitle && subtitleEnabled && global.Game && typeof global.Game.showSubtitle === 'function') {
           global.Game.showSubtitle(def.subtitle, def.type === 'voice' ? 2200 : 1000);
         }
-        return audio;
+        return cached;
       });
     },
 
