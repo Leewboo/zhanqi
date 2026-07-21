@@ -708,10 +708,16 @@
         minionId: card.id,
         rarity: card.rarity,
         tag: card.tag || 'infantry',
-        portrait: card.portrait
+        portrait: card.portrait,
+        sound: card.sound || null
       };
 
       this.pieces.push(minion);
+
+      // 小兵部署音效
+      if (card.sound && card.sound.deploy && global.AudioManager) {
+        global.AudioManager.play(card.sound.deploy);
+      }
       this.minionPoints[side] -= card.cost;
       // 城池占领：小兵部署在城池上时触发占领
       this._captureCastle(minion);
