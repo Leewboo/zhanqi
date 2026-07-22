@@ -468,6 +468,8 @@
     //   Effect.fx.pulse(piece, { color: '#fc0' })
     //   Effect.fx.glow(piece, { color: '#fc0', duration: 1000 })
     //   Effect.fx.screenShake({ intensity: 8, duration: 400 })
+    //   Effect.fx.highlightCells([{x,y},...] 或 {shape,n,cx,cy}, { color, duration: 0, dashed, id })
+    //   Effect.fx.clearFx(id)  // 清除高亮，不传 id 清除全部
     //
     // target 既可以是 piece 对象（含 x/y），也可以直接是 {x, y} 坐标。
     // 所有方法都安全幂等：DOM 不存在时静默返回。
@@ -718,6 +720,53 @@
           board.style.removeProperty('--fx-intensity');
           board.style.removeProperty('--fx-duration');
         }, dur + 30);
+      },
+
+      // 10. 高亮格子：在指定坐标范围上叠加半透明色块，持续到自动过期或被 clearFx 清除
+      // cells: [{x,y}, ...] 或 { shape, n, cx, cy } 范围定义
+      // opts: { color: 'rgba(255,180,0,0.35)', duration: 0, dashed: false, id: 'myFx' }
+      //   duration=0 表示持续到手动清除
+      highlightCells(cells, opts) {
+        opts = opts || {};
+        const g = global.Game;
+        if (!g || !g.boardEl) return;
+        // 支持 Range 风格的范围定义
+        let list = cells;
+        if (!Array.isArray(cells) && cells && cells.shape) {
+          const cx = cells.cx != null ? cells.cx : (g.currentActor ? g.currentActor.x : 0);
+          const cy = cells.cy != null ? cells.cy : (g.currentActor ? g.currentActor.y : 0);
+          list = Range.cellsInRange(cells.shape, cells.n, cx, cy, { includeSelf: true });
+        }
+        if (!list || !list.length) return;
+        const fxId = opts.id || ('fx-hl-' + Date.now());
+        for (const c of list) {
+          const cell = this._cellAt(c.x, c.y);
+          if (!cell) continue;
+          if (getComputedStyle(cell).position === 'static') {
+            cell.style.position = 'relative';
+          }
+          const div = document.createElement('div');
+          div.className = 'fx-highlight-cell';
+          if (opts.dashed) div.classList.add('dashed');
+          div.dataset.fxId = fxId;
+          this._setVars(div, opts);
+          cell.appendChild(div);
+        }
+        // 自动过期（duration > 0 时）
+        if (opts.duration && opts.duration > 0) {
+          setTimeout(() => this.clearFx(fxId), opts.duration + 30);
+        }
+        return fxId;
+      },
+
+      // 11. 清除临时特效：按 id 清除 highlightCells 创建的高亮，无 id 时清除全部
+      clearFx(id) {
+        const g = global.Game;
+        if (!g || !g.boardEl) return;
+        const sel = id
+          ? g.boardEl.querySelectorAll('.fx-highlight-cell[data-fx-id="' + id + '"]')
+          : g.boardEl.querySelectorAll('.fx-highlight-cell');
+        sel.forEach(el => el.remove());
       }
     },
 
