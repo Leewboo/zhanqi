@@ -2545,7 +2545,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
                     <option value="">不预览</option>
                     <option value="+">十字 +</option>
                     <option value="square">方形</option>
-                    <option value="circle">圆形</option>
+                    <option value="r">圆形</option>
                     <option value="x">X 形</option>
                   </select>
                   半径 <input type="number" id="s-pv-n" value="3" min="1" max="10" style="width:60px;" />
@@ -2558,7 +2558,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
                     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
                       <label style="font-weight:bold;color:#c0392b;">启用 AI</label>
                       <select id="s-ai-type" style="width:auto;">
-                        <option value="">不启用 AI</option>
+                        <option value="">自动推断（推荐）</option>
                         <option value="damage">伤害 damage</option>
                         <option value="heal">治疗 heal</option>
                         <option value="buff">增益 buff</option>
@@ -2669,6 +2669,18 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
                 </div>
                 <div class="hl-layer"><pre><code></code></pre></div>
                 <textarea id="s-content" class="code-input" spellcheck="false"></textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label>init（初始化逻辑，可选）<span class="hint" style="font-weight:normal;">武将：战斗开始时执行；小兵：部署后执行</span></label>
+              <div class="code-editor" id="s-init-editor">
+                <div class="code-editor-header">
+                  <span class="code-editor-title">init</span>
+                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
+                </div>
+                <div class="hl-layer"><pre><code></code></pre></div>
+                <textarea id="s-init" class="code-input" spellcheck="false"></textarea>
               </div>
             </div>
 
@@ -4154,6 +4166,10 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         '<label style="font-size:12px; letter-spacing:2px; color:#666;">async content(actor) — 技能主逻辑</label>' +
         buildEditorBlock('content', 's-content', (p.content !== undefined ? p.content : CONTENT_DEFAULT), 260) +
       '</div>' +
+      '<div class="s-new-fields" style="margin-top: 12px;">' +
+        '<label style="font-size:12px; letter-spacing:2px; color:#666;">async init(actor) — 初始化逻辑（可选，武将：战斗开始时执行；小兵：部署后执行）</label>' +
+        buildEditorBlock('init', 's-init', (p.init !== undefined ? p.init : ''), 120) +
+      '</div>' +
       '<div class="s-new-fields sound-row" style="margin-top: 12px;">' +
         '<div class="sound-row-title">技能音效（可选，留空则不播放）</div>' +
         '<div class="sound-grid">' +
@@ -4702,6 +4718,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
               }
               $('s-filter').value = s.filterCode || '';
               $('s-content').value = s.contentCode || '';
+              $('s-init').value = s.initCode || '';
               const ai = s.aiHint || {};
               $('s-ai-type').value = ai.type || '';
               $('s-ai-target').value = ai.target || 'enemy';
@@ -4731,6 +4748,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
               if (submitBtn) submitBtn.textContent = '✓ 更新技能';
               setupCodeEditor($('s-filter-editor'));
               setupCodeEditor($('s-content-editor'));
+              setupCodeEditor($('s-init-editor'));
             });
         });
       });
@@ -4785,6 +4803,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           })(),
           filterCode: $('s-filter').value,
           contentCode: $('s-content').value,
+          initCode: $('s-init').value,
           aiHint: $('s-ai-type').value ? {
             type:         $('s-ai-type').value,
             target:       $('s-ai-target').value,
@@ -4848,6 +4867,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         $('s-pv-n').value = '3';
         $('s-filter').value = 'return actor && actor.alive && !actor.skilled;';
         $('s-content').value = '';
+        $('s-init').value = '';
         // 清空音效绑定
         ['s-sound-cast', 's-sound-hit', 's-sound-voice'].forEach(function (id) {
           var el = $(id);
@@ -4859,6 +4879,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
         $('btn-skill-submit').textContent = '✓ 提交技能';
         setupCodeEditor($('s-filter-editor'));
         setupCodeEditor($('s-content-editor'));
+        setupCodeEditor($('s-init-editor'));
       });
     }
 
@@ -4872,6 +4893,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
     // 初始化技能编辑器
     setupCodeEditor($('s-filter-editor'));
     setupCodeEditor($('s-content-editor'));
+    setupCodeEditor($('s-init-editor'));
   }
 
   // 双保险：DOM 已解析就立即执行，否则等 DOMContentLoaded
@@ -5006,6 +5028,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
           filterCode:  c.querySelector('.s-filter').value,
           contentCode: c.querySelector('.s-content').value,
+          initCode:    (c.querySelector('.s-init') || {}).value || '',
           // 技能音效：cast（释放）/ hit（命中）/ voice（专属语音）
           sound: {
             cast:  (c.querySelector('.s-sound-cast')  || {}).value  || '',
@@ -5560,6 +5583,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
               previewN:     s.preview ? s.preview.n : 3,
               filter:       s.filterCode  || '',
               content:      s.contentCode || '',
+              init:         s.initCode    || '',
               sound:        s.sound || null
             });
           });
@@ -5722,6 +5746,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           preview:     pvShape ? { shape: pvShape, n: parseInt(c.querySelector('.s-pv-n').value, 10) || 3 } : null,
           filterCode:  c.querySelector('.s-filter').value,
           contentCode: c.querySelector('.s-content').value,
+          initCode:    (c.querySelector('.s-init') || {}).value || '',
           // 技能音效：cast（释放）/ hit（命中）/ voice（专属语音）
           sound: {
             cast:  (c.querySelector('.s-sound-cast')  || {}).value  || '',
@@ -5860,7 +5885,8 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
                 previewShape: s.preview ? s.preview.shape : '',
                 previewN:     s.preview ? s.preview.n : 3,
                 filter:       s.filterCode  || '',
-                content:      s.contentCode || ''
+                content:      s.contentCode || '',
+                init:         s.initCode    || ''
               }, 'm-skills-container');
             }
           });

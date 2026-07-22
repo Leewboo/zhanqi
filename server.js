@@ -732,6 +732,7 @@ app.use(async (ctx, next) => {
           preview:     s.preview ? validateRange(s.preview, null) : null,
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
           contentCode: String(s.contentCode || ''),
+          initCode:    typeof s.initCode === 'string' ? s.initCode : '',
           // 技能音效：cast/hit/voice 均为音频 id 字符串（形如 sd_xxx）
           sound: s.sound && typeof s.sound === 'object' ? {
             cast:  String(s.sound.cast  || '').slice(0, 80),
@@ -926,6 +927,7 @@ app.use(async (ctx, next) => {
       preview:     skill.preview ? validateRange(skill.preview, null) : null,
       filterCode:  String(skill.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
       contentCode: String(skill.contentCode || ''),
+      initCode:    typeof skill.initCode === 'string' ? skill.initCode : '',
       // 技能音效：cast/hit/voice 均为音频 id 字符串（形如 sd_xxx）
       sound: skill.sound && typeof skill.sound === 'object' ? {
         cast:  String(skill.sound.cast  || '').slice(0, 80),
@@ -1114,6 +1116,7 @@ app.use(async (ctx, next) => {
           preview:     s.preview ? validateRange(s.preview, null) : null,
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
           contentCode: String(s.contentCode || ''),
+          initCode:    typeof s.initCode === 'string' ? s.initCode : '',
           aiHint:     s.aiHint ? {
             type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
             target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
