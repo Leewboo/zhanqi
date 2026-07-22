@@ -2554,6 +2554,16 @@
         global.AudioManager.play(cardObj.sound.deploy);
       }
 
+      // 小兵部署后执行技能的 init 方法
+      if (minion.skills && minion.skills.length) {
+        for (var i = 0; i < minion.skills.length; i++) {
+          var sk = minion.skills[i];
+          if (sk.init && typeof sk.init === 'function') {
+            sk.init(minion);
+          }
+        }
+      }
+
       // 若卡牌来自手牌，则从手牌移除
       const hand = g.minionHand[side];
       if (hand) {

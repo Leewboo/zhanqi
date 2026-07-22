@@ -34,6 +34,12 @@
       'return (async () => { ' + (def.contentCode || '') + ' \n})();'
     );
 
+    // init 方法：武将在战斗开始时执行，小兵在部署后执行
+    const initFn = def.initCode ? new Function(
+      'actor',
+      'return (async () => { ' + def.initCode + ' \n})();'
+    ) : null;
+
     const compiled = {
       id: def.id,
       name: def.name || def.id,
@@ -59,7 +65,16 @@
           if (global.Game) global.Game.log('【' + (def.name || def.id) + '】脚本执行错误：' + e.message);
           return false;
         }
-      }
+      },
+      init: initFn ? function (actor) {
+        try {
+          return initFn(actor);
+        } catch (e) {
+          console.error('[DIY 技能 init 错误] ' + def.id, e);
+          if (global.Game) global.Game.log('【' + (def.name || def.id) + '】初始化错误：' + e.message);
+          return false;
+        }
+      } : null
     };
     return compiled;
   }

@@ -608,6 +608,17 @@
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
       this.log('小兵系统已激活：每回合获得 1 点部署点并抽 1 张卡。', 'turn');
 
+      // 战斗开始时执行所有武将技能的 init 方法
+      for (const p of this.pieces) {
+        if (p.skills && p.skills.length) {
+          for (const sk of p.skills) {
+            if (sk.init && typeof sk.init === 'function') {
+              sk.init(p);
+            }
+          }
+        }
+      }
+
       // 第一回合红方额外获得部署点（先手补偿）
       this.minionPoints.red += 1;
       this._drawMinionCards('red', 1);
@@ -718,6 +729,16 @@
       if (card.sound && card.sound.deploy && global.AudioManager) {
         global.AudioManager.play(card.sound.deploy);
       }
+
+      // 小兵部署后执行技能的 init 方法
+      if (minion.skills && minion.skills.length) {
+        for (const sk of minion.skills) {
+          if (sk.init && typeof sk.init === 'function') {
+            sk.init(minion);
+          }
+        }
+      }
+
       this.minionPoints[side] -= card.cost;
       // 城池占领：小兵部署在城池上时触发占领
       this._captureCastle(minion);
