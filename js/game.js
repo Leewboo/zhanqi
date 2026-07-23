@@ -2062,7 +2062,7 @@
       if (this.currentSide === 'red') {
         this.currentSide = 'blue';
         this.pieces.forEach(p => {
-          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; }
+          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; delete p._aiReplanned; }
           if (p.side === 'blue' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -2072,7 +2072,7 @@
         this.currentSide = 'red';
         this.turn += 1;
         this.pieces.forEach(p => {
-          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; }
+          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; delete p._aiReplanned; }
           if (p.side === 'red' && p.cdMap) {
             for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
           }
@@ -3562,7 +3562,17 @@
     _aiRunStep(actor, queue, idx) {
       if (this.over) return;
       if (idx >= queue.length) {
-        // 队列执行完毕，安排下一个棋子
+        // 队列执行完毕
+        // 检查技能是否恢复了行动次数（如 resetAttack/resetMove），如果有则重新规划并继续
+        if (!actor._aiReplanned) {
+          actor._aiReplanned = true;
+          const reaplan = this._aiPlanActorAction(actor);
+          if (reaplan && reaplan.steps.length) {
+            this._aiRunStep(actor, reaplan.steps, 0);
+            return;
+          }
+        }
+        delete actor._aiReplanned;
         this._scheduleNext();
         return;
       }
