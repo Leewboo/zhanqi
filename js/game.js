@@ -2090,6 +2090,8 @@
       this._applyCastleHeal(this.currentSide);
       // 重置 AI 本回合小兵部署标记
       this._aiMinionDeployed = false;
+      // 重置 AI 回合步数计数
+      this._aiStepCount = 0;
 
       this._clearSelection();
       this._refreshUi();
@@ -3219,6 +3221,21 @@
     _aiBattleStep() {
       const side = this.currentSide;
 
+      // 安全计数：每回合最多执行 100 次行动步骤，防止极端死循环
+      this._aiStepCount = (this._aiStepCount || 0) + 1;
+      if (this._aiStepCount > 100) {
+        console.warn('[AI 安全保护] 本回合行动步数超过上限，强制结束回合');
+        this.log('AI 回合步数超限，强制结束。', 'turn');
+        // 强制标记所有己方棋子为已行动
+        const myAlive = this.pieces.filter(p => p.side === side && p.alive);
+        myAlive.forEach(p => { p.moved = true; p.attacked = true; p.skilled = true; });
+        this._turnEnding = false;
+        this._aiActing = false;
+        this._render(); this._renderBottom();
+        this.endTurn();
+        return;
+      }
+
       const myAlive = this.pieces.filter(p => p.side === side && p.alive);
       const cand = myAlive.filter(p => !(p.moved && p.attacked && p.skilled));
       if (!cand.length) {
@@ -3552,66 +3569,85 @@
       const step = queue[idx];
       const self = this;
 
-      if (step.type === 'skill') {
-        // 检查技能是否仍可用（前置步骤可能改变了状态）
-        if (actor.skilled || !actor.alive) {
-          this._aiRunStep(actor, queue, idx + 1);
-          return;
-        }
-        actor.cdMap = actor.cdMap || {};
-        const stillValid = !actor.skilled && actor.alive &&
-          (!step.skill.filter || step.skill.filter(actor)) &&
-          (actor.cdMap[step.skill.id] || 0) <= 0;
-        if (!stillValid) {
-          this._aiRunStep(actor, queue, idx + 1);
-          return;
-        }
-        this._aiExecuteSkillStep(actor, step.skill, function () {
-          self._aiRunStep(actor, queue, idx + 1);
-        });
-      } else if (step.type === 'attack') {
-        if (actor.attacked || !actor.alive) {
-          this._aiRunStep(actor, queue, idx + 1);
-          return;
-        }
-        // 目标可能已死亡或位置已变，重新验证
-        const target = (step.target && step.target.alive) ? step.target : this._aiBestAttackTarget(actor);
-        if (!target) {
-          actor.attacked = true;
-          this._render(); this._renderBottom();
-          this._aiRunStep(actor, queue, idx + 1);
-          return;
-        }
-        this._executeAttack(actor, target);
-        // _executeAttack 是同步的，直接进入下一步
-        setTimeout(function () {
-          self._aiRunStep(actor, queue, idx + 1);
-        }, 200);
-      } else if (step.type === 'move') {
-        if (actor.moved || !actor.alive) {
-          this._aiRunStep(actor, queue, idx + 1);
-          return;
-        }
-        // 目标格可能已被占用，重新校验
-        const occ = this.pieceAt(step.dest.x, step.dest.y);
-        if (occ) {
-          // 找替代落点
-          const alt = this._aiBestMoveDest(actor);
-          if (!alt) {
-            actor.moved = true;
+      try {
+        if (step.type === 'skill') {
+          // 检查技能是否仍可用（前置步骤可能改变了状态）
+          if (actor.skilled || !actor.alive) {
+            this._aiRunStep(actor, queue, idx + 1);
+            return;
+          }
+          actor.cdMap = actor.cdMap || {};
+          const stillValid = !actor.skilled && actor.alive &&
+            (!step.skill.filter || step.skill.filter(actor)) &&
+            (actor.cdMap[step.skill.id] || 0) <= 0;
+          if (!stillValid) {
+            this._aiRunStep(actor, queue, idx + 1);
+            return;
+          }
+          this._aiExecuteSkillStep(actor, step.skill, function () {
+            self._aiRunStep(actor, queue, idx + 1);
+          });
+        } else if (step.type === 'attack') {
+          if (actor.attacked || !actor.alive) {
+            this._aiRunStep(actor, queue, idx + 1);
+            return;
+          }
+          // 目标可能已死亡或位置已变，重新验证
+          const target = (step.target && step.target.alive) ? step.target : this._aiBestAttackTarget(actor);
+          if (!target) {
+            actor.attacked = true;
             this._render(); this._renderBottom();
             this._aiRunStep(actor, queue, idx + 1);
             return;
           }
-          step.dest = { x: alt.x, y: alt.y };
+          this._executeAttack(actor, target);
+          // _executeAttack 是同步的，直接进入下一步
+          setTimeout(function () {
+            self._aiRunStep(actor, queue, idx + 1);
+          }, 200);
+        } else if (step.type === 'move') {
+          if (actor.moved || !actor.alive) {
+            this._aiRunStep(actor, queue, idx + 1);
+            return;
+          }
+          // 目标格可能已被占用，重新校验
+          const occ = this.pieceAt(step.dest.x, step.dest.y);
+          if (occ) {
+            // 找替代落点
+            const alt = this._aiBestMoveDest(actor);
+            if (!alt) {
+              actor.moved = true;
+              this._render(); this._renderBottom();
+              this._aiRunStep(actor, queue, idx + 1);
+              return;
+            }
+            step.dest = { x: alt.x, y: alt.y };
+          }
+          this._executeMove(actor, step.dest.x, step.dest.y);
+          setTimeout(function () {
+            self._aiRunStep(actor, queue, idx + 1);
+          }, 350);
+        } else {
+          // 未知步骤，跳过
+          this._aiRunStep(actor, queue, idx + 1);
         }
-        this._executeMove(actor, step.dest.x, step.dest.y);
+      } catch (e) {
+        console.error('[AI 步骤异常]', step.type, e);
+        this.log('AI 执行异常：' + e.message);
+        // 异常后标记当前步骤类型的状态，避免重复尝试
+        if (step.type === 'move') actor.moved = true;
+        if (step.type === 'attack') actor.attacked = true;
+        if (step.type === 'skill') {
+          actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+          if (step.skill && step.skill.id && !actor._aiSkippedSkills.includes(step.skill.id)) {
+            actor._aiSkippedSkills.push(step.skill.id);
+          }
+        }
+        this._render(); this._renderBottom();
+        // 继续下一步，避免卡死
         setTimeout(function () {
           self._aiRunStep(actor, queue, idx + 1);
-        }, 350);
-      } else {
-        // 未知步骤，跳过
-        this._aiRunStep(actor, queue, idx + 1);
+        }, 200);
       }
     },
 
@@ -3621,13 +3657,35 @@
       Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: aiHint };
       const before = !!actor.skilled;
       const self = this;
-      const promise = skill.content(actor);
-      Promise.resolve(promise).then(function () {
+
+      const allActiveSkillsSkipped = function () {
+        if (!actor.skills || !actor.skills.length) return true;
+        const skipped = actor._aiSkippedSkills || [];
+        actor.cdMap = actor.cdMap || {};
+        let activeCount = 0;
+        let skippedCount = 0;
+        for (const sk of actor.skills) {
+          if (sk.type === '被动') continue;
+          if (sk.limited && self._limitedUsed && self._limitedUsed[sk.id]) continue;
+          if ((actor.cdMap[sk.id] || 0) > 0) continue;
+          if (sk.filter && !sk.filter(actor)) continue;
+          activeCount++;
+          if (skipped.includes(sk.id)) skippedCount++;
+        }
+        return activeCount > 0 && activeCount === skippedCount;
+      };
+
+      const finish = function (used, err) {
         Effect._aiContext = null;
-        const used = actor.skilled && !before;
-        if (used) {
+        if (err) {
+          console.error('[AI 技能错误]', skill.name, err);
+          actor._aiSkippedSkills = actor._aiSkippedSkills || [];
+          if (!actor._aiSkippedSkills.includes(skill.id)) {
+            actor._aiSkippedSkills.push(skill.id);
+          }
+          self.log('【' + skill.name + '】AI 执行出错：' + err.message);
+        } else if (used) {
           self.log(actor.name + ' 发动技能：' + skill.name, 'turn');
-          // 技能释放音效：播放 cast 音效 + 武将技能语音 + 技能专属语音
           Effect.playSkillCastSound(actor, skill);
           Effect.trigger('onSkillCast', { actor: actor, skill: skill });
           Effect.triggerPassive(actor, 'onSkillCast', { skill: skill });
@@ -3646,18 +3704,25 @@
           if (!actor._aiSkippedSkills.includes(skill.id)) {
             actor._aiSkippedSkills.push(skill.id);
           }
+          // 所有可用主动技能都已被跳过 → 标记 skilled=true，避免重复选中
+          if (allActiveSkillsSkipped()) {
+            actor.skilled = true;
+            self._render(); self._renderBottom();
+          }
         }
         done();
-      }).catch(function (e) {
-        Effect._aiContext = null;
-        console.error('[AI 技能错误]', skill.name, e);
-        actor._aiSkippedSkills = actor._aiSkippedSkills || [];
-        if (!actor._aiSkippedSkills.includes(skill.id)) {
-          actor._aiSkippedSkills.push(skill.id);
-        }
-        self.log('【' + skill.name + '】AI 执行出错：' + e.message);
-        done();
-      });
+      };
+      try {
+        const promise = skill.content(actor);
+        Promise.resolve(promise).then(function () {
+          const used = actor.skilled && !before;
+          finish(used, null);
+        }).catch(function (e) {
+          finish(false, e);
+        });
+      } catch (e) {
+        finish(false, e);
+      }
     },
 
     // ========== AI 决策核心：评估所有可选行动，返回得分最高的 ==========
