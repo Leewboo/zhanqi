@@ -1,6 +1,6 @@
 # 三国战棋 (zhanqi)
 
-一款基于 HTML5 Canvas 的回合制战棋游戏，支持 DIY 武将、技能拓展和工程化管理。
+一款基于 HTML5 Canvas 的回合制战棋游戏，支持 DIY 武将/小兵/技能、拓展管理和工程化导入导出。
 
 ---
 
@@ -9,11 +9,14 @@
 - [功能特性](#功能特性)
 - [快速开始](#快速开始)
 - [游戏玩法](#游戏玩法)
-- [DIY 武将系统](#diy-武将系统)
+- [小兵卡牌系统](#小兵卡牌系统)
+- [DIY 编辑器](#diy-编辑器)
 - [拓展管理系统](#拓展管理系统)
 - [工程导入导出](#工程导入导出)
 - [技能开发指南](#技能开发指南)
 - [Effect API 参考](#effect-api-参考)
+- [事件系统（进阶）](#事件系统进阶)
+- [视觉特效 fx](#视觉特效-fx)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
 - [API 接口](#api-接口)
@@ -26,26 +29,33 @@
 ### 🎮 游戏核心
 - **回合制战棋**：经典战棋玩法，移动 → 攻击/技能 → 结束回合
 - **武将系统**：多个内置武将（赵云、吕布、诸葛亮、张飞、貂蝉、周瑜等），各有独特技能
-- **地形系统**：平原、山地（+10防御）、森林（+5防御）、河流（+15防御）
-- **AI 对战**：内置简易 AI，支持人机对战
-- **战斗动画**：伤害飘字、命中特效、闪避/护盾提示
+- **小兵卡牌系统**：部署点机制 + 手牌抽卡，可自定义卡组数量，双方独立卡池
+- **地形系统**：平原、山地（+10防御）、森林（+5防御）、河流（+15防御）、沼泽
+- **AI 对战**：内置 AI，支持人机对战，自动选择技能目标和走位
+- **战斗动画**：伤害飘字、命中特效、闪避/护盾提示、棋子抖动/脉动
 
 ### 🛠️ DIY 系统
-- **可视化编辑器**：在浏览器中直接编辑武将属性和技能代码
+- **全屏可视化编辑器**：支持多 Tab 切换（属性/技能/代码），手机端自适应
+- **三类对象编辑**：武将、小兵、独立技能，统一编辑器
+- **立绘 & 语音**：支持上传武将/小兵立绘和技能音效（cast/hit/voice），拓展导入导出自动携带
 - **动态技能编译**：技能代码实时生效，无需重启服务器
-- **代码高亮**：基于 highlight.js 的技能代码编辑器
+- **代码高亮**：基于 highlight.js 的代码编辑器
+- **API 侧栏**：编辑器内置 API 速查面板，分类展示所有可用函数，点击即插入
 - **密码保护**：提交/删除需要密码验证（默认 `diy123`）
 
 ### 📦 拓展与工程
-- **拓展（Extension）**：武将和技能按拓展分组，可启用/禁用
-- **工程导出**：将整个拓展打包为 ZIP 文件分享
-- **工程导入**：导入他人分享的 ZIP 工程，一键加载武将和技能
+- **拓展（Extension）**：武将、小兵和技能按拓展分组，可启用/禁用
+- **工程导出**：将整个拓展打包为 ZIP 文件分享（含立绘/语音）
+- **工程导入**：导入他人分享的 ZIP 工程，一键加载
 - **多拓展管理**：支持创建多个拓展，自由组合启用
 
 ### ⚡ 丰富的 Effect API
-- 40+ 内置效果函数：伤害、治疗、位移、眩晕、魅惑、中毒、护盾……
+- 80+ 内置效果函数：伤害、治疗、位移、眩晕、魅惑、中毒、护盾、召唤、陷阱……
 - 标记系统（Mark System）：自定义状态效果
-- 事件系统：`onKill` / `onAttacked` / `turnStart` / `turnEnd` 等触发时机
+- 事件系统：`triggerPassive` / `Effect.on` / `Effect.trigger` 双轨事件机制
+- 视觉特效 `Effect.fx`：高亮格子、棋子抖动、指示线、光束、光环、粒子、屏幕震动
+- 小兵系统：抽卡、部署、召唤、部署点管理
+- 范围形状：`+`（十字）、`x`（斜角）、`r`（圆形）、`square`（方形）
 
 ---
 
@@ -71,7 +81,7 @@ PORT=3000 node server.js
 
 ### 访问页面
 - **游戏首页**：http://localhost:5000/
-- **DIY 武将编辑器**：http://localhost:5000/diy.html
+- **DIY 编辑器**：http://localhost:5000/diy.html
 
 ---
 
@@ -82,7 +92,8 @@ PORT=3000 node server.js
 2. **移动**：点击蓝色高亮格子移动
 3. **攻击**：移动后点击红色高亮的敌方武将进行普通攻击
 4. **技能**：点击底部技能按钮，选择目标释放技能
-5. **结束回合**：点击「结束回合」按钮，轮到敌方行动
+5. **部署小兵**：使用部署点从手牌部署小兵到己方半场
+6. **结束回合**：点击「结束回合」按钮，轮到敌方行动
 
 ### 胜利条件
 - 消灭所有敌方武将即为胜利
@@ -94,35 +105,67 @@ PORT=3000 node server.js
 | 山地 | m | +10 |
 | 森林 | f | +5 |
 | 河流 | r | +15 |
+| 沼泽 | w | 减速 |
+
+### 范围形状
+| 形状 | 代码 | 说明 |
+|------|------|------|
+| 十字 | `+` | 上下左右四方向 |
+| 斜角 | `x` | 四个对角线方向 |
+| 圆形 | `r` | 切比雪夫距离圆形 |
+| 方形 | `square` | 正方形区域 |
 
 ---
 
-## DIY 武将系统
+## 小兵卡牌系统
 
-### 快速上手（30秒）
-1. 打开 [diy.html](http://localhost:5000/diy.html)
-2. 左侧「武将属性」填写 `id`、`name`、`hp`、`atk`、`def`、移动/攻击范围
-3. 右侧「技能列表」点「+ 添加」，写 `filter` 与 `content` 代码
-4. 底部输入密码 `diy123`，点「提交到服务器」
-5. 回到游戏首页，DIY 武将会出现在选将池中
+### 卡组机制
+- **部署点**：每回合自动获得部署点，用于部署小兵
+- **手牌**：从卡池中抽取小兵卡到手牌，部署时消耗对应部署点
+- **双方独立卡池**：红蓝双方各自一套卡池，互不影响
+- **卡组数量**：每个小兵可设置 `cardCount`（卡池中该小兵的数量，0-50）
+- **用尽不刷**：卡池中小兵用完后不再刷新
 
-### 武将属性说明
-| 属性 | 说明 | 取值范围 |
-|------|------|----------|
-| id | 武将唯一标识，自动加前缀 `diy_` | 2-20位字母/数字/下划线 |
-| name | 武将显示名称 | 任意字符串 |
-| hp | 最大生命值 | 1 - 10000 |
-| atk | 攻击力 | 0 - 1000 |
-| def | 防御力 | 0 - 1000 |
-| 移动范围 | 移动距离和形状 | 十字/方形/圆形/X形，半径1-12 |
-| 攻击范围 | 普通攻击距离和形状 | 十字/方形/圆形/X形，半径1-12 |
+### 小兵属性
+| 属性 | 说明 |
+|------|------|
+| id | 唯一标识，自动加前缀 `diyminion_` |
+| name | 显示名称 |
+| hp/atk/def | 生命/攻击/防御 |
+| rarity | 品质：common/rare/epic（影响死亡被动） |
+| cost | 部署消耗 |
+| cardCount | 卡池中的数量（双方各一份） |
+| inDeck | 是否加入卡组 |
+| moveRange/attackRange | 移动/攻击范围 |
+| portrait | 立绘图片 |
+| sound | 音效（cast/hit/voice） |
+
+---
+
+## DIY 编辑器
+
+### 编辑器入口
+打开 [diy.html](http://localhost:5000/diy.html)，点击武将/小兵/技能卡片上的「编辑」按钮，进入全屏编辑器。
+
+### 编辑器功能
+- **多 Tab 切换**：属性、技能、代码（init/filter/content）独立编辑，切换时自动保存
+- **属性面板**：ID、名称、HP/ATK/DEF、移动/攻击范围（形状+半径）、立绘上传、语音设置
+- **技能管理**：添加/删除技能，支持主动/被动/触发技，技能可独立设置音效
+- **代码编辑器**：全屏代码编辑，支持 API 侧栏速查、代码片段插入
+- **范围预览**：技能可设置 `preview`（预览范围形状）和 `passThrough`（是否穿墙预览）
+- **手机适配**：编辑器 UI 自适应手机屏幕
+
+### 立绘与语音
+- **立绘**：在属性面板上传图片，保存时自动上传到服务器
+- **语音**：技能属性中可设置 cast（释放音效）、hit（命中音效）、voice（语音台词）
+- **拓展导入**：ZIP 工程自动携带立绘和语音文件
 
 ---
 
 ## 拓展管理系统
 
 ### 什么是拓展？
-拓展（Extension）是武将和技能的集合。你可以：
+拓展（Extension）是武将、小兵和技能的集合。你可以：
 - 创建多个独立的拓展（如「三国武将包」「幻想角色包」）
 - 一键启用/禁用整个拓展
 - 将拓展导出为 ZIP 工程文件分享
@@ -140,21 +183,25 @@ PORT=3000 node server.js
 1. 打开 DIY 页面
 2. 点击「📤 导出」按钮
 3. 输入工程名称和密码
-4. 浏览器自动下载 `.zip` 文件
+4. 浏览器自动下载 `.zip` 文件（含立绘/语音）
 
 ### 导入工程
 1. 打开 DIY 页面
 2. 点击「📥 导入」按钮
 3. 选择 ZIP 文件
 4. 输入密码
-5. 工程内的所有武将和技能自动加载
+5. 工程内的所有武将、小兵和技能自动加载
 
 ### 工程 ZIP 结构
 ```
 my-project.zip
 ├── project.json     # 工程元信息（名称、版本、描述）
 ├── generals.json    # 武将数组
-└── skills.json      # 技能数组
+├── minions.json     # 小兵数组
+├── skills.json      # 独立技能数组
+└── assets/          # 立绘和语音文件
+    ├── portraits/
+    └── sounds/
 ```
 
 ---
@@ -168,14 +215,25 @@ my-project.zip
 {
   id: 'skillId',          // 唯一ID
   name: '技能名',          // 显示名称
-  type: '主动',            // '主动' 或 '被动'
+  type: '主动',            // '主动' / '被动' / '触发'
   cooldown: 2,            // 冷却回合数（主动技能）
   trigger: 'onKill',      // 被动触发时机（被动技能）
+  limited: false,         // 是否限定技（每局一次）
   desc: '技能描述',        // 说明文字
+  aiHint: { ... },        // AI 提示（指导 AI 使用技能）
   preview: {              // 技能范围预览（可选）
-    shape: '+',
-    n: 4,
-    passThrough: true
+    shape: '+',           // 形状：+, x, r, square
+    n: 4,                 // 半径
+    passThrough: false    // 是否穿墙预览（true 不被阻断）
+  },
+  sound: {                // 音效（可选）
+    cast: 'skill_cast.mp3',
+    hit: 'skill_hit.mp3',
+    voice: 'skill_voice.mp3'
+  },
+  // 初始化方法（可选）
+  init(actor) {
+    // 游戏开始时（武将）或部署后（小兵）立即执行
   },
   // 是否满足释放条件
   filter(actor) {
@@ -191,10 +249,15 @@ my-project.zip
 ### 被动技能触发时机
 | 触发时机 | 说明 | context 参数 |
 |----------|------|--------------|
-| `onKill` | 击杀敌人时触发 | `{ killed: target }` |
+| `turnStart` | 回合开始时触发（己方回合） | `{ turn }` |
+| `turnEnd` | 回合结束时触发（己方回合） | `{ turn }` |
+| `onKill` | 击杀敌人时触发 | `{ target, victim }` |
+| `onKilled` | 自身被击杀时触发 | `{ killer, damage }` |
+| `onAttack` | 发起攻击时触发 | `{ target, damage }` |
 | `onAttacked` | 被攻击后触发 | `{ attacker, damage }` |
-| `turnStart` | 回合开始时触发 | - |
-| `turnEnd` | 回合结束时触发 | - |
+| `onMove` | 移动结束后触发 | `{ from, to }` |
+| `onHeal` | 被治疗时触发 | `{ healer, amount }` |
+| `onSkillCast` | 任意技能发动后触发 | `{ caster, skill }` |
 
 ### 主动技能示例
 
@@ -204,8 +267,7 @@ return actor && actor.alive && !actor.skilled;
 ```
 
 ```javascript
-// content：技能主逻辑
-// 在十字3格范围内选择一名敌人，造成2倍攻击伤害
+// content：在十字3格范围内选择一名敌人，造成2倍攻击伤害
 const target = await Effect.chooseEnemy(actor, {
   range: { shape: '+', n: 3 },
   passThrough: true,
@@ -215,7 +277,7 @@ if (!target) return false;
 
 actor.skilled = true;
 Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { mul: 2 });
-global.Game.log(actor.name + ' 发动了强力一击！');
+Game.log(actor.name + ' 发动了强力一击！');
 return true;
 ```
 
@@ -232,13 +294,22 @@ Effect.heal(actor, 20);
 Effect.shield(actor, 30);
 ```
 
+### init 方法（可选）
+```javascript
+// 武将：游戏开始时立即执行
+// 小兵：部署后立即执行
+init(actor) {
+  Effect.mark(actor, 'ready', { display: '蓄' });
+}
+```
+
 ### 可用全局对象
 在技能代码中可以直接使用：
 - `Effect` — 效果 API（见下文）
 - `Range` — 范围计算
-- `global.Game` — 游戏实例
+- `Game` — 游戏实例（注意：是 `Game`，不是 `global.Game`）
 - `Math` — 数学函数
-- `actor` — 当前武将对象（参数）
+- `actor` — 当前棋子对象（参数）
 - `context` — 触发上下文（被动技能参数）
 
 ---
@@ -250,6 +321,8 @@ Effect.shield(actor, 30);
 |------|------|
 | `Effect.getEffectiveAttack(actor)` | 获取有效攻击力（含buff和标记） |
 | `Effect.getEffectiveDefense(target)` | 获取有效防御力（含buff、地形、标记） |
+| `Effect.getEffectiveAttackRange(actor)` | 获取有效攻击范围，返回 `{shape, n}` |
+| `Effect.getEffectiveMoveRange(actor)` | 获取有效移动范围，返回 `{shape, n}` |
 
 ### 伤害与治疗
 | 函数 | 说明 |
@@ -258,7 +331,10 @@ Effect.shield(actor, 30);
 | `Effect.basicAttack(actor, target)` | 普通攻击 |
 | `Effect.heal(actor, amount)` | 治疗 |
 | `Effect.leech(actor, target, amount, opts)` | 吸血伤害 |
-| `Effect.explode(actor, x, y, range, amount, opts)` | 范围爆炸伤害 |
+| `Effect.explode(actor, x, y, n, amount, opts)` | 范围爆炸伤害 |
+| `Effect.chain(actor, target, amount, count, opts)` | 链式弹射 |
+| `Effect.healArea(actor, shape, n, amount)` | 范围治疗 |
+| `Effect.stealStat(actor, target, stat, amount)` | 永久偷取属性（atk/def） |
 
 ### 护盾与状态
 | 函数 | 说明 |
@@ -270,14 +346,22 @@ Effect.shield(actor, 30);
 | `Effect.poison(target, dmgPerTurn, turns)` | 中毒（每回合掉血） |
 | `Effect.regen(target, healPerTurn, turns)` | 再生（每回合回血） |
 | `Effect.thorns(target, amount, turns)` | 荆棘（反伤） |
-| `Effect.dodge(target, chance)` | 闪避（概率闪避下次伤害） |
+| `Effect.dodge(target, chance)` | 闪避 |
 | `Effect.taunt(actor, turns)` | 嘲讽 |
+| `Effect.undying(target, stacks)` | 不屈（致命伤锁1血） |
+| `Effect.revive(target, turns, ratio)` | 复活 |
+| `Effect.stealth(target, turns)` | 隐身 |
+| `Effect.linkDamage(allyA, allyB, turns, ratio)` | 伤害分摊 |
 
 ### 属性增减益
 | 函数 | 说明 |
 |------|------|
 | `Effect.modifyAttack(target, delta, turns)` | 攻击力增减 |
+| `Effect.modifyDef(target, delta, turns)` | 防御力增减 |
 | `Effect.modifyMoveRange(target, delta, turns)` | 移动力增减 |
+| `Effect.modifyAttackRange(target, delta, turns)` | 攻击范围增减 |
+| `Effect.modifyMaxHp(target, delta, opts)` | 永久修改生命上限 |
+| `Effect.modifyAllStats(target, changes)` | 批量修改多种属性 |
 
 ### 位移与位置
 | 函数 | 说明 |
@@ -287,19 +371,31 @@ Effect.shield(actor, 30);
 | `Effect.push(actor, target, dir, n)` | 击退 |
 | `Effect.pull(actor, target, n)` | 拉拽 |
 | `Effect.swap(actor, target)` | 换位 |
+| `Effect.summonUnit(actor, x, y, opts)` | 召唤自定义单位 |
+| `Effect.placeTrap(x, y, opts)` | 布置陷阱 |
+| `Effect.clearTraps(opts)` | 清除陷阱 |
 
-### 目标选择
+### 目标选择（异步，需 await）
 | 函数 | 说明 |
 |------|------|
-| `Effect.chooseCell(actor, options)` | 选择格子（返回 Promise） |
-| `Effect.chooseEnemy(actor, options)` | 选择敌人（返回 Promise） |
-| `Effect.chooseAlly(actor, options)` | 选择友方（返回 Promise） |
+| `await Effect.chooseEnemy(actor, opts)` | 选择敌人 |
+| `await Effect.chooseAlly(actor, opts)` | 选择友方 |
+| `await Effect.chooseCell(actor, opts)` | 选择格子 |
+| `await Effect.chooseOption(actor, opts)` | 选项模态框（AI自动选） |
+
+所有选择函数支持 `opts.filter: (cell, piece) => bool` 自定义过滤。
 
 ### 单位获取
 | 函数 | 说明 |
 |------|------|
 | `Effect.getAllies(actor)` | 获取所有友方存活棋子 |
 | `Effect.getEnemies(actor)` | 获取所有敌方存活棋子 |
+| `Effect.getEnemiesInRange(actor, rangeDef)` | 获取范围内敌人 |
+| `Effect.getAlliesInRange(actor, rangeDef)` | 获取范围内友军 |
+| `Effect.searchPiece(range, filter, opts)` | 强力搜索棋子 |
+| `Effect.searchCell(range, filter)` | 强力搜索格子 |
+| `Effect.getJson(id)` | 获取武将/小兵定义深拷贝 |
+| `Game.pieceAt(x, y)` | 查询格子上的棋子 |
 
 ### 行动恢复
 | 函数 | 说明 |
@@ -308,6 +404,21 @@ Effect.shield(actor, 30);
 | `Effect.resetMove(actor)` | 仅恢复移动 |
 | `Effect.resetAttack(actor)` | 仅恢复攻击 |
 | `Effect.resetSkill(actor, skillId)` | 仅恢复技能（可清冷却） |
+
+### 技能操作
+| 函数 | 说明 |
+|------|------|
+| `Effect.gainSkill(actor, skillDef)` | 添加技能 |
+| `Effect.loseSkill(actor, skillId)` | 移除技能 |
+| `Effect.hasSkill(actor, skillId)` | 检查是否有技能 |
+| `Effect.getSkill(actor, skillId)` | 获取技能对象 |
+| `Effect.setSkillCooldown(actor, skillId, cd)` | 设置冷却 |
+| `Effect.resetSkillCooldown(actor, skillId)` | 重置冷却 |
+| `Effect.modifySkill(actor, skillId, changes)` | 修改技能属性 |
+| `Effect.reduceAllCooldowns(actor, amount)` | 减少所有冷却 |
+| `Effect.gainTmpSkill(actor, skillDef, opts)` | 临时技能 |
+| `Effect.loseTmpSkill(actor, tmpId)` | 移除临时技能 |
+| `Effect.loseAllTmpSkills(actor)` | 移除所有临时技能 |
 
 ### 标记系统
 | 函数 | 说明 |
@@ -318,32 +429,106 @@ Effect.shield(actor, 30);
 | `Effect.hasMark(actor, name)` | 是否有某标记 |
 | `Effect.getMarkData(actor, name)` | 获取标记数据 |
 | `Effect.getMarksOn(actor)` | 获取所有标记 |
+| `Effect.detonate(target, markName, callback)` | 引爆标记 |
 
-### 事件系统
+### 小兵系统
 | 函数 | 说明 |
 |------|------|
-| `Effect.on(eventName, cb)` | 注册事件监听 |
-| `Effect.off(eventName, cb)` | 移除事件监听 |
-| `Effect.trigger(eventName, context)` | 触发事件 |
+| `Effect.drawCard(side, count)` | 抽小兵卡到手牌 |
+| `Effect.removeCard(side, target)` | 弃置手牌 |
+| `Effect.addDeployPoint(side, amount)` | 增减部署点 |
+| `Effect.deployMinion(card, x, y, opts)` | 部署小兵 |
+| `Effect.summonMinion(actor, minionId, x, y)` | 直接召唤小兵 |
+| `Effect.canDeployMinion(actor, x, y)` | 检查能否部署 |
+| `Effect.getAvailableMinions()` | 获取可用小兵模板 |
+| `Effect.getMinionCount(actor)` | 获取己方小兵数量 |
+| `Game.minionHand[side]` | 直接访问某方手牌 |
+| `Game.minionPoints[side]` | 直接访问某方部署点 |
 
-### 地形
+### 地形与工具
 | 函数 | 说明 |
 |------|------|
-| `Effect.changeTerrain(x, y, terrain)` | 改变指定格子地形 |
-| `Effect.drawAoe(shape, n, x, y, opts)` | 获取范围格子列表 |
-
-### 召唤
-| 函数 | 说明 |
-|------|------|
-| `Effect.summonDecoy(actor, x, y, hp)` | 召唤幻象 |
-
-### 工具
-| 函数 | 说明 |
-|------|------|
+| `Effect.changeTerrain(x, y, type)` | 改变格子地形 |
 | `Effect.random(min, max)` | 随机整数 |
 | `Effect.chance(p)` | 概率判定 |
-| `Effect.chain(actor, target, amount, count, opts)` | 链式闪电 |
-| `Effect.healArea(actor, shape, n, amount)` | 范围治疗 |
+| `Game.log(text)` | 写入战斗日志 |
+| `Effect.aiContext()` | 查询当前AI上下文 |
+| `Effect.currentAiSkill()` | 获取AI正在执行的技能 |
+
+---
+
+## 事件系统（进阶）
+
+游戏有两套事件机制：**被动技能触发**和**全局事件总线**。
+
+### 1. Effect.triggerPassive(actor, eventName, context)
+手动触发某个棋子的被动技能。遍历该棋子身上 `type === '被动'` 且 `trigger === eventName` 的技能，依次执行 `filter` 和 `content`。
+
+```javascript
+// 手动触发目标的 onAttacked 被动
+Effect.triggerPassive(target, "onAttacked", {
+  attacker: actor,
+  damage: 50
+});
+```
+
+### 2. Effect.on / Effect.trigger / Effect.off
+全局事件总线（观察者模式）。`on` 注册回调，`trigger` 触发所有回调，`off` 取消订阅。
+
+```javascript
+// 注册全局监听
+var killLog = function(ctx) {
+  Game.log(ctx.victim.name + " 倒下了！");
+};
+Effect.on("onKilled", killLog);
+
+// 触发自定义事件
+Effect.trigger("myCustomEvent", { actor: actor });
+
+// 取消监听（需保存原回调引用）
+Effect.off("onKilled", killLog);
+```
+
+### 3. 两者的区别
+| 对比项 | `triggerPassive` | `on / trigger` |
+|--------|------------------|----------------|
+| 机制 | 直接遍历棋子技能 | 全局事件总线 |
+| 触发对象 | 某个棋子的被动技能 | 所有注册的回调 |
+| actor 视角 | 传入的 actor 就是技能拥有者 | context.actor 是事件视角（攻击者/击杀者） |
+| 用途 | DIY 被动技能执行 | 系统级逻辑、临时技能过期 |
+
+> ⚠️ **注意**：DIY 被动技能统一走 `triggerPassive`。`on/trigger` 主要用于系统级处理，不要在 `on` 里直接写棋子被动逻辑，否则会因为 context 视角错误导致误触发。
+
+### 4. 各事件 context 字段
+| 事件 | context 字段 |
+|------|-------------|
+| `onKilled` | `{ actor(击杀者), target, victim, damage }` |
+| `onAttack` | `{ actor(攻击者), target, damage }` |
+| `onAttacked` | `{ actor(攻击者), target(被攻击者), damage }` |
+| `onMove` | `{ actor, from:{x,y}, to:{x,y} }` |
+| `onHeal` | `{ actor, amount }` |
+| `onSkillCast` | `{ actor(施法者), skill }` |
+| `turnStart/turnEnd` | `{ side, turn }` |
+
+---
+
+## 视觉特效 fx
+
+通过 `Effect.fx` 调用视觉特效：
+
+| 函数 | 说明 |
+|------|------|
+| `Effect.fx.highlightCells(cells, opts)` | 高亮指定格子，opts: `{color, duration, dashed, id}` |
+| `Effect.fx.clearFx(id)` | 清除高亮特效 |
+| `Effect.fx.shake(target, opts)` | 棋子抖动，opts: `{axis, intensity, duration}` |
+| `Effect.fx.pulse(target, opts)` | 棋子脉动放大 |
+| `Effect.fx.glow(target, opts)` | 棋子发光 |
+| `Effect.fx.flashCell(x, y, opts)` | 格子闪烁 |
+| `Effect.fx.line(fromX, fromY, toX, toY, opts)` | 指示线 |
+| `Effect.fx.beam(fromX, fromY, toX, toY, opts)` | 光束 |
+| `Effect.fx.ring(x, y, opts)` | 扩散光环 |
+| `Effect.fx.particles(x, y, opts)` | 粒子爆发 |
+| `Effect.fx.screenShake(opts)` | 屏幕震动 |
 
 ---
 
@@ -352,18 +537,19 @@ Effect.shield(actor, 30);
 ```
 zhanqi/
 ├── index.html          # 游戏首页
-├── diy.html            # DIY 武将编辑器
+├── diy.html            # DIY 编辑器（武将/小兵/技能）
 ├── server.js           # Koa 服务器（API + 静态资源）
 ├── package.json        # 项目依赖
-├── diy.json            # DIY 数据（拓展、武将、技能）
+├── diy.json            # DIY 数据（拓展、武将、小兵、技能）
 ├── css/                # 样式文件
 │   ├── style.css
 │   └── diy.css
 ├── js/                 # JavaScript 模块
 │   ├── game.js         # 游戏核心逻辑
-│   ├── effects.js      # 效果 API
+│   ├── effects.js      # 效果 API + 事件系统
 │   ├── skills.js       # 技能定义 + DIY 技能注册
 │   ├── generals.js     # 武将定义
+│   ├── minions.js      # 小兵系统
 │   └── range.js        # 范围计算
 ├── assets/             # 图片资源
 └── fonts/              # 字体文件
@@ -390,10 +576,10 @@ zhanqi/
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/diy/list` | 获取所有启用拓展的武将+技能（扁平列表） |
-| POST | `/api/diy/submit` | 提交武将（含技能） |
-| GET | `/api/diy/detail?id=xxx` | 获取武将详情（含技能） |
-| POST | `/api/diy/delete` | 删除武将及其技能 |
+| GET | `/api/diy/list` | 获取所有启用拓展的武将+小兵+技能 |
+| POST | `/api/diy/submit` | 提交武将/小兵/技能 |
+| GET | `/api/diy/detail?id=xxx` | 获取武将/小兵详情 |
+| POST | `/api/diy/delete` | 删除武将/小兵及关联技能 |
 
 ### 拓展管理接口 (`/api/ext/*`)
 
@@ -434,13 +620,19 @@ A: 设置环境变量 `PORT`，例如：`PORT=8080 node server.js`。
 A: 打开浏览器控制台（F12）查看详细错误信息。常见错误：
 - 拼写错误（如 `Effect.dmage` → `Effect.damage`）
 - 忘记 `await` 异步函数（`chooseEnemy` / `chooseCell` 等）
-- 使用了未定义的变量
+- 使用 `global.Game` 而非 `Game`
 
 ### Q: 可以创建多个拓展吗？
 A: 可以。提交武将时通过 `extName` 指定拓展名称，不同名字会自动创建不同拓展。
 
-### Q: 工程 ZIP 和拓展的关系？
-A: 一个 ZIP 工程对应一个拓展。导出时将整个拓展打包，导入时创建或覆盖一个拓展。
+### Q: 小兵卡池是双方共享的吗？
+A: 不是。红蓝双方各自一套独立卡池，互不影响。每个小兵的 `cardCount` 决定卡池中该小兵的数量。
+
+### Q: 立绘和语音怎么上传？
+A: 在 DIY 编辑器的属性面板上传立绘，在技能属性中设置音效。保存时自动上传到服务器。拓展导出时自动携带。
+
+### Q: 被动技能的 trigger 和 Effect.on 有什么区别？
+A: `trigger` 字段配合 `triggerPassive` 用于 DIY 被动技能，`Effect.on/trigger` 用于系统级全局监听。详见[事件系统（进阶）](#事件系统进阶)。
 
 ---
 
