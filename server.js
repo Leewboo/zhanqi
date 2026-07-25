@@ -1117,6 +1117,12 @@ app.use(async (ctx, next) => {
           filterCode:  String(s.filterCode  || 'return actor && actor.alive && !actor.skilled;'),
           contentCode: String(s.contentCode || ''),
           initCode:    typeof s.initCode === 'string' ? s.initCode : '',
+          // 技能音效：cast/hit/voice 均为音频 id 字符串（形如 sd_xxx）
+          sound: s.sound && typeof s.sound === 'object' ? {
+            cast:  String(s.sound.cast  || '').slice(0, 80),
+            hit:   String(s.sound.hit   || '').slice(0, 80),
+            voice: String(s.sound.voice || '').slice(0, 80)
+          } : null,
           aiHint:     s.aiHint ? {
             type:         ['damage','heal','buff','debuff','control','teleport','summon','mixed'].includes(s.aiHint.type) ? s.aiHint.type : 'mixed',
             target:       ['enemy','ally','cell','self','none','aoe_enemy','aoe_ally'].includes(s.aiHint.target) ? s.aiHint.target : 'enemy',
@@ -1148,6 +1154,9 @@ app.use(async (ctx, next) => {
       description: String(minion.description || '').slice(0, 200),
       portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null,
       inDeck: minion.inDeck === false ? false : true,
+      cardCount: minion.cardCount != null && minion.cardCount !== ''
+        ? Math.max(0, Math.min(50, parseInt(minion.cardCount) || 0))
+        : null,
       // 小兵音效：deploy/attack/death
       sound: minion.sound && typeof minion.sound === 'object' ? {
         deploy: String(minion.sound.deploy || '').slice(0, 80),
