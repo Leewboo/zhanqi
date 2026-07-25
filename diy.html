@@ -1163,9 +1163,44 @@
     border-bottom-color: var(--green-dark);
   }
 
+  /* 技能属性折叠面板 */
+  .fs-skill-attr-section {
+    margin-bottom: 12px;
+    border: 1px solid var(--dark-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fs-skill-attr-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--dark-card-bg);
+    cursor: pointer;
+    font-size: var(--text-13);
+    color: var(--blue-info);
+    letter-spacing: 1px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .fs-skill-attr-toggle:hover {
+    background: var(--dark-hover);
+  }
+  .fs-skill-attr-arrow {
+    font-size: 10px;
+    color: var(--dark-muted);
+  }
+  .fs-skill-attr-body {
+    padding: 12px;
+    border-top: 1px solid var(--dark-border);
+  }
+  .fs-skill-attr-body.collapsed {
+    display: none;
+  }
+
   /* 技能代码编辑区 */
   .fs-skill-code-wrap {
-    height: calc(100% - 40px);
+    height: 400px;
     border: 1px solid var(--dark-border);
     border-radius: 4px;
     overflow: hidden;
@@ -1786,7 +1821,7 @@
     /* 代码编辑器高度 */
     .fs-editor-body .code-editor textarea,
     .fs-editor-body .code-editor .hl-layer { font-size: var(--text-13); line-height: 1.7; }
-    .fs-skill-code-wrap { height: calc(100% - 32px); }
+    .fs-skill-code-wrap { height: 300px; }
 
     /* 音效选择行 */
     .sound-select-row { flex-wrap: wrap; gap: 4px; }
@@ -4495,6 +4530,24 @@ Effect.fx.clearFx('myZone');</code></pre>
     var editorHead = $('fs-skills-editor-head');
     if (!listEl || !editorBody) return;
 
+    // 独立技能：隐藏侧栏，直接编辑 fsEditorState.data 本身
+    var sidebar = listEl.closest('.fs-skills-sidebar');
+    var layout = listEl.closest('.fs-skills-layout');
+    var addBtn = $('fs-btn-add-skill');
+    if (fsEditorState.type === 'skill') {
+      if (sidebar) sidebar.style.display = 'none';
+      if (layout) layout.style.gridTemplateColumns = '1fr';
+      if (addBtn) addBtn.style.display = 'none';
+      fsEditorState.activeSkillIdx = 0;
+      renderSkillEditor(fsEditorState.data);
+      return;
+    }
+
+    // 武将/小兵：恢复侧栏显示
+    if (sidebar) sidebar.style.display = '';
+    if (layout) layout.style.gridTemplateColumns = '';
+    if (addBtn) addBtn.style.display = '';
+
     var skills = fsEditorState.data.skills || [];
     listEl.innerHTML = '';
 
@@ -4557,10 +4610,19 @@ Effect.fx.clearFx('myZone');</code></pre>
 
   function saveCurrentSkillCode() {
     if (fsEditorState.activeSkillIdx < 0) return;
-    if (!fsEditorState.data || !fsEditorState.data.skills) return;
-    var skill = fsEditorState.data.skills[fsEditorState.activeSkillIdx];
+    if (!fsEditorState.data) return;
+
+    // 独立技能：数据直接在 fsEditorState.data 上
+    var skill;
+    if (fsEditorState.type === 'skill') {
+      skill = fsEditorState.data;
+    } else {
+      if (!fsEditorState.data.skills) return;
+      skill = fsEditorState.data.skills[fsEditorState.activeSkillIdx];
+    }
     if (!skill) return;
 
+    // 保存代码
     var tabs = ['filter', 'content', 'init'];
     tabs.forEach(function (tab) {
       var ta = fsEditorState.codeEditors[tab];
@@ -4570,6 +4632,31 @@ Effect.fx.clearFx('myZone');</code></pre>
         else if (tab === 'init') skill.initCode = ta.value;
       }
     });
+
+    // 保存技能属性（独立技能的属性在"属性"Tab中编辑，这里只处理武将/小兵内嵌技能）
+    if (fsEditorState.type !== 'skill') {
+      var nameEl = $('fs-skill-name');
+      var typeEl = $('fs-skill-type');
+      var cdEl = $('fs-skill-cd');
+      var limitedEl = $('fs-skill-limited');
+      var triggerEl = $('fs-skill-trigger');
+      var descEl = $('fs-skill-desc');
+      var pvShapeEl = $('fs-skill-pv-shape');
+      var pvNEl = $('fs-skill-pv-n');
+      if (nameEl) skill.name = nameEl.value.trim();
+      if (typeEl) skill.type = typeEl.value;
+      if (cdEl) skill.cooldown = parseInt(cdEl.value, 10) || 0;
+      if (limitedEl) skill.limited = limitedEl.value === '1';
+      if (triggerEl) skill.trigger = triggerEl.value.trim() || null;
+      if (descEl) skill.desc = descEl.value.trim();
+      if (pvShapeEl) {
+        if (pvShapeEl.value) {
+          skill.preview = { shape: pvShapeEl.value, n: parseInt(pvNEl.value, 10) || 1 };
+        } else {
+          skill.preview = null;
+        }
+      }
+    }
   }
 
   function renderSkillEditor(skill) {
@@ -4587,7 +4674,46 @@ Effect.fx.clearFx('myZone');</code></pre>
         '</div>';
     }
 
+    // 技能属性表单（独立技能的属性在"属性"Tab中编辑，此处隐藏）
+    var attrHtml = '';
+    if (fsEditorState.type !== 'skill') {
+      attrHtml = '<div class="fs-skill-attr-section">' +
+        '<div class="fs-skill-attr-toggle" id="fs-skill-attr-toggle">' +
+          '<span>技能属性</span><span class="fs-skill-attr-arrow">▼</span>' +
+        '</div>' +
+        '<div class="fs-skill-attr-body" id="fs-skill-attr-body">' +
+          '<div class="fs-attr-grid">' +
+            '<div class="form-row"><label>名称</label><input type="text" id="fs-skill-name" value="' + escapeHtml(skill.name || '') + '"></div>' +
+            '<div class="form-row"><label>类型</label><select id="fs-skill-type">' +
+              ['主动', '被动', '触发'].map(function (s) {
+                return '<option value="' + s + '"' + (skill.type === s ? ' selected' : '') + '>' + s + '</option>';
+              }).join('') +
+            '</select></div>' +
+            '<div class="form-row"><label>冷却</label><input type="number" id="fs-skill-cd" value="' + (skill.cooldown || 0) + '"></div>' +
+            '<div class="form-row"><label>限定技</label><select id="fs-skill-limited">' +
+              '<option value="0"' + (!skill.limited ? ' selected' : '') + '>否</option>' +
+              '<option value="1"' + (skill.limited ? ' selected' : '') + '>是</option>' +
+            '</select></div>' +
+          '</div>' +
+          '<div class="form-row" style="margin-top:10px;"><label>触发条件</label><input type="text" id="fs-skill-trigger" value="' + escapeHtml(skill.trigger || '') + '" placeholder="如 onAttacked, onKilled"></div>' +
+          '<div class="form-row" style="margin-top:10px;"><label>描述</label><input type="text" id="fs-skill-desc" value="' + escapeHtml(skill.desc || '') + '"></div>' +
+          '<div class="form-row" style="margin-top:10px;"><label>预览范围</label>' +
+            '<div class="fs-range-row">' +
+              '<select id="fs-skill-pv-shape">' +
+                '<option value="">（无）</option>' +
+                ['+', 'r', 'square'].map(function (s) {
+                  return '<option value="' + s + '"' + ((skill.preview && skill.preview.shape === s) ? ' selected' : '') + '>' + s + '</option>';
+                }).join('') +
+              '</select>' +
+              '<input type="number" id="fs-skill-pv-n" value="' + ((skill.preview && skill.preview.n) || 3) + '">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
     editorBody.innerHTML =
+      attrHtml +
       '<div class="fs-skill-code-wrap">' +
         '<div class="code-editor" id="fs-skill-code-editor">' +
           '<span class="code-label">' + fsEditorState.activeCodeTab + 'Code</span>' +
@@ -4595,6 +4721,17 @@ Effect.fx.clearFx('myZone');</code></pre>
           '<textarea spellcheck="false"></textarea>' +
         '</div>' +
       '</div>';
+
+    // 属性折叠切换
+    var toggleBtn = $('fs-skill-attr-toggle');
+    var attrBody = $('fs-skill-attr-body');
+    if (toggleBtn && attrBody) {
+      toggleBtn.onclick = function () {
+        attrBody.classList.toggle('collapsed');
+        var arrow = toggleBtn.querySelector('.fs-skill-attr-arrow');
+        if (arrow) arrow.textContent = attrBody.classList.contains('collapsed') ? '▶' : '▼';
+      };
+    }
 
     var editorEl = $('fs-skill-code-editor');
     var ta = editorEl.querySelector('textarea');
@@ -4612,6 +4749,34 @@ Effect.fx.clearFx('myZone');</code></pre>
         switchCodeTab(tabName);
       };
     });
+
+    // 属性变更实时更新技能列表标题
+    var nameInput = $('fs-skill-name');
+    var typeSelect = $('fs-skill-type');
+    if (nameInput) {
+      nameInput.addEventListener('input', function () {
+        var titleEl = editorHead.querySelector('.fs-skills-editor-title');
+        if (titleEl) titleEl.textContent = nameInput.value || '未命名技能';
+        // 更新左侧技能列表中的名称
+        var items = qsa('.fs-skill-item', $('fs-skills-list'));
+        var curItem = items[fsEditorState.activeSkillIdx];
+        if (curItem) {
+          var nameSpan = curItem.querySelector('span:first-child');
+          if (nameSpan) nameSpan.textContent = nameInput.value || '未命名';
+        }
+      });
+    }
+    if (typeSelect) {
+      typeSelect.addEventListener('change', function () {
+        // 更新左侧技能列表中的类型标签
+        var items = qsa('.fs-skill-item', $('fs-skills-list'));
+        var curItem = items[fsEditorState.activeSkillIdx];
+        if (curItem) {
+          var typeSpan = curItem.querySelector('.fs-skill-type');
+          if (typeSpan) typeSpan.textContent = typeSelect.value;
+        }
+      });
+    }
 
     setTimeout(function () {
       ta.focus();
