@@ -1612,8 +1612,8 @@
     .diy-main { grid-template-columns: 1fr; }
     .diy-tab { flex-direction: column; }
     .diy-left, .diy-right { width: 100%; }
-    .diy-nav-tabs { width: 100%; }
-    .diy-nav-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: var(--text-sm); }
+    .diy-nav-tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .diy-nav-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: var(--text-sm); white-space: nowrap; }
     .diy-hint-btn { left: 10px; bottom: 80px; }
     .diy-tutorial-panel { width: 88vw; }
     .fs-editor-mask { padding: 12px; }
@@ -1645,6 +1645,94 @@
     .portrait-actions { width: 100%; }
     .portrait-actions .btn { flex: 1; }
     .form-row input[type="text"] { font-size: var(--text-13); }
+
+    /* ====== 全屏编辑器手机适配 ====== */
+    .fs-editor-mask { padding: 8px; }
+    .fs-editor-head {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .fs-editor-title { font-size: var(--text-sm); }
+    .fs-editor-title small { display: block; margin: 2px 0 0; font-size: var(--text-xxs); }
+    .fs-editor-actions { flex-wrap: wrap; gap: 6px; }
+    .fs-editor-actions .btn {
+      flex: 1;
+      min-height: 36px;
+      padding: 6px 8px;
+      font-size: var(--text-xs);
+      letter-spacing: 1px;
+      min-width: 60px;
+    }
+    /* 主 Tab 栏 */
+    .fs-editor-main-tabs { margin-bottom: 8px; }
+    .fs-main-tab { padding: 8px 12px; font-size: var(--text-sm); flex: 1; text-align: center; }
+    /* 属性表单：2列改1列 */
+    .fs-attr-grid { grid-template-columns: 1fr; gap: 10px; }
+    .fs-tab-panel { padding: 12px 10px; }
+    .fs-attr-form .form-row { margin-bottom: 12px; }
+    .fs-attr-form input[type="text"],
+    .fs-attr-form input[type="number"],
+    .fs-attr-form select { padding: 10px 12px; font-size: var(--text-md); }
+    .fs-range-row select { flex: 0 0 80px; }
+
+    /* 技能编辑：左右分栏改上下布局 */
+    .fs-skills-layout { flex-direction: column; }
+    .fs-skills-sidebar {
+      width: 100%;
+      max-height: 140px;
+      border-right: none;
+      border-bottom: 1px solid var(--dark-border);
+    }
+    .fs-skills-list {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+    .fs-skill-item {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      font-size: var(--text-sm);
+      white-space: nowrap;
+      margin-bottom: 0;
+    }
+    .fs-skills-editor-head { padding: 8px 10px; }
+    .fs-skills-editor-body { padding: 10px; }
+
+    /* 技能属性表单 */
+    .fs-skill-form table { font-size: var(--text-sm); }
+    .fs-skill-form th { width: 60px; padding: 6px 8px; }
+    .fs-skill-form td { padding: 6px 8px; }
+    .fs-skill-form input[type="text"],
+    .fs-skill-form input[type="number"],
+    .fs-skill-form select { padding: 8px 10px; font-size: var(--text-13); }
+
+    /* 技能子 Tab */
+    .fs-code-sub-tabs { margin-bottom: 8px; }
+    .fs-code-sub-tab { padding: 6px 12px; font-size: var(--text-xs); }
+
+    /* 代码编辑器高度 */
+    .fs-editor-body .code-editor textarea,
+    .fs-editor-body .code-editor .hl-layer { font-size: var(--text-13); line-height: 1.7; }
+    .fs-skill-code-wrap { height: calc(100% - 32px); }
+
+    /* 音效选择行 */
+    .sound-select-row { flex-wrap: wrap; gap: 4px; }
+    .sound-select-row select { flex: 1 1 100%; min-width: 0; }
+
+    /* 列表表格：横向滚动 */
+    .gen-table-wrap { font-size: var(--text-sm); }
+    table.gen-table th, table.gen-table td { padding: 6px 6px; font-size: var(--text-xs); }
+    table.gen-table .btn-mini { padding: 3px 6px; font-size: var(--text-xxs); }
+
+    /* 音频管理卡片 */
+    .sound-list { grid-template-columns: 1fr; gap: 8px; }
+    .sound-card { padding: 10px; }
+    .sound-card-actions .btn-mini { padding: 4px 6px; font-size: var(--text-xxs); }
   }
   @media (max-width: 480px) {
     .diy-steps { display: none; }
@@ -1655,10 +1743,28 @@
     .btn.mini { padding: 6px 8px; min-height: 32px; }
     .card-title { font-size: var(--text-13); }
     .code-editor { height: 120px; }
-    .fs-editor-actions .btn { font-size: var(--text-xxs); padding: 5px 8px; }
+    .fs-editor-actions .btn { font-size: var(--text-xxs); padding: 5px 6px; min-width: 48px; }
     table.tbl th { width: 50px; font-size: var(--text-xs); }
     table.tbl td { padding: 5px 6px; font-size: var(--text-sm); }
     .portrait-preview { height: 80px; }
+
+    /* 超窄屏编辑器进一步优化 */
+    .fs-editor-mask { padding: 6px; }
+    .fs-editor-title { font-size: var(--text-xs); }
+    .fs-editor-title small { display: none; }
+    .fs-main-tab { padding: 6px 8px; font-size: var(--text-xs); letter-spacing: 0; }
+    .fs-tab-panel { padding: 10px 6px; }
+    .fs-attr-form input[type="text"],
+    .fs-attr-form input[type="number"],
+    .fs-attr-form select { padding: 8px 10px; font-size: var(--text-13); }
+    .fs-skills-sidebar { max-height: 110px; }
+    .fs-skill-item { padding: 5px 8px; font-size: var(--text-xs); }
+    .fs-skill-form th { width: 50px; padding: 5px 6px; font-size: var(--text-xxs); }
+    .fs-skill-form td { padding: 5px 6px; }
+    .fs-code-sub-tab { padding: 5px 8px; font-size: var(--text-xxs); }
+    .fs-editor-body .code-editor textarea,
+    .fs-editor-body .code-editor .hl-layer { font-size: var(--text-xs); line-height: 1.6; }
+    table.gen-table th, table.gen-table td { padding: 4px 4px; font-size: var(--text-xxs); }
   }
   .btn {
     padding: 7px 16px;
