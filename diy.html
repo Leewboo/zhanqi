@@ -2579,6 +2579,63 @@ Game.log(actor.name + "【常胜】气势如虹！");</code></pre>
       </div>
     </div>
     <div class="collapsible">
+      <div class="collapsible-head">▶ 进阶：事件系统（triggerPassive / on / trigger）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <p style="margin-top:8px;">游戏有两套事件机制：<b>被动技能触发</b>和<b>全局事件总线</b>。理解它们的区别是编写复杂技能的关键。</p>
+
+        <p style="margin-top:12px;"><b>1. Effect.triggerPassive(actor, eventName, context)</b></p>
+        <p>手动触发某个棋子的被动技能。会遍历该棋子身上 <code>type === '被动'</code> 且 <code>trigger === eventName</code> 的技能，依次执行 <code>filter</code> 判定和 <code>content</code>。通常由系统自动调用，但你也可以手动触发：</p>
+        <pre><code class="language-javascript">// 主动技能中，手动让目标触发"被攻击"被动
+Effect.triggerPassive(target, "onAttacked", {
+  attacker: actor,
+  damage: 50
+});</code></pre>
+
+        <p style="margin-top:12px;"><b>2. Effect.on(eventName, callback) / Effect.trigger(eventName, context)</b></p>
+        <p>全局事件总线（观察者模式）。<code>on</code> 注册回调，<code>trigger</code> 触发所有已注册的回调。用于<b>系统级</b>逻辑，而非棋子技能本身。</p>
+        <pre><code class="language-javascript">// 注册全局监听：任意棋子被击杀时记录
+var killLog = function(ctx) {
+  var victim = ctx.victim;
+  Game.log(victim.name + " 倒下了！");
+};
+Effect.on("onKilled", killLog);
+
+// 触发自定义事件（其他技能可监听）
+Effect.trigger("myCustomEvent", { actor: actor });
+
+// 取消监听（需保存原回调引用）
+Effect.off("onKilled", killLog);</code></pre>
+
+        <p style="margin-top:12px;"><b>3. 两者的区别</b></p>
+        <ul>
+          <li><code>triggerPassive</code> — 调用棋子身上的<b>被动技能</b>，<code>actor</code> 就是技能拥有者</li>
+          <li><code>on/trigger</code> — 调用全局注册的<b>回调函数</b>，<code>context.actor</code> 是事件视角（如攻击者/击杀者）</li>
+        </ul>
+        <p style="color:#8b949e;font-size:12px;">⚠️ 注意：DIY 被动技能统一走 <code>triggerPassive</code>。<code>on/trigger</code> 主要用于系统级处理（如小兵品质被动、临时技能过期），不要在 <code>on</code> 里直接写棋子被动逻辑，否则会因为 context 视角错误（如 <code>onKilled</code> 的 actor 是击杀者而非被杀者）导致误触发。</p>
+
+        <p style="margin-top:12px;"><b>4. 各事件的 context 字段</b></p>
+        <ul>
+          <li><code>onKilled</code> — <code>{ actor(击杀者), target, victim, damage }</code></li>
+          <li><code>onAttack</code> — <code>{ actor(攻击者), target, damage }</code></li>
+          <li><code>onAttacked</code> — <code>{ actor(攻击者), target(被攻击者), damage }</code></li>
+          <li><code>onMove</code> — <code>{ actor, from:{x,y}, to:{x,y} }</code></li>
+          <li><code>onHeal</code> — <code>{ actor, amount }</code></li>
+          <li><code>onSkillCast</code> — <code>{ actor(施法者), skill }</code></li>
+          <li><code>turnStart / turnEnd</code> — <code>{ side, turn }</code></li>
+        </ul>
+
+        <p style="margin-top:12px;"><b>5. 实战示例：连击被动</b></p>
+        <p>攻击时触发自身另一个被动，实现"连击"效果：</p>
+        <pre><code class="language-javascript">// 技能A：onAttack 被动 — 攻击后有概率触发连击
+// trigger: onAttack
+if (Effect.chance(0.3)) {
+  Game.log(actor.name + " 触发连击！");
+  // 再次普攻同一目标
+  if (target.alive) Effect.basicAttack(actor, target);
+}</code></pre>
+      </div>
+    </div>
+    <div class="collapsible">
       <div class="collapsible-head">▶ 限定技与临时技能<span class="arrow">›</span></div>
       <div class="collapsible-body">
         <p style="margin-top:8px;"><b>限定技 <code>limited</code></b>：在技能定义中设置 <code>limited: true</code> 即可将技能标记为限定技。限定技每局游戏只能使用一次，使用后按钮变为禁用状态并显示"已用"。</p>
@@ -5502,6 +5559,18 @@ Effect.fx.clearFx('myZone');</code></pre>
       { sig: 'onMove', desc: '移动结束后触发（context.from / context.to 为起止坐标）', insert: '// trigger: onMove' },
       { sig: 'onHeal', desc: '被治疗时触发（context.healer 为治疗者，context.amount 为治疗量）', insert: '// trigger: onHeal' },
       { sig: 'onSkillCast', desc: '任意技能发动后触发（context.caster 为施法者，context.skill 为技能）', insert: '// trigger: onSkillCast' },
+      { group: '★ 进阶：事件系统' },
+      { sig: 'Effect.triggerPassive(actor, eventName, context)', desc: '★ 手动触发某棋子的指定被动技能（遍历其 type===被动 且 trigger===eventName 的技能，执行 filter→content）', isNew: true, insert: '// 手动触发目标的 onAttacked 被动\nEffect.triggerPassive(target, "onAttacked", {\n  attacker: actor,\n  damage: 50\n});' },
+      { sig: 'Effect.on(eventName, callback)', desc: '★ 注册全局事件监听（系统级）。callback 收到 trigger 传入的 context 对象', isNew: true, insert: '// 监听全局击杀事件\nEffect.on("onKilled", function(ctx) {\n  var victim = ctx.victim;\n  Game.log(victim.name + " 被击杀！");\n});' },
+      { sig: 'Effect.trigger(eventName, context)', desc: '★ 触发全局事件，执行所有通过 Effect.on 注册的回调', isNew: true, insert: '// 触发自定义事件\nEffect.trigger("myCustomEvent", { actor: actor, data: 123 });' },
+      { sig: 'Effect.off(eventName, callback)', desc: '★ 取消通过 Effect.on 注册的监听（传入原回调引用）', isNew: true, insert: '// 取消监听（需保存原回调引用）\nvar handler = function(ctx) { /* ... */ };\nEffect.on("onKilled", handler);\n// ...\nEffect.off("onKilled", handler);' },
+      { group: '★ 进阶：事件 context 字段' },
+      { sig: 'context (onKilled)', desc: '{ actor(击杀者), target(受害者), victim, damage }', isNew: true, insert: '// onKilled 回调中\nvar killer = ctx.actor;\nvar victim = ctx.victim || ctx.target;' },
+      { sig: 'context (onAttack)', desc: '{ actor(攻击者), target(目标), damage }', isNew: true, insert: '// onAttack 回调中\nvar attacker = ctx.actor;\nvar target = ctx.target;' },
+      { sig: 'context (onAttacked)', desc: '{ actor(攻击者), target(被攻击者), damage }', isNew: true, insert: '// onAttacked 回调中\nvar attacker = ctx.attacker;\nvar dmg = ctx.damage;' },
+      { sig: 'context (onMove)', desc: '{ actor, from:{x,y}, to:{x,y} }', isNew: true, insert: '// onMove 回调中\nvar from = ctx.from;\nvar to = ctx.to;' },
+      { sig: 'context (turnStart/turnEnd)', desc: '{ side, turn }', isNew: true, insert: '// turnStart/turnEnd 回调中\nvar side = ctx.side;\nvar turn = ctx.turn;' },
+      { sig: 'context (onSkillCast)', desc: '{ actor(施法者), skill }', isNew: true, insert: '// onSkillCast 回调中\nvar caster = ctx.actor;\nvar skill = ctx.skill;' },
     ],
     '小兵系统': [
       { group: '抽卡 / 手牌' },
