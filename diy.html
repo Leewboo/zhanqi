@@ -6419,8 +6419,8 @@ Effect.fx.clearFx('myZone');</code></pre>
   function tryInit() {
     _tryInitCount++;
     if (window.hljs || _tryInitCount > 37) {
-      initDiyPage();
-      authCheck();
+      try { initDiyPage(); } catch (e) { console.error('[initDiyPage]', e); }
+      try { authCheck(); } catch (e) { console.error('[authCheck]', e); }
     } else {
       setTimeout(tryInit, 80);
     }
@@ -6454,6 +6454,7 @@ Effect.fx.clearFx('myZone');</code></pre>
   function renderPortraitPreview() {
     var imgEl = $('portrait-img');
     var emptyEl = $('portrait-empty');
+    if (!imgEl || !emptyEl) return;
     if (portraitState.pending) {
       imgEl.src = URL.createObjectURL(portraitState.pending);
       imgEl.classList.remove('hidden');
