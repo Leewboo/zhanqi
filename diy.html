@@ -1175,6 +1175,89 @@
     background: rgba(248, 81, 73, 0.2);
     color: #f85149;
   }
+  .fs-skill-ref-badge {
+    background: rgba(35, 134, 54, 0.25) !important;
+    color: #3fb950 !important;
+  }
+  .fs-ref-skill-panel {
+    padding: 16px;
+    background: rgba(56, 139, 253, 0.08);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .fs-ref-skill-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: #58a6ff;
+  }
+  .fs-ref-skill-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .fs-ref-skill-row select {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--dark-bg);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-fg);
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .fs-ref-skill-row button {
+    flex-shrink: 0;
+  }
+  .fs-ref-skill-info {
+    padding: 20px;
+    background: rgba(56, 139, 253, 0.06);
+    border: 1px solid rgba(56, 139, 253, 0.2);
+    border-radius: 8px;
+  }
+  .fs-ref-info-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(35, 134, 54, 0.2);
+    color: #3fb950;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .fs-ref-info-loading {
+    text-align: center;
+    color: var(--dark-muted);
+    padding: 20px;
+  }
+  .fs-ref-info-error {
+    color: #f85149;
+    text-align: center;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .fs-ref-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .fs-ref-info-row span:first-child {
+    color: var(--dark-muted);
+    flex-shrink: 0;
+  }
+  .fs-ref-info-row span:last-child {
+    color: var(--dark-fg);
+    text-align: right;
+    word-break: break-all;
+  }
+  .fs-ref-info-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
   .fs-skills-editor {
     flex: 1;
     display: flex;
@@ -3705,7 +3788,10 @@ Effect.fx.clearFx('myZone');</code></pre>
           <div class="fs-skills-sidebar">
             <div class="fs-skills-sidebar-head">
               <span>技能列表</span>
-              <button id="fs-btn-add-skill" class="btn mini primary">+ 新建</button>
+              <div style="display:flex;gap:4px;">
+                <button id="fs-btn-add-skill" class="btn mini primary">+ 新建</button>
+                <button id="fs-btn-ref-skill" class="btn mini">+ 引用</button>
+              </div>
             </div>
             <div class="fs-skills-list" id="fs-skills-list"></div>
           </div>
@@ -4457,13 +4543,25 @@ Effect.fx.clearFx('myZone');</code></pre>
     }
 
     // 武将/小兵的技能 ID 带有父实体完整 ID 前缀，如 diy_zhaoyun_jieying
+    // 引用技能的 ID 以 skill_ 开头，需要识别并标记
     if ((type === 'general' || type === 'minion') && Array.isArray(d.skills)) {
       var parentPrefix = fullId + '_';
+      var newSkills = [];
       d.skills.forEach(function (s) {
         if (s.id && s.id.indexOf(parentPrefix) === 0) {
+          // 内联技能：去掉父前缀
           s.id = s.id.substring(parentPrefix.length);
+          newSkills.push(s);
+        } else if (s.id && s.id.indexOf('skill_') === 0) {
+          // 引用技能：标记为 ref，只保留引用 ID
+          var refId = s.id;
+          var refSkill = { ref: refId, refName: s.name || '' };
+          newSkills.push(refSkill);
+        } else {
+          newSkills.push(s);
         }
       });
+      d.skills = newSkills;
     }
   }
 
@@ -4491,6 +4589,13 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (addSkillBtn) {
       addSkillBtn.onclick = function () {
         addNewSkill();
+      };
+    }
+
+    var refSkillBtn = $('fs-btn-ref-skill');
+    if (refSkillBtn) {
+      refSkillBtn.onclick = function () {
+        addRefSkill();
       };
     }
 
@@ -4792,6 +4897,8 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (sidebar) sidebar.style.display = 'none';
       if (layout) layout.style.gridTemplateColumns = '1fr';
       if (addBtn) addBtn.style.display = 'none';
+      var refBtn = $('fs-btn-ref-skill');
+      if (refBtn) refBtn.style.display = 'none';
       fsEditorState.activeSkillIdx = 0;
       renderSkillEditor(fsEditorState.data);
       return;
@@ -4801,18 +4908,23 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (sidebar) sidebar.style.display = '';
     if (layout) layout.style.gridTemplateColumns = '';
     if (addBtn) addBtn.style.display = '';
+    var refBtn = $('fs-btn-ref-skill');
+    if (refBtn) refBtn.style.display = '';
 
     var skills = fsEditorState.data.skills || [];
     listEl.innerHTML = '';
 
     if (skills.length === 0) {
-      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#6e7681;font-size:12px;">暂无技能，点击 + 新建</div>';
+      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#6e7681;font-size:12px;">暂无技能，点击 + 新建 或 + 引用</div>';
     } else {
       skills.forEach(function (s, idx) {
         var item = document.createElement('div');
         item.className = 'fs-skill-item' + (idx === fsEditorState.activeSkillIdx ? ' active' : '');
-        item.innerHTML = '<span class="fs-skill-name">' + escapeHtml(s.name || '未命名') + '</span>' +
-          '<span class="fs-skill-type">' + escapeHtml(s.type || '主动') + '</span>' +
+        var isRef = !!s.ref;
+        var displayName = isRef ? ('[引用] ' + (s.refName || s.ref)) : (s.name || '未命名');
+        var displayType = isRef ? '引用' : (s.type || '主动');
+        item.innerHTML = '<span class="fs-skill-name">' + escapeHtml(displayName) + '</span>' +
+          '<span class="fs-skill-type' + (isRef ? ' fs-skill-ref-badge' : '') + '">' + escapeHtml(displayType) + '</span>' +
           '<button class="fs-skill-del" title="删除技能">✕</button>';
         item.onclick = function (e) {
           if (e.target.closest('.fs-skill-del')) {
@@ -4859,6 +4971,118 @@ Effect.fx.clearFx('myZone');</code></pre>
     renderSkillsTab();
   }
 
+  function addRefSkill() {
+    saveCurrentSkillCode();
+    var overlay = $('fs-editor');
+    var refPanel = document.createElement('div');
+    refPanel.className = 'fs-ref-skill-panel';
+    refPanel.innerHTML =
+      '<div class="fs-ref-skill-title">引用独立技能</div>' +
+      '<div class="fs-ref-skill-row">' +
+        '<select class="fs-ref-skill-select"><option value="">加载中...</option></select>' +
+        '<button class="btn mini primary fs-ref-skill-confirm">确认引用</button>' +
+        '<button class="btn mini fs-ref-skill-cancel">取消</button>' +
+      '</div>';
+    var editorBody = $('fs-skills-editor-body');
+    if (!editorBody) return;
+    editorBody.appendChild(refPanel);
+
+    var sel = refPanel.querySelector('.fs-ref-skill-select');
+    var confirmBtn = refPanel.querySelector('.fs-ref-skill-confirm');
+    var cancelBtn = refPanel.querySelector('.fs-ref-skill-cancel');
+
+    apiFetch('/api/skill/list')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok && data.skills && data.skills.length) {
+          sel.innerHTML = '<option value="">选择独立技能...</option>';
+          data.skills.forEach(function (s) {
+            var opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name + ' [' + s.type + ']' + (s.extName ? ' - ' + s.extName : '');
+            sel.appendChild(opt);
+          });
+        } else {
+          sel.innerHTML = '<option value="">暂无独立技能，请先创建</option>';
+          confirmBtn.disabled = true;
+        }
+      })
+      .catch(function () {
+        sel.innerHTML = '<option value="">加载失败</option>';
+        confirmBtn.disabled = true;
+      });
+
+    cancelBtn.onclick = function () {
+      if (refPanel.parentNode) refPanel.parentNode.removeChild(refPanel);
+    };
+
+    confirmBtn.onclick = function () {
+      var val = sel.value;
+      if (!val) { alert('请选择一个独立技能'); return; }
+      var newSkill = { ref: val };
+      if (!fsEditorState.data.skills) fsEditorState.data.skills = [];
+      fsEditorState.data.skills.push(newSkill);
+      fsEditorState.activeSkillIdx = fsEditorState.data.skills.length - 1;
+      fsEditorState.activeCodeTab = 'filter';
+      if (refPanel.parentNode) refPanel.parentNode.removeChild(refPanel);
+      renderSkillsTab();
+    };
+  }
+
+  function bindRefSkillActions(skill) {
+    var editorBody = $('fs-skills-editor-body');
+    if (!editorBody) return;
+
+    var editSrcBtn = editorBody.querySelector('.fs-ref-edit-source');
+    if (editSrcBtn) {
+      editSrcBtn.onclick = function () {
+        if (!fsEditorState.extId) { alert('无法获取当前拓展'); return; }
+        closeFsEditor();
+        openFsEditor('skill', fsEditorState.extId, skill.ref);
+      };
+    }
+
+    var unrefBtn = editorBody.querySelector('.fs-ref-unref');
+    if (unrefBtn) {
+      unrefBtn.onclick = function () {
+        if (!confirm('确定将此引用转换为独立技能？转换后将不再自动同步源技能的修改。')) return;
+        apiFetch('/api/skill/detail?id=' + encodeURIComponent(skill.ref))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) { alert('加载源技能失败'); return; }
+            var rs = data.skill;
+            var idx = fsEditorState.activeSkillIdx;
+            if (idx < 0 || !fsEditorState.data.skills[idx]) return;
+            fsEditorState.data.skills[idx] = {
+              id: rs.id.replace(/^skill_/, ''),
+              name: rs.name,
+              type: rs.type || '主动',
+              cooldown: rs.cooldown || 0,
+              limited: rs.limited === true,
+              trigger: rs.trigger || '',
+              desc: rs.desc || '',
+              preview: rs.preview,
+              filterCode: rs.filterCode || '',
+              contentCode: rs.contentCode || '',
+              initCode: rs.initCode || '',
+              sound: rs.sound ? { cast: rs.sound.cast || '', hit: rs.sound.hit || '', voice: rs.sound.voice || '' } : { cast: '', hit: '', voice: '' },
+              aiHint: rs.aiHint
+            };
+            fsEditorState.activeCodeTab = 'filter';
+            renderSkillsTab();
+          })
+          .catch(function () { alert('加载源技能失败'); });
+      };
+    }
+
+    var removeBtn = editorBody.querySelector('.fs-ref-remove');
+    if (removeBtn) {
+      removeBtn.onclick = function () {
+        deleteSkill(fsEditorState.activeSkillIdx);
+      };
+    }
+  }
+
   function selectSkill(idx) {
     if (idx === fsEditorState.activeSkillIdx) return;
     saveCurrentSkillCode();
@@ -4871,7 +5095,8 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (!fsEditorState.data || !fsEditorState.data.skills) return;
     var skill = fsEditorState.data.skills[idx];
     if (!skill) return;
-    if (!confirm('确定删除技能「' + (skill.name || '未命名') + '」？')) return;
+    var name = skill.ref ? ('引用技能 ' + (skill.refName || skill.ref)) : (skill.name || '未命名');
+    if (!confirm('确定删除技能「' + name + '」？')) return;
     fsEditorState.data.skills.splice(idx, 1);
     if (fsEditorState.activeSkillIdx >= fsEditorState.data.skills.length) {
       fsEditorState.activeSkillIdx = fsEditorState.data.skills.length - 1;
@@ -4892,6 +5117,9 @@ Effect.fx.clearFx('myZone');</code></pre>
       skill = fsEditorState.data.skills[fsEditorState.activeSkillIdx];
     }
     if (!skill) return;
+
+    // 引用技能无需保存代码和属性
+    if (skill.ref) return;
 
     // 保存代码
     var tabs = ['filter', 'content', 'init'];
@@ -4950,6 +5178,64 @@ Effect.fx.clearFx('myZone');</code></pre>
     var editorBody = $('fs-skills-editor-body');
     var editorHead = $('fs-skills-editor-head');
     if (!editorBody) return;
+
+    // 引用技能：显示引用信息面板
+    if (skill.ref) {
+      if (editorHead) {
+        editorHead.innerHTML =
+          '<span class="fs-skills-editor-title">[引用] ' + escapeHtml(skill.refName || skill.ref) + '</span>';
+      }
+      editorBody.innerHTML =
+        '<div class="fs-ref-skill-info">' +
+          '<div class="fs-ref-info-loading">加载引用技能详情...</div>' +
+        '</div>';
+
+      apiFetch('/api/skill/detail?id=' + encodeURIComponent(skill.ref))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) {
+            editorBody.innerHTML =
+              '<div class="fs-ref-skill-info">' +
+                '<div class="fs-ref-info-error">加载引用技能失败：' + escapeHtml(data.error || '未知错误') + '</div>' +
+                '<button class="btn mini fs-ref-unref">转换为独立技能编辑</button>' +
+              '</div>';
+            bindRefSkillActions(skill);
+            return;
+          }
+          var rs = data.skill;
+          if (rs) {
+            skill.refName = rs.name;
+          }
+          var extInfo = data.extName ? ('（来自拓展：' + escapeHtml(data.extName) + '）') : '';
+          editorBody.innerHTML =
+            '<div class="fs-ref-skill-info">' +
+              '<div class="fs-ref-info-badge">📎 引用独立技能</div>' +
+              '<div class="fs-ref-info-row"><span>技能ID</span><span>' + escapeHtml(rs ? rs.id : skill.ref) + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>名称</span><span>' + escapeHtml(rs ? rs.name : skill.refName || '') + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>类型</span><span>' + escapeHtml(rs ? (rs.type || '') : '') + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>冷却</span><span>' + (rs ? (rs.cooldown || 0) : 0) + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>触发</span><span>' + escapeHtml(rs ? (rs.trigger || '') : '') + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>描述</span><span>' + escapeHtml(rs ? (rs.desc || '') : '') + '</span></div>' +
+              '<div class="fs-ref-info-row"><span>来源</span><span>' + extInfo + '</span></div>' +
+              '<div class="fs-ref-info-actions">' +
+                '<button class="btn mini primary fs-ref-edit-source">编辑源技能</button>' +
+                '<button class="btn mini fs-ref-unref">转换为独立技能</button>' +
+                '<button class="btn mini danger fs-ref-remove">移除此引用</button>' +
+              '</div>' +
+              '<div style="margin-top:12px;font-size:11px;color:#8b949e;">提示：引用技能的代码（filter/content/init）和属性在源技能中编辑。修改源技能后，所有引用该技能的武将都会同步更新。</div>' +
+            '</div>';
+          bindRefSkillActions(skill);
+        })
+        .catch(function () {
+          editorBody.innerHTML =
+            '<div class="fs-ref-skill-info">' +
+              '<div class="fs-ref-info-error">加载引用技能失败</div>' +
+              '<button class="btn mini fs-ref-unref">转换为独立技能编辑</button>' +
+            '</div>';
+          bindRefSkillActions(skill);
+        });
+      return;
+    }
 
     if (editorHead) {
       editorHead.innerHTML =
@@ -5273,6 +5559,9 @@ Effect.fx.clearFx('myZone');</code></pre>
           if (data && data.ok) {
             closeFsEditor();
             loadExtensions();
+            if (type === 'skill') {
+              loadIndepSkills();
+            }
           } else {
             alert('保存失败：' + (data && data.error ? data.error : '未知错误'));
           }
@@ -7806,6 +8095,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     var extSel    = $('g-ext');
     var skillExtSel = $('s-ext');
     var prevVal   = extSel ? extSel.value : '';
+    var prevSVal  = skillExtSel ? skillExtSel.value : '';
 
     apiFetch('/api/ext/list')
       .then(function (r) { return r.json(); })
@@ -7842,6 +8132,7 @@ Effect.fx.clearFx('myZone');</code></pre>
               opt.textContent = ext.name + (ext.enabled ? '' : ' [已禁用]');
               skillExtSel.appendChild(opt);
             });
+            if (prevSVal) skillExtSel.value = prevSVal;
           }
         }
 
