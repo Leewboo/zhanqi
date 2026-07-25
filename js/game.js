@@ -243,7 +243,7 @@
       this.pickedBlue = [];
       this.draftPool = null;  // 本局将池（随机刷新的武将子集）
       // 小兵抽卡系统
-      this.minionDraftPool = [];       // 当前抽卡池
+      this.minionDraftPool = { red: [], blue: [] };  // 双方各自独立卡池
       this.minionHand = { red: [], blue: [] };  // 双方手牌
       this.minionPoints = { red: 2, blue: 2 };  // 双方部署点数
       this.minionSelected = null;      // 当前选中的小兵卡牌
@@ -578,8 +578,11 @@
     },
 
     _startBattle() {
-      // 初始化小兵抽卡系统，不单独占用阶段，而是在战斗中每回合使用
-      this.minionDraftPool = global.Minions ? Minions.generateDraftPool() : [];
+      // 初始化小兵抽卡系统：红蓝双方各自独立卡池（一人一套卡）
+      this.minionDraftPool = global.Minions ? {
+        red: Minions.generateDraftPool(),
+        blue: Minions.generateDraftPool()
+      } : { red: [], blue: [] };
       this.minionHand = { red: [], blue: [] };
       this.minionPoints = { red: 2, blue: 2 };
       this.minionSelected = null;
@@ -629,11 +632,12 @@
 
     _drawMinionCards(side, count) {
       const hand = this.minionHand[side] || [];
+      const pool = (this.minionDraftPool && this.minionDraftPool[side]) || [];
       for (let i = 0; i < count; i++) {
-        if (this.minionDraftPool.length === 0) {
+        if (pool.length === 0) {
           break;
         }
-        const card = this.minionDraftPool.shift();
+        const card = pool.shift();
         card.instanceId = side + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
         hand.push(card);
       }
@@ -2075,7 +2079,7 @@
       }
 
       // 回合开始：当前方获得 1 点部署点并抽 1 张小兵卡
-      if (this.minionDraftPool) {
+      if (this.minionDraftPool && this.minionDraftPool[this.currentSide]) {
         this.minionPoints[this.currentSide] = (this.minionPoints[this.currentSide] || 0) + 1;
         this._drawMinionCards(this.currentSide, 1);
         this.minionSelected = null;
