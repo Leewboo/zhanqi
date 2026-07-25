@@ -4365,7 +4365,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (itemId) {
       var apiPath = type === 'general' ? '/api/diy/detail?id=' :
                     type === 'minion'  ? '/api/diy/minion/detail?id=' :
-                    '/api/diy/skill/detail?id=';
+                    '/api/skill/detail?id=';
       apiFetch(apiPath + encodeURIComponent(itemId))
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -5251,7 +5251,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         apiPath = '/api/diy/minion/submit';
         bodyData = { minion: d, skills: d.skills || [], extId: extId || undefined };
       } else if (type === 'skill') {
-        apiPath = '/api/diy/skill/submit';
+        apiPath = '/api/skill/create';
         bodyData = { skill: d, extId: extId || undefined };
       }
 
