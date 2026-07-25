@@ -4702,6 +4702,7 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     // 保存技能属性（独立技能的属性在"属性"Tab中编辑，这里只处理武将/小兵内嵌技能）
     if (fsEditorState.type !== 'skill') {
+      var idEl = $('fs-skill-id');
       var nameEl = $('fs-skill-name');
       var typeEl = $('fs-skill-type');
       var cdEl = $('fs-skill-cd');
@@ -4710,6 +4711,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       var descEl = $('fs-skill-desc');
       var pvShapeEl = $('fs-skill-pv-shape');
       var pvNEl = $('fs-skill-pv-n');
+      if (idEl) skill.id = idEl.value.trim();
       if (nameEl) skill.name = nameEl.value.trim();
       if (typeEl) skill.type = typeEl.value;
       if (cdEl) skill.cooldown = parseInt(cdEl.value, 10) || 0;
@@ -4759,6 +4761,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         '</div>' +
         '<div class="fs-skill-attr-body collapsed" id="fs-skill-attr-body">' +
           '<div class="fs-attr-grid">' +
+            '<div class="form-row"><label>ID</label><input type="text" id="fs-skill-id" value="' + escapeHtml(skill.id || '') + '"></div>' +
             '<div class="form-row"><label>名称</label><input type="text" id="fs-skill-name" value="' + escapeHtml(skill.name || '') + '"></div>' +
             '<div class="form-row"><label>类型</label><select id="fs-skill-type">' +
               ['主动', '被动', '触发'].map(function (s) {
