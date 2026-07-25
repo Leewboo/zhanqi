@@ -40,12 +40,16 @@
 
     generateDraftPool() {
       const pool = [];
-      const weights = { common: 6, rare: 3, epic: 1 };
+      const defaultWeights = { common: 6, rare: 3, epic: 1 };
 
       for (const minion of dynamicList) {
-        // inDeck = false 的小兵不进入抽卡池（可通过技能 Effect.deployMinion 召唤）
         if (minion.inDeck === false) continue;
-        const count = weights[minion.rarity] || 1;
+        let count;
+        if (minion.cardCount != null && minion.cardCount > 0) {
+          count = minion.cardCount;
+        } else {
+          count = defaultWeights[minion.rarity] || 1;
+        }
         for (let i = 0; i < count; i++) {
           pool.push(Object.assign({}, minion));
         }

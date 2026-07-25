@@ -3740,11 +3740,12 @@ Effect.fx.clearFx('myZone');</code></pre>
                   <th class="num">ATK</th>
                   <th class="num">DEF</th>
                   <th class="num">费用</th>
+                  <th class="num">卡组数</th>
                   <th class="actions">操作</th>
                 </tr>
               </thead>
               <tbody id="minions-table-body">
-                <tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>
+                <tr><td colspan="8" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>
               </tbody>
             </table>
           </div>
@@ -4357,11 +4358,16 @@ Effect.fx.clearFx('myZone');</code></pre>
       var tagEl = $('fs-attr-tag');
       var costEl = $('fs-attr-cost');
       var inDeckEl = $('fs-attr-in-deck');
+      var cardCountEl = $('fs-attr-card-count');
       var descEl = $('fs-attr-desc');
       if (rarityEl) d.rarity = rarityEl.value;
       if (tagEl) d.tag = tagEl.value;
       if (costEl) d.cost = parseInt(costEl.value, 10) || 1;
       if (inDeckEl) d.inDeck = inDeckEl.checked;
+      if (cardCountEl) {
+        var cv = parseInt(cardCountEl.value, 10);
+        d.cardCount = isNaN(cv) ? null : cv;
+      }
       if (descEl) d.description = descEl.value.trim();
     }
 
@@ -4445,6 +4451,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '<option value="1"' + (d.inDeck !== false ? ' selected' : '') + '>是</option>';
       html += '<option value="0"' + (d.inDeck === false ? ' selected' : '') + '>否</option>';
       html += '</select></div>';
+      html += '<div class="form-row"><label>卡组数量</label><input type="number" id="fs-attr-card-count" value="' + (d.cardCount != null ? d.cardCount : '') + '" placeholder="按稀有度默认"></div>';
       html += '</div>';
       html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-desc" value="' + escapeHtml(d.description || '') + '"></div>';
     }
@@ -7622,7 +7629,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     var minions = (ext && ext.minions) ? ext.minions : [];
 
     if (!minions.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>';
       return;
     }
 
@@ -7631,9 +7638,10 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     if (isMobile) {
       minions.forEach(function (m) {
+        var cardCountText = m.cardCount != null ? m.cardCount : '默认';
         html +=
           '<tr class="mobile-card-row">' +
-            '<td colspan="7">' +
+            '<td colspan="8">' +
               '<div class="mobile-card">' +
                 '<div class="mobile-card-header">' +
                   '<span class="mobile-card-id">' + escapeHtml(m.id) + '</span>' +
@@ -7644,6 +7652,7 @@ Effect.fx.clearFx('myZone');</code></pre>
                   '<span class="mobile-stat"><span class="mobile-stat-label">ATK</span>' + (m.atk != null ? m.atk : '-') + '</span>' +
                   '<span class="mobile-stat"><span class="mobile-stat-label">DEF</span>' + (m.def != null ? m.def : '-') + '</span>' +
                   '<span class="mobile-stat"><span class="mobile-stat-label">费用</span>' + (m.cost != null ? m.cost : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">卡组数</span>' + cardCountText + '</span>' +
                 '</div>' +
                 '<div class="mobile-card-actions">' +
                   '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
@@ -7655,6 +7664,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       });
     } else {
       minions.forEach(function (m) {
+        var cardCountText = m.cardCount != null ? m.cardCount : '默认';
         html +=
           '<tr>' +
             '<td class="id-col">' + escapeHtml(m.id) + '</td>' +
@@ -7663,6 +7673,7 @@ Effect.fx.clearFx('myZone');</code></pre>
             '<td class="num">' + (m.atk != null ? m.atk : '') + '</td>' +
             '<td class="num">' + (m.def != null ? m.def : '') + '</td>' +
             '<td class="num">' + (m.cost != null ? m.cost : '') + '</td>' +
+            '<td class="num">' + cardCountText + '</td>' +
             '<td class="actions">' +
               '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
               '<button class="btn-mini danger list-del-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-item-name="' + escapeHtmlAttr(m.name) + '">删除</button>' +
