@@ -633,10 +633,10 @@
     _drawMinionCards(side, count) {
       const hand = this.minionHand[side] || [];
       const pool = (this.minionDraftPool && this.minionDraftPool[side]) || [];
+      const maxHand = 5;  // 双方最大手牌上限
       for (let i = 0; i < count; i++) {
-        if (pool.length === 0) {
-          break;
-        }
+        if (pool.length === 0) break;
+        if (hand.length >= maxHand) break;  // 手牌已满，不再抽取
         const card = pool.shift();
         card.instanceId = side + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
         hand.push(card);
