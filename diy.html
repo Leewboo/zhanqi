@@ -4310,7 +4310,9 @@ Effect.fx.clearFx('myZone');</code></pre>
   }
 
   function finishOpenFsEditor() {
-    switchMainTab('attr');
+    // 首次打开时跳过 saveCurrentTabData，否则会把上一个武将残留的表单值
+    // （ID、名字等）写入新加载的 fsEditorState.data，导致属性显示成旧武将。
+    switchMainTab('attr', true);
     var mask = $('fs-editor');
     mask.classList.add('open');
     mask.setAttribute('aria-hidden', 'false');
@@ -4372,8 +4374,8 @@ Effect.fx.clearFx('myZone');</code></pre>
     }
   }
 
-  function switchMainTab(tabName) {
-    saveCurrentTabData();
+  function switchMainTab(tabName, skipSave) {
+    if (!skipSave) saveCurrentTabData();
     fsEditorState.activeMainTab = tabName;
 
     var tabs = qsa('.fs-main-tab');
