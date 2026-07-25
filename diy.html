@@ -257,8 +257,8 @@
   /* 悬浮教程按钮 */
   .diy-hint-btn {
     position: fixed;
-    left: 16px;
-    bottom: 90px;
+    right: 16px;
+    bottom: 16px;
     z-index: 900;
     background: var(--bg-card);
     border: 1.5px solid var(--red);
@@ -1763,7 +1763,7 @@
     .diy-left, .diy-right { width: 100%; }
     .diy-nav-tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .diy-nav-tab { flex: 1; text-align: center; padding: 8px 6px; font-size: var(--text-sm); white-space: nowrap; }
-    .diy-hint-btn { left: 10px; bottom: 80px; }
+    .diy-hint-btn { right: 10px; bottom: 10px; font-size: var(--text-xs); padding: 6px 10px; }
     .diy-tutorial-panel { width: 88vw; }
     .fs-editor-mask { padding: 12px; }
     .fs-editor-title { font-size: var(--text-13); }
@@ -1878,6 +1878,12 @@
     table.gen-table th, table.gen-table td { padding: 6px 6px; font-size: var(--text-xs); }
     table.gen-table .btn-mini { padding: 3px 6px; font-size: var(--text-xxs); }
 
+    /* 手机端卡片式表格：移除 table 最小宽度限制，让卡片自适应屏宽 */
+    table.gen-table { min-width: 0; width: 100%; }
+    .mobile-card-stats { gap: 6px; }
+    .mobile-stat { min-width: 48px; padding: 6px 6px; font-size: var(--text-sm); }
+    .mobile-stat-label { font-size: 10px; }
+
     /* 音频管理卡片 */
     .sound-list { grid-template-columns: 1fr; gap: 8px; }
     .sound-card { padding: 10px; }
@@ -1914,6 +1920,9 @@
     .fs-editor-body .code-editor textarea,
     .fs-editor-body .code-editor .hl-layer { font-size: var(--text-xs); line-height: 1.6; }
     table.gen-table th, table.gen-table td { padding: 4px 4px; font-size: var(--text-xxs); }
+
+    /* 超窄屏卡片：stat 每 3 个一行，避免横向溢出 */
+    .mobile-stat { flex: 1 1 calc(33.33% - 6px); min-width: 0; padding: 6px 4px; }
   }
   .btn {
     padding: 7px 16px;
