@@ -5428,9 +5428,13 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (tabName === fsEditorState.activeCodeTab) return;
     saveCurrentSkillCode();
     fsEditorState.activeCodeTab = tabName;
-    var skills = fsEditorState.data.skills || [];
-    if (fsEditorState.activeSkillIdx >= 0 && fsEditorState.activeSkillIdx < skills.length) {
-      renderSkillEditor(skills[fsEditorState.activeSkillIdx]);
+    if (fsEditorState.type === 'skill') {
+      renderSkillEditor(fsEditorState.data);
+    } else {
+      var skills = fsEditorState.data.skills || [];
+      if (fsEditorState.activeSkillIdx >= 0 && fsEditorState.activeSkillIdx < skills.length) {
+        renderSkillEditor(skills[fsEditorState.activeSkillIdx]);
+      }
     }
   }
 
@@ -5559,9 +5563,6 @@ Effect.fx.clearFx('myZone');</code></pre>
           if (data && data.ok) {
             closeFsEditor();
             loadExtensions();
-            if (type === 'skill') {
-              loadIndepSkills();
-            }
           } else {
             alert('保存失败：' + (data && data.error ? data.error : '未知错误'));
           }
