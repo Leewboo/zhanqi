@@ -4181,6 +4181,7 @@ Effect.fx.clearFx('myZone');</code></pre>
           var skills = Array.isArray(data.skills) ? data.skills : [];
           fsEditorState.data = deepClone(item);
           fsEditorState.data.skills = skills;
+          stripIdPrefixes();
           finishOpenFsEditor();
         })
         .catch(function (e) { alert('加载失败：' + e.message); });
@@ -4232,6 +4233,33 @@ Effect.fx.clearFx('myZone');</code></pre>
     mask.classList.add('open');
     mask.setAttribute('aria-hidden', 'false');
     bindFsEditorEvents();
+  }
+
+  // 服务端存储时会自动加前缀，编辑器读取时需去掉，避免保存时双重前缀
+  function stripIdPrefixes() {
+    var d = fsEditorState.data;
+    if (!d) return;
+    var type = fsEditorState.type;
+    // 记录完整 ID（含前缀），用于剥离子技能 ID 前缀
+    var fullId = d.id || '';
+
+    if (type === 'general') {
+      d.id = d.id.replace(/^diy_/, '');
+    } else if (type === 'minion') {
+      d.id = d.id.replace(/^diyminion_/, '');
+    } else if (type === 'skill') {
+      d.id = d.id.replace(/^skill_/, '');
+    }
+
+    // 武将/小兵的技能 ID 带有父实体完整 ID 前缀，如 diy_zhaoyun_jieying
+    if ((type === 'general' || type === 'minion') && Array.isArray(d.skills)) {
+      var parentPrefix = fullId + '_';
+      d.skills.forEach(function (s) {
+        if (s.id && s.id.indexOf(parentPrefix) === 0) {
+          s.id = s.id.substring(parentPrefix.length);
+        }
+      });
+    }
   }
 
   function bindFsEditorEvents() {
