@@ -1901,6 +1901,16 @@
         const castleName = this._castleName(piece.x, piece.y);
         this.log((piece.side === 'red' ? '红方' : '蓝方') + ' 占领了' + castleName + '！', 'turn');
         this._renderCastleOverlay();
+        // 占领激励：新占领时立即一次性回血 30%（仅"非己方→己方"触发，开局默认归属不回血）
+        if (piece.hp < piece.maxHp) {
+          const heal = Math.max(1, Math.floor(piece.maxHp * 0.3));
+          const before = piece.hp;
+          piece.hp = Math.min(piece.maxHp, piece.hp + heal);
+          const actual = piece.hp - before;
+          if (actual > 0) {
+            this.log(piece.name + ' 据城激励，回复 ' + actual + ' 点生命。', 'turn');
+          }
+        }
       }
     },
 
@@ -1957,35 +1967,14 @@
       return isCastle(x, y) && this.castleOwner[x + ',' + y] === side;
     },
 
-    // 城池增益：回合开始时，站在己方占领城池上的棋子回血 20%
-    _applyCastleHeal(side) {
-      const healTargets = [];
-      for (const c of CASTLE_CELLS) {
-        if (this.castleOwner[c.x + ',' + c.y] !== side) continue;
-        const piece = this.pieceAt(c.x, c.y);
-        if (piece && piece.alive && piece.side === side && piece.hp < piece.maxHp) {
-          healTargets.push(piece);
-        }
-      }
-      for (const p of healTargets) {
-        const heal = Math.max(1, Math.floor(p.maxHp * 0.2));
-        const before = p.hp;
-        p.hp = Math.min(p.maxHp, p.hp + heal);
-        const actual = p.hp - before;
-        if (actual > 0) {
-          this.log(p.name + ' 据守城池，回复 ' + actual + ' 点生命。', 'turn');
-        }
-      }
-    },
-
-    // 城池增益：站在己方占领城池上的棋子获得 +15 防御加成
-    // rare 小兵在城池上额外 +10 防御（城池叠防被动）
+    // 城池增益：站在己方占领城池上的棋子获得 +8 防御加成
+    // rare 小兵在城池上额外 +5 防御（城池叠防被动）
     _getCastleDefenseBonus(piece) {
       if (!piece || !piece.alive) return 0;
       if (!isCastle(piece.x, piece.y)) return 0;
       if (this.castleOwner[piece.x + ',' + piece.y] !== piece.side) return 0;
-      let bonus = 15;
-      if (piece.isMinion && piece.rarity === 'rare') bonus += 10;
+      let bonus = 8;
+      if (piece.isMinion && piece.rarity === 'rare') bonus += 5;
       return bonus;
     },
 
@@ -2084,8 +2073,6 @@
         this._drawMinionCards(this.currentSide, 1);
         this.minionSelected = null;
       }
-      // 城池增益：棋子站在己方占领城池上回合开始回血 20%
-      this._applyCastleHeal(this.currentSide);
       // 重置 AI 本回合小兵部署标记
       this._aiMinionDeployed = false;
       // 重置 AI 回合步数计数
