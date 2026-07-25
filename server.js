@@ -1299,6 +1299,7 @@ app.use(async (ctx, next) => {
         skillsCount:   Array.isArray(e.skills)   ? e.skills.length   : 0,
         minionsCount:  Array.isArray(e.minions)  ? e.minions.length  : 0,
         generals:      Array.isArray(e.generals) ? e.generals : [],
+        skills:        Array.isArray(e.skills)   ? e.skills   : [],
         minions:       Array.isArray(e.minions)  ? e.minions  : [],
         soundBank:     Array.isArray(e.soundBank) ? e.soundBank : []
       }))
