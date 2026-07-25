@@ -1046,6 +1046,46 @@
   .fs-range-row select { flex: 0 0 100px; }
   .fs-range-row input { flex: 1; }
 
+  /* 立绘行 */
+  .fs-portrait-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-top: 6px;
+  }
+  .fs-portrait-preview {
+    width: 100px;
+    height: 120px;
+    border: 1px solid var(--dark-border);
+    border-radius: 6px;
+    background: var(--dark-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .fs-portrait-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .fs-portrait-empty {
+    font-size: 12px;
+    color: #6e7681;
+    text-align: center;
+    padding: 8px;
+  }
+  .fs-portrait-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .fs-portrait-actions .btn {
+    min-height: 32px;
+    font-size: 12px;
+  }
+
   /* 技能编辑布局 */
   .fs-skills-layout {
     display: flex;
@@ -4223,6 +4263,11 @@ Effect.fx.clearFx('myZone');</code></pre>
       filter: null,
       content: null,
       init: null
+    },
+    portrait: {
+      current: null,
+      pending: null,
+      cleared: false
     }
   };
 
@@ -4272,12 +4317,21 @@ Effect.fx.clearFx('myZone');</code></pre>
           var skills = Array.isArray(data.skills) ? data.skills : [];
           fsEditorState.data = deepClone(item);
           fsEditorState.data.skills = skills;
+          // 回填立绘状态
+          if (type === 'general' || type === 'minion') {
+            fsEditorState.portrait.current = item.portrait || null;
+            fsEditorState.portrait.pending = null;
+            fsEditorState.portrait.cleared = false;
+          }
           stripIdPrefixes();
           finishOpenFsEditor();
         })
         .catch(function (e) { alert('加载失败：' + e.message); });
     } else {
       fsEditorState.data = createEmptyItem(type);
+      if (type === 'general' || type === 'minion') {
+        fsEditorState.portrait = { current: null, pending: null, cleared: false };
+      }
       finishOpenFsEditor();
     }
   }
@@ -4381,6 +4435,51 @@ Effect.fx.clearFx('myZone');</code></pre>
         addNewSkill();
       };
     }
+
+    bindFsPortraitEvents();
+  }
+
+  function bindFsPortraitEvents() {
+    var pickBtn = $('fs-btn-portrait-pick');
+    var fileInput = $('fs-portrait-file');
+    var clearBtn = $('fs-btn-portrait-clear');
+
+    if (pickBtn && fileInput) {
+      pickBtn.onclick = function () { fileInput.click(); };
+      fileInput.onchange = function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          alert('请选择图片文件');
+          return;
+        }
+        fsEditorState.portrait.pending = file;
+        fsEditorState.portrait.cleared = false;
+        updateFsPortraitPreview();
+      };
+    }
+    if (clearBtn) {
+      clearBtn.onclick = function () {
+        fsEditorState.portrait.pending = null;
+        fsEditorState.portrait.cleared = true;
+        if (fileInput) fileInput.value = '';
+        updateFsPortraitPreview();
+      };
+    }
+  }
+
+  function updateFsPortraitPreview() {
+    var preview = $('fs-portrait-preview');
+    if (!preview) return;
+    var pState = fsEditorState.portrait;
+    if (pState.pending) {
+      var url = URL.createObjectURL(pState.pending);
+      preview.innerHTML = '<img src="' + url + '" alt="立绘">';
+    } else if (pState.current && !pState.cleared) {
+      preview.innerHTML = '<img src="/portraits/' + escapeHtml(pState.current) + '" alt="立绘">';
+    } else {
+      preview.innerHTML = '<div class="fs-portrait-empty">未设置</div>';
+    }
   }
 
   function switchMainTab(tabName, skipSave) {
@@ -4477,7 +4576,12 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (triggerEl) d.trigger = triggerEl.value || null;
       if (descEl) d.desc = descEl.value.trim();
       if (pvShape && pvShape.value) {
-        d.preview = { shape: pvShape.value, n: parseInt(pvN.value, 10) || 3 };
+        var pvPass = $('fs-attr-pv-pass');
+        d.preview = {
+          shape: pvShape.value,
+          n: parseInt(pvN.value, 10) || 3,
+          passThrough: pvPass && pvPass.value === '1'
+        };
       } else {
         d.preview = null;
       }
@@ -4497,6 +4601,33 @@ Effect.fx.clearFx('myZone');</code></pre>
     html += '</div>';
 
     if (type === 'general' || type === 'minion') {
+      var pState = fsEditorState.portrait;
+      var pImgSrc = '';
+      if (pState.pending) {
+        pImgSrc = 'pending';
+      } else if (pState.current) {
+        pImgSrc = '/portraits/' + pState.current;
+      }
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">立绘</label></div>';
+      html += '<div class="fs-portrait-row">';
+      html += '<div class="fs-portrait-preview" id="fs-portrait-preview">';
+      if (pImgSrc && pImgSrc !== 'pending') {
+        html += '<img src="' + escapeHtml(pImgSrc) + '" alt="立绘">';
+      } else if (pImgSrc === 'pending') {
+        html += '<div class="fs-portrait-empty">待上传</div>';
+      } else {
+        html += '<div class="fs-portrait-empty">未设置</div>';
+      }
+      html += '</div>';
+      html += '<div class="fs-portrait-actions">';
+      html += '<button type="button" class="btn mini" id="fs-btn-portrait-pick">上传立绘</button>';
+      html += '<button type="button" class="btn mini danger" id="fs-btn-portrait-clear">清除</button>';
+      html += '<input type="file" id="fs-portrait-file" accept="image/*" style="display:none;">';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    if (type === 'general' || type === 'minion') {
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">基础属性</label></div>';
       html += '<div class="fs-attr-grid">';
       html += '<div class="form-row"><label>HP</label><input type="number" id="fs-attr-hp" value="' + (d.hp || 0) + '"></div>';
@@ -4507,7 +4638,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">移动范围</label></div>';
       html += '<div class="fs-range-row">';
       html += '<select id="fs-attr-mv-shape">';
-      ['+', 'r', 'square'].forEach(function (s) {
+      ['+', 'x', 'r', 'square'].forEach(function (s) {
         html += '<option value="' + s + '"' + ((d.moveRange && d.moveRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
       });
       html += '</select>';
@@ -4517,7 +4648,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '<div class="form-row" style="margin-top:12px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">攻击范围</label></div>';
       html += '<div class="fs-range-row">';
       html += '<select id="fs-attr-atk-shape">';
-      ['+', 'r', 'square'].forEach(function (s) {
+      ['+', 'x', 'r', 'square'].forEach(function (s) {
         html += '<option value="' + s + '"' + ((d.attackRange && d.attackRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
       });
       html += '</select>';
@@ -4573,12 +4704,16 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '<div class="fs-range-row">';
       html += '<select id="fs-attr-pv-shape">';
       html += '<option value="">（无）</option>';
-      ['+', 'r', 'square'].forEach(function (s) {
+      ['+', 'x', 'r', 'square'].forEach(function (s) {
         html += '<option value="' + s + '"' + ((d.preview && d.preview.shape === s) ? ' selected' : '') + '>' + s + '</option>';
       });
       html += '</select>';
       html += '<input type="number" id="fs-attr-pv-n" value="' + ((d.preview && d.preview.n) || 3) + '">';
       html += '</div>';
+      html += '<div class="form-row" style="margin-top:8px;"><label style="font-size:12px;">穿墙预览</label><select id="fs-attr-pv-pass">';
+      html += '<option value="0"' + (!(d.preview && d.preview.passThrough) ? ' selected' : '') + '>否（被棋子阻断）</option>';
+      html += '<option value="1"' + ((d.preview && d.preview.passThrough) ? ' selected' : '') + '>是（无视阻挡）</option>';
+      html += '</select></div>';
     }
 
     html += '</div>';
@@ -4731,7 +4866,12 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (descEl) skill.desc = descEl.value.trim();
       if (pvShapeEl) {
         if (pvShapeEl.value) {
-          skill.preview = { shape: pvShapeEl.value, n: parseInt(pvNEl.value, 10) || 1 };
+          var pvPassEl = $('fs-skill-pv-pass');
+          skill.preview = {
+            shape: pvShapeEl.value,
+            n: parseInt(pvNEl.value, 10) || 1,
+            passThrough: pvPassEl && pvPassEl.value === '1'
+          };
         } else {
           skill.preview = null;
         }
@@ -4795,13 +4935,17 @@ Effect.fx.clearFx('myZone');</code></pre>
             '<div class="fs-range-row">' +
               '<select id="fs-skill-pv-shape">' +
                 '<option value="">（无）</option>' +
-                ['+', 'r', 'square'].map(function (s) {
+                ['+', 'x', 'r', 'square'].map(function (s) {
                   return '<option value="' + s + '"' + ((skill.preview && skill.preview.shape === s) ? ' selected' : '') + '>' + s + '</option>';
                 }).join('') +
               '</select>' +
               '<input type="number" id="fs-skill-pv-n" value="' + ((skill.preview && skill.preview.n) || 3) + '">' +
             '</div>' +
           '</div>' +
+          '<div class="form-row" style="margin-top:6px;"><label style="font-size:12px;">穿墙预览</label><select id="fs-skill-pv-pass">' +
+            '<option value="0"' + (!(skill.preview && skill.preview.passThrough) ? ' selected' : '') + '>否（被棋子阻断）</option>' +
+            '<option value="1"' + ((skill.preview && skill.preview.passThrough) ? ' selected' : '') + '>是（无视阻挡）</option>' +
+          '</select></div>' +
           '<div class="form-row" style="margin-top:14px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">音效设置</label></div>' +
           '<div class="fs-attr-grid">' +
             [['cast','释放'],['hit','命中'],['voice','专属语音']].map(function (o) {
@@ -5036,44 +5180,71 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
-    var apiPath, bodyData;
+    function doSubmit(portraitValue) {
+      if (portraitValue !== undefined && (type === 'general' || type === 'minion')) {
+        d.portrait = portraitValue;
+      }
 
-    if (type === 'general') {
-      apiPath = '/api/diy/submit';
-      bodyData = { general: d, skills: d.skills || [], extId: extId || undefined };
-    } else if (type === 'minion') {
-      apiPath = '/api/diy/minion/submit';
-      bodyData = { minion: d, skills: d.skills || [], extId: extId || undefined };
-    } else if (type === 'skill') {
-      apiPath = '/api/diy/skill/submit';
-      bodyData = { skill: d, extId: extId || undefined };
+      var apiPath, bodyData;
+      if (type === 'general') {
+        apiPath = '/api/diy/submit';
+        bodyData = { general: d, skills: d.skills || [], extId: extId || undefined };
+      } else if (type === 'minion') {
+        apiPath = '/api/diy/minion/submit';
+        bodyData = { minion: d, skills: d.skills || [], extId: extId || undefined };
+      } else if (type === 'skill') {
+        apiPath = '/api/diy/skill/submit';
+        bodyData = { skill: d, extId: extId || undefined };
+      }
+
+      apiFetch(apiPath, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      })
+        .then(function (r) {
+          var ct = r.headers.get('content-type') || '';
+          if (ct.indexOf('json') === -1) {
+            return r.text().then(function (txt) {
+              throw new Error('服务器返回了非 JSON 响应（HTTP ' + r.status + '）');
+            });
+          }
+          return r.json();
+        })
+        .then(function (data) {
+          if (data && data.ok) {
+            closeFsEditor();
+            loadExtensions();
+          } else {
+            alert('保存失败：' + (data && data.error ? data.error : '未知错误'));
+          }
+        })
+        .catch(function (err) {
+          alert('保存失败：' + err.message);
+        });
     }
 
-    apiFetch(apiPath, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyData)
-    })
-      .then(function (r) {
-        var ct = r.headers.get('content-type') || '';
-        if (ct.indexOf('json') === -1) {
-          return r.text().then(function (txt) {
-            throw new Error('服务器返回了非 JSON 响应（HTTP ' + r.status + '）');
-          });
-        }
-        return r.json();
-      })
-      .then(function (data) {
-        if (data && data.ok) {
-          closeFsEditor();
-          loadExtensions();
-        } else {
-          alert('保存失败：' + (data && data.error ? data.error : '未知错误'));
-        }
-      })
-      .catch(function (err) {
-        alert('保存失败：' + err.message);
-      });
+    // 武将/小兵：处理立绘
+    if (type === 'general' || type === 'minion') {
+      var pState = fsEditorState.portrait;
+      if (pState.pending) {
+        var fd = new FormData();
+        fd.append('file', pState.pending);
+        apiFetch('/api/portrait/upload', { method: 'POST', body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) { alert('立绘上传失败：' + (data.error || '未知错误')); return; }
+            doSubmit(data.portrait);
+          })
+          .catch(function (err) { alert('立绘上传错误：' + err.message); });
+      } else if (pState.cleared) {
+        doSubmit('');
+      } else {
+        doSubmit(pState.current || null);
+      }
+    } else {
+      doSubmit();
+    }
   }
 
   function closeFsEditor() {
@@ -5094,6 +5265,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     fsEditorState.activeSkillIdx = -1;
     fsEditorState.activeCodeTab = 'filter';
     fsEditorState.codeEditors = { filter: null, content: null, init: null };
+    fsEditorState.portrait = { current: null, pending: null, cleared: false };
     window._fsApiClose();
   }
 
