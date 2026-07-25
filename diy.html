@@ -7541,12 +7541,12 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
-    // 编辑单个武将 → 回填表单
+    // 编辑单个武将 → 打开全屏编辑器
     var editGenBtn = e.target.closest('.edit-general');
     if (editGenBtn) {
       var gid = editGenBtn.dataset.gid;
       var extId = editGenBtn.dataset.extId;
-      loadGeneralForEdit(gid, extId);
+      openFsEditor('general', extId, gid);
       return;
     }
 
@@ -7564,10 +7564,10 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
-    // 编辑单个小兵 → 回填表单
+    // 编辑单个小兵 → 打开全屏编辑器
     var editMinBtn = e.target.closest('.edit-minion');
     if (editMinBtn) {
-      loadMinionForEdit(editMinBtn.dataset.mid, editMinBtn.dataset.extId);
+      openFsEditor('minion', editMinBtn.dataset.extId, editMinBtn.dataset.mid);
       return;
     }
 
