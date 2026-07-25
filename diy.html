@@ -1224,6 +1224,25 @@
   .fs-skill-attr-body.collapsed {
     display: none;
   }
+  .fs-skill-attr-body input[type="text"],
+  .fs-skill-attr-body input[type="number"],
+  .fs-skill-attr-body select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--dark-bg);
+    border: 1px solid var(--dark-border);
+    border-radius: 4px;
+    color: var(--dark-fg);
+    font-size: var(--text-base);
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .fs-skill-attr-body input:focus,
+  .fs-skill-attr-body select:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+  }
 
   /* 技能代码编辑区 */
   .fs-skill-code-wrap {
@@ -4736,9 +4755,9 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (fsEditorState.type !== 'skill') {
       attrHtml = '<div class="fs-skill-attr-section">' +
         '<div class="fs-skill-attr-toggle" id="fs-skill-attr-toggle">' +
-          '<span>技能属性</span><span class="fs-skill-attr-arrow">▼</span>' +
+          '<span>技能属性</span><span class="fs-skill-attr-arrow">▶</span>' +
         '</div>' +
-        '<div class="fs-skill-attr-body" id="fs-skill-attr-body">' +
+        '<div class="fs-skill-attr-body collapsed" id="fs-skill-attr-body">' +
           '<div class="fs-attr-grid">' +
             '<div class="form-row"><label>名称</label><input type="text" id="fs-skill-name" value="' + escapeHtml(skill.name || '') + '"></div>' +
             '<div class="form-row"><label>类型</label><select id="fs-skill-type">' +
