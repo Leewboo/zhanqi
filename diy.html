@@ -869,6 +869,277 @@
     display: none;
   }
 
+  /* ========= 编辑器主 Tab 栏 ========= */
+  .fs-editor-main-tabs {
+    display: flex;
+    gap: 0;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 12px;
+  }
+  .fs-main-tab {
+    padding: 10px 24px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+  .fs-main-tab:hover {
+    color: #c9d1d9;
+  }
+  .fs-main-tab.active {
+    color: #58a6ff;
+    border-bottom-color: #58a6ff;
+  }
+
+  /* Tab 面板 */
+  .fs-tab-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 20px;
+    box-sizing: border-box;
+    color: #c9d1d9;
+  }
+  .fs-tab-panel.active {
+    display: block;
+  }
+  .fs-empty-state {
+    color: #6e7681;
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 13px;
+  }
+
+  /* 属性 Tab 表单 */
+  .fs-attr-form {
+    max-width: 640px;
+  }
+  .fs-attr-form .form-row {
+    margin-bottom: 16px;
+  }
+  .fs-attr-form label {
+    display: block;
+    font-size: 12px;
+    color: #8b949e;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .fs-attr-form input[type="text"],
+  .fs-attr-form input[type="number"],
+  .fs-attr-form select {
+    width: 100%;
+    padding: 8px 12px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    color: #c9d1d9;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .fs-attr-form input:focus,
+  .fs-attr-form select:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+  }
+  .fs-attr-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 16px;
+  }
+  .fs-range-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .fs-range-row select { flex: 0 0 100px; }
+  .fs-range-row input { flex: 1; }
+
+  /* 技能编辑布局 */
+  .fs-skills-layout {
+    display: flex;
+    height: 100%;
+    gap: 0;
+  }
+  .fs-skills-sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    background: rgba(0,0,0,0.2);
+  }
+  .fs-skills-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #30363d;
+    font-size: 12px;
+    color: #8b949e;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .fs-skills-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .fs-skill-item {
+    padding: 10px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 2px;
+    color: #c9d1d9;
+    font-size: 13px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .fs-skill-item:hover {
+    background: rgba(88, 166, 255, 0.1);
+  }
+  .fs-skill-item.active {
+    background: rgba(88, 166, 255, 0.2);
+    color: #58a6ff;
+  }
+  .fs-skill-item .fs-skill-type {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.1);
+    color: #8b949e;
+    flex-shrink: 0;
+  }
+  .fs-skill-item.active .fs-skill-type {
+    background: rgba(88, 166, 255, 0.3);
+    color: #58a6ff;
+  }
+  .fs-skills-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .fs-skills-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #30363d;
+    gap: 12px;
+  }
+  .fs-skills-editor-title {
+    font-size: 13px;
+    color: #c9d1d9;
+    font-weight: 600;
+  }
+  .fs-skills-editor-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  /* 技能编辑子 Tab（filter/content/init） */
+  .fs-code-sub-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 12px;
+  }
+  .fs-code-sub-tab {
+    padding: 8px 20px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+    font-weight: 600;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .fs-code-sub-tab:hover {
+    color: #c9d1d9;
+  }
+  .fs-code-sub-tab.active {
+    color: #7ee787;
+    border-bottom-color: #7ee787;
+  }
+
+  /* 技能代码编辑区 */
+  .fs-skill-code-wrap {
+    height: calc(100% - 40px);
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fs-skill-code-wrap .code-editor {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* 技能属性表单（深色主题） */
+  .fs-skill-form {
+    margin-bottom: 16px;
+  }
+  .fs-skill-form table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: #c9d1d9;
+  }
+  .fs-skill-form th, .fs-skill-form td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #21262d;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .fs-skill-form th {
+    font-weight: 600;
+    color: #8b949e;
+    white-space: nowrap;
+    width: 80px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+  .fs-skill-form input[type="text"],
+  .fs-skill-form input[type="number"],
+  .fs-skill-form select {
+    width: 100%;
+    padding: 6px 10px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    color: #c9d1d9;
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .fs-skill-form input:focus,
+  .fs-skill-form select:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+  }
+
   /* ========= API 侧栏 ========= */
   .fs-api-panel {
     width: 340px;
@@ -1121,6 +1392,134 @@
     margin-right: 4px;
     font-weight: 700;
   }
+
+  /* ========= 音频管理 ========= */
+  .sound-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .sound-card {
+    background: #fff;
+    border: 1px solid #e0d8c3;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.2s;
+  }
+  .sound-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .sound-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .sound-card-id {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #555;
+    font-weight: 600;
+    word-break: break-all;
+  }
+  .sound-card-name {
+    font-size: 13px;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+  .sound-card-info {
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    gap: 12px;
+  }
+  .sound-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .sound-card-actions .btn-mini {
+    padding: 3px 8px;
+    font-size: 11px;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #c9bf9e;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .sound-card-actions .btn-mini:hover { background: #fff3c4; }
+  .sound-card-actions .btn-mini.danger {
+    color: #a00;
+    border-color: #a00;
+  }
+  .sound-card-actions .btn-mini.danger:hover { background: #ffeeee; }
+  .sound-card-actions .btn-mini.play {
+    color: #2e7d32;
+    border-color: #2e7d32;
+  }
+  .sound-card-actions .btn-mini.play:hover { background: #e8f5e9; }
+  .sound-card-actions .btn-mini.play.playing {
+    background: #2e7d32;
+    color: #fff;
+  }
+  .sound-upload-area {
+    display: flex;
+    align-items: center;
+  }
+  .sound-empty {
+    text-align: center;
+    color: #888;
+    padding: 40px;
+    font-size: 13px;
+    grid-column: 1 / -1;
+  }
+  .sound-rename-input {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 12px;
+    border: 1px solid #c9bf9e;
+    border-radius: 3px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* 音效选择器带试听和上传 */
+  .sound-select-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .sound-select-row select {
+    flex: 1;
+    min-width: 0;
+  }
+  .sound-select-row .btn-mini {
+    padding: 3px 8px;
+    font-size: 11px;
+    background: #fff;
+    color: #1a1a1a;
+    border: 1px solid #c9bf9e;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .sound-select-row .btn-mini:hover { background: #fff3c4; }
+  .sound-select-row .btn-mini.play {
+    color: #2e7d32;
+    border-color: #2e7d32;
+  }
+  .sound-select-row .btn-mini.play:hover { background: #e8f5e9; }
+  .sound-select-row .btn-mini.play.playing {
+    background: #2e7d32;
+    color: #fff;
+  }
+  .sound-select-row .btn-mini.upload {
+    color: #1976d2;
+    border-color: #1976d2;
+  }
+  .sound-select-row .btn-mini.upload:hover { background: #e3f2fd; }
 
   /* ========= 手机端适配 ========= */
   @media (max-width: 768px) {
@@ -2834,7 +3233,7 @@ Effect.fx.clearFx('myZone');</code></pre>
 <div id="fs-editor" class="fs-editor-mask" aria-hidden="true">
   <div class="fs-editor-head">
     <div class="fs-editor-title">
-      <span id="fs-editor-label">代码编辑</span>
+      <span id="fs-editor-label">编辑武将</span>
       <small id="fs-editor-hint">ESC 保存关闭 · 点击遮罩保存 · 右侧 API 点击即插入</small>
     </div>
     <div class="fs-editor-actions">
@@ -2845,8 +3244,41 @@ Effect.fx.clearFx('myZone');</code></pre>
     </div>
     <div id="fs-editor-error" class="fs-editor-error hidden"></div>
   </div>
+
+  <!-- 编辑器主 Tab 栏 -->
+  <div class="fs-editor-main-tabs" id="fs-editor-main-tabs">
+    <button class="fs-main-tab active" data-tab="attr">属性</button>
+    <button class="fs-main-tab" data-tab="skills">技能</button>
+    <button class="fs-main-tab" data-tab="sounds">音效</button>
+  </div>
+
   <div class="fs-editor-split">
-    <div class="fs-editor-body" id="fs-editor-body"></div>
+    <div class="fs-editor-body" id="fs-editor-body">
+      <!-- 属性 Tab -->
+      <div class="fs-tab-panel active" id="fs-panel-attr"></div>
+      <!-- 技能 Tab -->
+      <div class="fs-tab-panel" id="fs-panel-skills">
+        <div class="fs-skills-layout">
+          <div class="fs-skills-sidebar">
+            <div class="fs-skills-sidebar-head">
+              <span>技能列表</span>
+              <button id="fs-btn-add-skill" class="btn mini primary">+ 新建</button>
+            </div>
+            <div class="fs-skills-list" id="fs-skills-list"></div>
+          </div>
+          <div class="fs-skills-editor">
+            <div class="fs-skills-editor-head" id="fs-skills-editor-head">
+              <span class="fs-skills-editor-title">请选择技能</span>
+            </div>
+            <div class="fs-skills-editor-body" id="fs-skills-editor-body">
+              <div class="fs-empty-state">从左侧选择一个技能进行编辑</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 音效 Tab -->
+      <div class="fs-tab-panel" id="fs-panel-sounds"></div>
+    </div>
     <div class="fs-api-panel" id="fs-api-panel">
       <div class="fs-api-tabs" id="fs-api-tabs"></div>
       <div class="fs-api-content" id="fs-api-content"></div>
@@ -2898,6 +3330,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       <button class="diy-nav-tab active" data-tab="general">武将编辑</button>
       <button class="diy-nav-tab" data-tab="skill">独立技能</button>
       <button class="diy-nav-tab" data-tab="minion">小兵编辑</button>
+      <button class="diy-nav-tab" data-tab="soundmgr">音频管理</button>
       <button class="diy-nav-tab" data-tab="usermgr">用户管理</button>
     </div>
     <div class="diy-steps" id="diy-steps">
@@ -2952,548 +3385,140 @@ Effect.fx.clearFx('myZone');</code></pre>
     </div>
   </div>
 
+  <!-- 公共拓展列表 -->
+  <div class="card" style="margin-bottom: 14px;">
+    <div class="card-head">
+      <div class="card-title">已有拓展</div>
+    </div>
+    <div class="card-body" id="ext-list-container">
+      <span class="empty-state">加载中...</span>
+    </div>
+  </div>
+
   <!-- 两栏主布局 -->
   <div class="diy-main">
     <!-- 武将编辑页面 -->
     <div class="diy-tab" data-tab="general">
-      <!-- 左栏：拓展管理 + 武将属性 -->
-      <div class="diy-left">
-        <!-- 拓展列表 -->
-        <div class="card" style="margin-bottom: 14px;">
-          <div class="card-head">
-            <div class="card-title">已有拓展</div>
-          </div>
-          <div class="card-body" id="ext-list-container">
-            <span class="empty-state">加载中...</span>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">武将列表</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <select id="g-ext" style="width:180px;"></select>
+            <button id="btn-new-general" class="btn mini primary">+ 新建武将</button>
           </div>
         </div>
-
-        <!-- 武将属性卡片 -->
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">
-              <span class="card-title-num">1</span>
-              武将属性
-            </div>
-          </div>
-          <div class="card-body">
-            <table class="tbl">
-              <tr>
-                <th>拓展</th>
-                <td>
-                  <select id="g-ext" style="width:100%;"></select>
-                  <span class="hint">选择或新建拓展，武将提交到此拓展</span>
-                </td>
-              </tr>
-              <tr>
-                <th>id</th>
-                <td>
-                  <input type="text" id="gid" placeholder="如 zhaoyun" />
-                  <span class="hint">2–20 位字母/数字/下划线，自动加前缀 diy_</span>
-                </td>
-              </tr>
-              <tr><th>name</th><td><input type="text" id="gname" placeholder="如 赵云" /></td></tr>
-              <tr><th>hp</th><td><input type="number" id="ghp" value="200" min="1" max="10000" /></td></tr>
-              <tr><th>atk</th><td><input type="number" id="gatk" value="50" min="0" max="1000" /></td></tr>
-              <tr><th>def</th><td><input type="number" id="gdef" value="20" min="0" max="1000" /></td></tr>
-              <tr>
-                <th>移动</th>
-                <td>
-                  <select id="gmv-shape" style="width:80px;margin-right:6px;">
-                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                  </select>
-                  <input type="number" id="gmv-n" value="3" min="1" max="12" style="width:60px" />
-                </td>
-              </tr>
-              <tr>
-                <th>攻击</th>
-                <td>
-                  <select id="gatk-shape" style="width:80px;margin-right:6px;">
-                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                  </select>
-                  <input type="number" id="gatk-n" value="1" min="1" max="12" style="width:60px" />
-                </td>
-              </tr>
+        <div class="card-body">
+          <div class="gen-table-wrap">
+            <table class="gen-table" id="generals-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>名称</th>
+                  <th class="num">HP</th>
+                  <th class="num">ATK</th>
+                  <th class="num">DEF</th>
+                  <th>移动</th>
+                  <th>攻击</th>
+                  <th class="num">技能数</th>
+                  <th class="actions">操作</th>
+                </tr>
+              </thead>
+              <tbody id="generals-table-body">
+                <tr><td colspan="9" style="text-align:center;color:#888;padding:20px;">暂无武将数据</td></tr>
+              </tbody>
             </table>
-
-            <!-- 立绘上传 -->
-            <div class="portrait-row">
-              <label class="portrait-label">武将立绘</label>
-              <div class="portrait-preview" id="portrait-preview">
-                <span class="portrait-empty" id="portrait-empty">未上传立绘</span>
-                <img id="portrait-img" class="hidden" alt="立绘预览" />
-              </div>
-              <div class="portrait-actions">
-                <input type="file" id="portrait-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="hidden" />
-                <button type="button" id="btn-portrait-pick" class="btn mini">选择图片</button>
-                <button type="button" id="btn-portrait-clear" class="btn mini">清除立绘</button>
-              </div>
-            </div>
-
-            <!-- 武将语音：8 类事件，每类绑定一个音频 id -->
-            <div class="voice-row">
-              <div class="voice-row-title">武将语音（每类事件绑定一个音频 id，留空则不播放）</div>
-              <div class="voice-grid">
-                <div class="voice-item"><label>选中</label><select id="g-voice-select" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-select" title="试听">▶</button></div>
-                <div class="voice-item"><label>移动</label><select id="g-voice-move" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-move" title="试听">▶</button></div>
-                <div class="voice-item"><label>攻击</label><select id="g-voice-attack" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-attack" title="试听">▶</button></div>
-                <div class="voice-item"><label>受击</label><select id="g-voice-hurt" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-hurt" title="试听">▶</button></div>
-                <div class="voice-item"><label>阵亡</label><select id="g-voice-death" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-death" title="试听">▶</button></div>
-                <div class="voice-item"><label>击杀</label><select id="g-voice-kill" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-kill" title="试听">▶</button></div>
-                <div class="voice-item"><label>技能</label><select id="g-voice-skill" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-skill" title="试听">▶</button></div>
-                <div class="voice-item"><label>胜利</label><select id="g-voice-victory" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="g-voice-victory" title="试听">▶</button></div>
-              </div>
-              <div style="margin-top:8px;">
-                <input type="file" id="g-voice-file" accept="audio/*" class="hidden" />
-                <button type="button" id="btn-g-voice-upload" class="btn mini">+ 上传语音</button>
-                <span class="hint" style="margin-left:8px;">文件名会成为音频 id（自动加 sd_ 前缀）</span>
-              </div>
-            </div>
-
-            <!-- 提交区域 -->
-            <div class="submit-row">
-              <button id="btn-submit" class="btn primary">✓ 提交</button>
-              <button id="btn-reset" class="btn">重置</button>
-            </div>
-            <div id="submit-info" class="output-msg" style="display:none;"></div>
           </div>
         </div>
-      </div><!-- end .diy-left -->
-
-      <!-- 右栏：技能列表 -->
-      <div class="diy-right">
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">
-              <span class="card-title-num">2</span>
-              技能列表
-            </div>
-            <button id="btn-add-skill" class="btn mini primary">+ 添加技能</button>
-          </div>
-          <div class="card-body">
-            <span class="hint" style="margin-bottom:8px;display:block;">每个技能写 filter（判断是否可施放）和 content（主逻辑）。点击右上角「⤢ 全屏编辑」可展开大屏。</span>
-            <div id="skills-container"></div>
-          </div>
-        </div>
-
-        <div class="footer-nav">
-          <a href="/">← 返回游戏首页</a>
-        </div>
-      </div><!-- end .diy-right -->
+      </div>
     </div><!-- end .diy-tab.general -->
 
     <!-- 独立技能管理页面 -->
     <div class="diy-tab hidden" data-tab="skill">
-      <div class="diy-left">
-        <!-- 拓展列表 -->
-        <div class="card" style="margin-bottom: 14px;">
-          <div class="card-head">
-            <div class="card-title">已有拓展</div>
-          </div>
-          <div class="card-body" id="skill-ext-list-container">
-            <span class="empty-state">加载中...</span>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">独立技能列表</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <select id="s-ext" style="width:180px;"></select>
+            <button id="btn-new-skill" class="btn mini primary">+ 新建技能</button>
           </div>
         </div>
-
-        <!-- 独立技能编辑卡片 -->
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">独立技能编辑</div>
-          </div>
-          <div class="card-body">
-            <table class="tbl">
-              <tr>
-                <th>拓展</th>
-                <td>
-                  <select id="s-ext" style="width:100%;"></select>
-                  <span class="hint">选择或新建拓展，技能提交到此拓展</span>
-                </td>
-              </tr>
-              <tr>
-                <th>id</th>
-                <td>
-                  <input type="text" id="sid" placeholder="如 fireball" />
-                  <span class="hint">2–30 位字母/数字/下划线，自动加前缀 skill_</span>
-                </td>
-              </tr>
-              <tr><th>name</th><td><input type="text" id="sname" placeholder="如 火球术" /></td></tr>
-              <tr>
-                <th>类型</th>
-                <td>
-                  <select id="stype" style="width:100%;">
-                    <option value="主动">主动</option>
-                    <option value="被动">被动</option>
-                  </select>
-                </td>
-              </tr>
-              <tr>
-                <th>触发条件</th>
-                <td>
-                  <select id="strigger" style="width:100%;">
-                    <option value="">无（主动技能用）</option>
-                    <option value="onKill">onKill（击杀时）</option>
-                    <option value="onKilled">onKilled（被击杀时）</option>
-                    <option value="onAttack">onAttack（发起攻击时）</option>
-                    <option value="onAttacked">onAttacked（被攻击时）</option>
-                    <option value="onMove">onMove（移动后）</option>
-                    <option value="onHeal">onHeal（被治疗时）</option>
-                    <option value="onSkillCast">onSkillCast（技能发动后）</option>
-                    <option value="turnStart">turnStart（回合开始）</option>
-                    <option value="turnEnd">turnEnd（回合结束）</option>
-                  </select>
-                  <span class="hint">被动技能必填</span>
-                </td>
-              </tr>
-              <tr id="s-row-cd">
-                <th>冷却</th><td><input type="number" id="scd" value="0" min="0" max="20" /></td>
-              </tr>
-              <tr>
-                <th>限定技</th><td><label style="font-size:12px;color:#666;"><input type="checkbox" id="slimited" /> 限定技（本局游戏只能使用一次）</label></td>
-              </tr>
-              <tr><th>描述</th><td><input type="text" id="sdesc" placeholder="简短描述技能效果" /></td></tr>
-              <tr class="s-row-active" id="s-row-preview">
-                <th>预览范围</th>
-                <td>
-                  <select id="s-pv-shape">
-                    <option value="">不预览</option>
-                    <option value="+">十字 +</option>
-                    <option value="square">方形</option>
-                    <option value="r">圆形</option>
-                    <option value="x">X 形</option>
-                  </select>
-                  半径 <input type="number" id="s-pv-n" value="3" min="1" max="10" style="width:60px;" />
-                </td>
-              </tr>
-              <tr class="s-row-active" id="s-row-ai">
-                <th>AI 提示</th>
-                <td>
-                  <div id="s-ai-panel" style="border:1px solid #e3d9c4;border-radius:6px;padding:10px;background:#faf7f1;">
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-                      <label style="font-weight:bold;color:#c0392b;">启用 AI</label>
-                      <select id="s-ai-type" style="width:auto;">
-                        <option value="">自动推断（推荐）</option>
-                        <option value="damage">伤害 damage</option>
-                        <option value="heal">治疗 heal</option>
-                        <option value="buff">增益 buff</option>
-                        <option value="debuff">减益 debuff</option>
-                        <option value="control">控制 control</option>
-                        <option value="teleport">位移 teleport</option>
-                        <option value="summon">召唤 summon</option>
-                        <option value="mixed">混合 mixed</option>
-                      </select>
-                      <span class="hint" style="margin:0;">选择技能类型，AI 据此评估使用时机</span>
-                    </div>
-
-                    <div id="s-ai-detail" class="hidden" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px;margin-top:6px;padding-top:8px;border-top:1px dashed #e3d9c4;">
-                      <div>
-                        <label style="font-size:12px;color:#666;">目标类型 <code>target</code></label>
-                        <select id="s-ai-target" style="width:100%;">
-                          <option value="enemy">敌方 enemy（单体）</option>
-                          <option value="ally">友方 ally（单体）</option>
-                          <option value="cell">格子 cell（指定位置）</option>
-                          <option value="self">自身 self</option>
-                          <option value="none">无 none（无需选目标）</option>
-                          <option value="aoe_enemy">范围敌方 aoe_enemy</option>
-                          <option value="aoe_ally">范围友方 aoe_ally</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">威力 <code>power</code>（0-200）</label>
-                        <input type="number" id="s-ai-power" value="50" min="0" max="200" style="width:100%;" />
-                        <span class="hint">基础评分：伤害/治疗量或效果强度</span>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">优先级 <code>priority</code>（1-10）</label>
-                        <input type="number" id="s-ai-priority" value="5" min="1" max="10" style="width:100%;" />
-                        <span class="hint">越高越优先使用（10 最先）</span>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">使用条件 <code>condition</code></label>
-                        <select id="s-ai-condition" style="width:100%;">
-                          <option value="always">总是评估 always</option>
-                          <option value="enemy_near">附近有敌 enemy_near</option>
-                          <option value="enemy_in_range">范围内有敌 enemy_in_range</option>
-                          <option value="ally_injured">有友军受伤 ally_injured</option>
-                          <option value="self_low_hp">自身低血 self_low_hp</option>
-                          <option value="self_full_hp">自身满血 self_full_hp</option>
-                          <option value="has_target">有合法目标 has_target</option>
-                        </select>
-                        <span class="hint">不满足条件时 AI 不会使用此技能</span>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">目标偏好 <code>preferTarget</code></label>
-                        <select id="s-ai-prefer" style="width:100%;">
-                          <option value="">默认（按威胁度）</option>
-                          <option value="low_hp">低血目标 low_hp</option>
-                          <option value="high_threat">高威胁 high_threat</option>
-                          <option value="injured_ally">残血友军 injured_ally</option>
-                          <option value="nearest">最近敌人 nearest</option>
-                          <option value="caster">敌方法师 caster</option>
-                        </select>
-                        <span class="hint">AI 选择目标时的偏好策略</span>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">最少命中数 <code>minTargets</code></label>
-                        <input type="number" id="s-ai-min-targets" value="0" min="0" max="10" style="width:100%;" />
-                        <span class="hint">范围技至少命中 N 个目标才用（0=不限）</span>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">避免对自身 <code>avoidSelf</code></label>
-                        <select id="s-ai-avoid-self" style="width:100%;">
-                          <option value="0">否（可对自身使用）</option>
-                          <option value="1">是（不选自己作目标）</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style="font-size:12px;color:#666;">血量阈值 <code>hpThreshold</code>（%）</label>
-                        <input type="number" id="s-ai-hp-threshold" value="0" min="0" max="100" style="width:100%;" />
-                        <span class="hint">配合 self_low_hp/ally_injured，0=禁用</span>
-                      </div>
-                      <div style="grid-column:span 2;">
-                        <label style="font-size:12px;color:#666;">设计备注 <code>notes</code>（不参与 AI 计算）</label>
-                        <input type="text" id="s-ai-notes" style="width:100%;" placeholder="此技能的设计意图、使用技巧..." />
-                      </div>
-                    </div>
-                  </div>
-                  <span class="hint">AI 用此信息评估技能价值与使用时机。被动技能无需填写。</span>
-                </td>
-              </tr>
+        <div class="card-body">
+          <div class="gen-table-wrap">
+            <table class="gen-table" id="skills-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th class="num">冷却</th>
+                  <th>触发</th>
+                  <th class="actions">操作</th>
+                </tr>
+              </thead>
+              <tbody id="skills-table-body">
+                <tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">暂无技能数据</td></tr>
+              </tbody>
             </table>
-
-            <!-- 技能代码编辑器 -->
-            <div class="form-row" id="s-row-filter">
-              <label>filter（判断是否可施放）</label>
-              <div class="code-editor" id="s-filter-editor">
-                <div class="code-editor-header">
-                  <span class="code-editor-title">filter</span>
-                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
-                </div>
-                <div class="hl-layer"><pre><code></code></pre></div>
-                <textarea id="s-filter" class="code-input" spellcheck="false">return actor && actor.alive && !actor.skilled;</textarea>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <label>content（技能主逻辑）</label>
-              <div class="code-editor" id="s-content-editor">
-                <div class="code-editor-header">
-                  <span class="code-editor-title">content</span>
-                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
-                </div>
-                <div class="hl-layer"><pre><code></code></pre></div>
-                <textarea id="s-content" class="code-input" spellcheck="false"></textarea>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <label>init（初始化逻辑，可选）<span class="hint" style="font-weight:normal;">武将：战斗开始时执行；小兵：部署后执行</span></label>
-              <div class="code-editor" id="s-init-editor">
-                <div class="code-editor-header">
-                  <span class="code-editor-title">init</span>
-                  <button class="fullscreen-btn" title="全屏编辑">⤢</button>
-                </div>
-                <div class="hl-layer"><pre><code></code></pre></div>
-                <textarea id="s-init" class="code-input" spellcheck="false"></textarea>
-              </div>
-            </div>
-
-            <!-- 技能音效：cast（释放）/ hit（命中）/ voice（专属语音） -->
-            <div class="sound-row">
-              <div class="sound-row-title">技能音效（绑定音频 id，留空则不播放）</div>
-              <div class="sound-grid">
-                <div class="sound-item"><label>释放</label><select id="s-sound-cast" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-cast" title="试听">▶</button></div>
-                <div class="sound-item"><label>命中</label><select id="s-sound-hit" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-hit" title="试听">▶</button></div>
-                <div class="sound-item"><label>专属语音</label><select id="s-sound-voice" class="sound-select" data-sound-type="voice"></select><button type="button" class="sound-preview-btn" data-preview="s-sound-voice" title="试听">▶</button></div>
-              </div>
-              <div style="margin-top:8px;">
-                <input type="file" id="s-sound-file" accept="audio/*" class="hidden" />
-                <button type="button" id="btn-s-sound-upload" class="btn mini">+ 上传音效</button>
-                <span class="hint" style="margin-left:8px;">文件名会成为音频 id（自动加 sd_ 前缀）</span>
-              </div>
-            </div>
-
-            <!-- 提交区域 -->
-            <div class="submit-row">
-              <button id="btn-skill-submit" class="btn primary">✓ 提交技能</button>
-              <button id="btn-skill-reset" class="btn">重置</button>
-            </div>
-            <div id="skill-submit-info" class="output-msg" style="display:none;"></div>
           </div>
-        </div>
-      </div>
-
-      <!-- 右栏：独立技能列表 -->
-      <div class="diy-right">
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">独立技能列表</div>
-            <button id="btn-add-indep-skill" class="btn mini primary">+ 新建技能</button>
-          </div>
-          <div class="card-body">
-            <span class="hint" style="margin-bottom:8px;display:block;">独立技能可被多个武将共用，不绑定特定武将</span>
-            <div id="indep-skill-list-container"></div>
-          </div>
-        </div>
-
-        <div class="footer-nav">
-          <a href="/">← 返回游戏首页</a>
         </div>
       </div>
     </div><!-- end .diy-tab.skill -->
 
     <!-- ===== 小兵编辑面板 ===== -->
     <div class="diy-tab hidden" data-tab="minion">
-      <!-- 左栏：拓展管理 + 小兵属性 -->
-      <div class="diy-left">
-        <!-- 拓展列表 -->
-        <div class="card" style="margin-bottom: 14px;">
-          <div class="card-head">
-            <div class="card-title">已有拓展</div>
-          </div>
-          <div class="card-body" id="minion-ext-list-container">
-            <span class="empty-state">加载中...</span>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">小兵列表</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <select id="m-ext" style="width:180px;"></select>
+            <button id="btn-new-minion" class="btn mini primary">+ 新建小兵</button>
           </div>
         </div>
-
-        <!-- 小兵属性卡片 -->
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">小兵属性</div>
-          </div>
-          <div class="card-body">
-            <table class="tbl">
-              <tr>
-                <th>拓展</th>
-                <td>
-                  <select id="m-ext" style="width:100%;"></select>
-                  <span class="hint">选择或新建拓展，小兵提交到此拓展</span>
-                </td>
-              </tr>
-              <tr>
-                <th>id</th>
-                <td>
-                  <input type="text" id="mid" placeholder="如 soldier1" />
-                  <span class="hint">2–30 位字母/数字/下划线，自动加前缀 diyminion_</span>
-                </td>
-              </tr>
-              <tr><th>name</th><td><input type="text" id="mname" placeholder="如 长枪兵" /></td></tr>
-              <tr><th>hp</th><td><input type="number" id="mhp" value="80" min="1" max="10000" /></td></tr>
-              <tr><th>atk</th><td><input type="number" id="matk" value="25" min="0" max="1000" /></td></tr>
-              <tr><th>def</th><td><input type="number" id="mdef" value="10" min="0" max="1000" /></td></tr>
-              <tr>
-                <th>移动</th>
-                <td>
-                  <select id="m-mv-shape" style="width:80px;margin-right:6px;">
-                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                  </select>
-                  <input type="number" id="m-mv-n" value="2" min="1" max="12" style="width:60px" />
-                </td>
-              </tr>
-              <tr>
-                <th>攻击</th>
-                <td>
-                  <select id="m-atk-shape" style="width:80px;margin-right:6px;">
-                    <option value="+">十字 +</option><option value="square">方形</option><option value="r">圆形</option><option value="x">X 形</option>
-                  </select>
-                  <input type="number" id="m-atk-n" value="1" min="1" max="12" style="width:60px" />
-                </td>
-              </tr>
-              <tr>
-                <th>品质</th>
-                <td>
-                  <select id="m-rarity" style="width:120px;">
-                    <option value="common">普通</option>
-                    <option value="rare">稀有</option>
-                    <option value="epic">史诗</option>
-                  </select>
-                  <span class="hint">决定小兵稀有度与被动（common死亡激励/rare城池叠防/epic城池立动）</span>
-                </td>
-              </tr>
-              <tr>
-                <th>类型</th>
-                <td>
-                  <select id="m-tag" style="width:140px;">
-                    <option value="infantry">步兵（前线三行）</option>
-                    <option value="scout">侦察（己方半场任意）</option>
-                    <option value="siege">攻城（占领城池相邻）</option>
-                  </select>
-                  <span class="hint">决定部署区域</span>
-                </td>
-              </tr>
-              <tr>
-                <th>消耗</th>
-                <td>
-                  <input type="number" id="m-cost" value="1" min="1" max="5" style="width:80px" />
-                  <span class="hint">部署消耗点数 1–5</span>
-                </td>
-              </tr>
-              <tr>
-                <th>加入卡组</th>
-                <td>
-                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                    <input type="checkbox" id="m-in-deck" checked />
-                    <span class="hint">开启后小兵可被抽到；关闭后只能通过技能召唤</span>
-                  </label>
-                </td>
-              </tr>
-              <tr>
-                <th>描述</th>
-                <td><input type="text" id="m-desc" placeholder="简短描述（可选）" /></td>
-              </tr>
+        <div class="card-body">
+          <div class="gen-table-wrap">
+            <table class="gen-table" id="minions-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>名称</th>
+                  <th class="num">HP</th>
+                  <th class="num">ATK</th>
+                  <th class="num">DEF</th>
+                  <th class="num">费用</th>
+                  <th class="actions">操作</th>
+                </tr>
+              </thead>
+              <tbody id="minions-table-body">
+                <tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>
+              </tbody>
             </table>
-
-            <!-- 小兵音效 -->
-            <div class="sound-row" style="margin-top:12px;">
-              <div class="sound-row-title">小兵音效（绑定音频 id，留空则不播放）</div>
-              <div class="sound-grid">
-                <div class="sound-item"><label>部署</label><select id="m-sound-deploy" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-deploy" title="试听">▶</button></div>
-                <div class="sound-item"><label>攻击</label><select id="m-sound-attack" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-attack" title="试听">▶</button></div>
-                <div class="sound-item"><label>死亡</label><select id="m-sound-death" class="sound-select" data-sound-type="sfx"></select><button type="button" class="sound-preview-btn" data-preview="m-sound-death" title="试听">▶</button></div>
-              </div>
-            </div>
-
-            <!-- 立绘上传 -->
-            <div class="portrait-row">
-              <label class="portrait-label">小兵立绘</label>
-              <div class="portrait-preview" id="m-portrait-preview">
-                <span class="portrait-empty" id="m-portrait-empty">未上传立绘</span>
-                <img id="m-portrait-img" class="hidden" alt="立绘预览" />
-              </div>
-              <div class="portrait-actions">
-                <input type="file" id="m-portrait-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="hidden" />
-                <button type="button" id="btn-m-portrait-pick" class="btn mini">选择图片</button>
-                <button type="button" id="btn-m-portrait-clear" class="btn mini">清除立绘</button>
-              </div>
-            </div>
-
-            <!-- 提交区域 -->
-            <div class="submit-row">
-              <button type="button" id="btn-m-submit" class="btn primary">✓ 提交</button>
-              <button type="button" id="btn-m-reset" class="btn">重置</button>
-            </div>
-            <div id="m-submit-info" class="output-msg" style="display:none;"></div>
           </div>
         </div>
-      </div><!-- end .diy-left -->
-
-      <!-- 右栏：技能列表 -->
-      <div class="diy-right">
-        <div class="card">
-          <div class="card-head">
-            <div class="card-title">技能列表</div>
-            <button id="btn-m-add-skill" class="btn mini primary">+ 添加技能</button>
-          </div>
-          <div class="card-body">
-            <span class="hint" style="margin-bottom:8px;display:block;">为小兵添加技能（编辑方式与武将技能一致）。</span>
-            <div id="m-skills-container"></div>
-          </div>
-        </div>
-
-        <div class="footer-nav">
-          <a href="/">← 返回游戏首页</a>
-        </div>
-      </div><!-- end .diy-right -->
+      </div>
     </div><!-- end .diy-tab.minion -->
+
+    <!-- ===== 音频管理面板 ===== -->
+    <div class="diy-tab hidden" data-tab="soundmgr">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">音频资源管理</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div class="sound-upload-area" id="sound-upload-area">
+              <input type="file" id="sound-upload-input" accept=".mp3,.ogg,.wav,.m4a,.aac" multiple hidden>
+              <button id="btn-upload-sound" class="btn mini primary">📤 上传音频</button>
+              <span style="font-size:11px;color:#666;margin-left:8px;">支持 MP3/OGG/WAV/M4A/AAC，单文件≤5MB</span>
+            </div>
+            <button id="btn-refresh-sounds" class="btn mini">🔄 刷新</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="sound-stats" id="sound-stats" style="margin-bottom:12px;font-size:12px;color:#666;"></div>
+          <div class="sound-list" id="sound-list">
+            <div style="text-align:center;color:#888;padding:40px;">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- end .diy-tab.soundmgr -->
 
     <!-- ===== 用户管理面板 ===== -->
     <div class="diy-tab hidden" data-tab="usermgr">
@@ -3841,11 +3866,678 @@ Effect.fx.clearFx('myZone');</code></pre>
     originalTextarea: null,
     cloneTextarea: null,
     onKeydown: null,
+    type: null,
+    mode: null,
+    extId: null,
+    data: null,
+    activeMainTab: 'attr',
+    activeSkillIdx: -1,
+    activeCodeTab: 'filter',
+    codeEditors: {
+      filter: null,
+      content: null,
+      init: null
+    }
   };
+
+  function deepClone(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+      return obj.map(deepClone);
+    }
+    var result = {};
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        result[key] = deepClone(obj[key]);
+      }
+    }
+    return result;
+  }
+
+  function getTypeLabel(type) {
+    return ({ general: '武将', minion: '小兵', skill: '技能' })[type] || type;
+  }
+
+  function openFsEditor(type, extId, itemId) {
+    fsEditorState.type = type;
+    fsEditorState.extId = extId;
+    fsEditorState.mode = itemId ? 'edit' : 'new';
+    fsEditorState.activeMainTab = 'attr';
+    fsEditorState.activeSkillIdx = -1;
+    fsEditorState.activeCodeTab = 'filter';
+    fsEditorState.codeEditors = { filter: null, content: null, init: null };
+
+    var label = getTypeLabel(type);
+    $('fs-editor-label').textContent = (itemId ? '编辑' : '新建') + label;
+    $('fs-editor-hint').textContent = 'ESC 保存关闭 · 点击遮罩保存 · 右侧 API 点击即插入';
+
+    buildApiPanel();
+
+    if (itemId) {
+      var apiPath = type === 'general' ? '/api/diy/detail?id=' :
+                    type === 'minion'  ? '/api/diy/minion/detail?id=' :
+                    '/api/diy/skill/detail?id=';
+      apiFetch(apiPath + encodeURIComponent(itemId))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) { alert('加载失败：' + (data.error || '未知错误')); return; }
+          var item = type === 'general' ? data.general :
+                     type === 'minion'  ? data.minion  : data.skill;
+          var skills = Array.isArray(data.skills) ? data.skills : [];
+          fsEditorState.data = deepClone(item);
+          fsEditorState.data.skills = skills;
+          finishOpenFsEditor();
+        })
+        .catch(function (e) { alert('加载失败：' + e.message); });
+    } else {
+      fsEditorState.data = createEmptyItem(type);
+      finishOpenFsEditor();
+    }
+  }
+
+  function createEmptyItem(type) {
+    if (type === 'general') {
+      return {
+        id: '', name: '',
+        hp: 200, atk: 50, def: 20,
+        moveRange: { shape: '+', n: 3 },
+        attackRange: { shape: '+', n: 1 },
+        voice: { select: '', move: '', attack: '', hurt: '', death: '', kill: '', skill: '', victory: '' },
+        skills: []
+      };
+    } else if (type === 'minion') {
+      return {
+        id: '', name: '',
+        hp: 80, atk: 25, def: 10,
+        moveRange: { shape: '+', n: 2 },
+        attackRange: { shape: '+', n: 1 },
+        rarity: 'common', tag: 'infantry',
+        cost: 1, inDeck: true,
+        description: '',
+        sound: { deploy: '', attack: '', death: '' },
+        skills: []
+      };
+    } else if (type === 'skill') {
+      return {
+        id: '', name: '',
+        type: '主动', cooldown: 0, limited: false,
+        trigger: '', desc: '',
+        preview: null,
+        filterCode: '', contentCode: '', initCode: '',
+        sound: { cast: '', hit: '', voice: '' },
+        aiHint: null
+      };
+    }
+    return {};
+  }
+
+  function finishOpenFsEditor() {
+    switchMainTab('attr');
+    var mask = $('fs-editor');
+    mask.classList.add('open');
+    mask.setAttribute('aria-hidden', 'false');
+    bindFsEditorEvents();
+  }
+
+  function bindFsEditorEvents() {
+    if (fsEditorState.onKeydown) {
+      document.removeEventListener('keydown', fsEditorState.onKeydown);
+    }
+    fsEditorState.onKeydown = function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        saveFsEditor();
+      }
+    };
+    document.addEventListener('keydown', fsEditorState.onKeydown);
+
+    var tabs = qsa('.fs-main-tab');
+    tabs.forEach(function (tab) {
+      tab.onclick = function () {
+        var tabName = tab.dataset.tab;
+        switchMainTab(tabName);
+      };
+    });
+
+    var addSkillBtn = $('fs-btn-add-skill');
+    if (addSkillBtn) {
+      addSkillBtn.onclick = function () {
+        addNewSkill();
+      };
+    }
+  }
+
+  function switchMainTab(tabName) {
+    saveCurrentTabData();
+    fsEditorState.activeMainTab = tabName;
+
+    var tabs = qsa('.fs-main-tab');
+    tabs.forEach(function (t) {
+      t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+
+    var panels = ['attr', 'skills', 'sounds'];
+    panels.forEach(function (p) {
+      var panel = $('fs-panel-' + p);
+      if (panel) panel.classList.toggle('active', p === tabName);
+    });
+
+    if (tabName === 'attr') {
+      renderAttrTab();
+    } else if (tabName === 'skills') {
+      renderSkillsTab();
+    } else if (tabName === 'sounds') {
+      renderSoundsTab();
+    }
+  }
+
+  function saveCurrentTabData() {
+    if (fsEditorState.activeMainTab === 'attr') {
+      collectAttrForm();
+    } else if (fsEditorState.activeMainTab === 'skills') {
+      saveCurrentSkillCode();
+    }
+  }
+
+  function collectAttrForm() {
+    if (!fsEditorState.data) return;
+    var d = fsEditorState.data;
+    var type = fsEditorState.type;
+
+    var idEl = $('fs-attr-id');
+    var nameEl = $('fs-attr-name');
+    if (idEl) d.id = idEl.value.trim();
+    if (nameEl) d.name = nameEl.value.trim();
+
+    if (type === 'general' || type === 'minion') {
+      var hpEl = $('fs-attr-hp');
+      var atkEl = $('fs-attr-atk');
+      var defEl = $('fs-attr-def');
+      if (hpEl) d.hp = parseInt(hpEl.value, 10) || 0;
+      if (atkEl) d.atk = parseInt(atkEl.value, 10) || 0;
+      if (defEl) d.def = parseInt(defEl.value, 10) || 0;
+
+      var mvShape = $('fs-attr-mv-shape');
+      var mvN = $('fs-attr-mv-n');
+      if (mvShape && mvN) {
+        d.moveRange = { shape: mvShape.value, n: parseInt(mvN.value, 10) || 0 };
+      }
+      var atkShape = $('fs-attr-atk-shape');
+      var atkN = $('fs-attr-atk-n');
+      if (atkShape && atkN) {
+        d.attackRange = { shape: atkShape.value, n: parseInt(atkN.value, 10) || 0 };
+      }
+    }
+
+    if (type === 'minion') {
+      var rarityEl = $('fs-attr-rarity');
+      var tagEl = $('fs-attr-tag');
+      var costEl = $('fs-attr-cost');
+      var inDeckEl = $('fs-attr-in-deck');
+      var descEl = $('fs-attr-desc');
+      if (rarityEl) d.rarity = rarityEl.value;
+      if (tagEl) d.tag = tagEl.value;
+      if (costEl) d.cost = parseInt(costEl.value, 10) || 1;
+      if (inDeckEl) d.inDeck = inDeckEl.checked;
+      if (descEl) d.description = descEl.value.trim();
+    }
+
+    if (type === 'skill') {
+      var typeEl = $('fs-attr-skill-type');
+      var cdEl = $('fs-attr-skill-cd');
+      var limitedEl = $('fs-attr-skill-limited');
+      var triggerEl = $('fs-attr-skill-trigger');
+      var descEl = $('fs-attr-skill-desc');
+      var pvShape = $('fs-attr-pv-shape');
+      var pvN = $('fs-attr-pv-n');
+      if (typeEl) d.type = typeEl.value;
+      if (cdEl) d.cooldown = parseInt(cdEl.value, 10) || 0;
+      if (limitedEl) d.limited = limitedEl.checked;
+      if (triggerEl) d.trigger = triggerEl.value || null;
+      if (descEl) d.desc = descEl.value.trim();
+      if (pvShape && pvShape.value) {
+        d.preview = { shape: pvShape.value, n: parseInt(pvN.value, 10) || 3 };
+      } else {
+        d.preview = null;
+      }
+    }
+  }
+
+  function renderAttrTab() {
+    var panel = $('fs-panel-attr');
+    if (!panel) return;
+    var d = fsEditorState.data;
+    var type = fsEditorState.type;
+    var html = '<div class="fs-attr-form">';
+
+    html += '<div class="fs-attr-grid">';
+    html += '<div class="form-row"><label>ID</label><input type="text" id="fs-attr-id" value="' + escapeHtml(d.id || '') + '"></div>';
+    html += '<div class="form-row"><label>名称</label><input type="text" id="fs-attr-name" value="' + escapeHtml(d.name || '') + '"></div>';
+    html += '</div>';
+
+    if (type === 'general' || type === 'minion') {
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">基础属性</label></div>';
+      html += '<div class="fs-attr-grid">';
+      html += '<div class="form-row"><label>HP</label><input type="number" id="fs-attr-hp" value="' + (d.hp || 0) + '"></div>';
+      html += '<div class="form-row"><label>ATK</label><input type="number" id="fs-attr-atk" value="' + (d.atk || 0) + '"></div>';
+      html += '<div class="form-row"><label>DEF</label><input type="number" id="fs-attr-def" value="' + (d.def || 0) + '"></div>';
+      html += '</div>';
+
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">移动范围</label></div>';
+      html += '<div class="fs-range-row">';
+      html += '<select id="fs-attr-mv-shape">';
+      ['+', 'r', 'square'].forEach(function (s) {
+        html += '<option value="' + s + '"' + ((d.moveRange && d.moveRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
+      });
+      html += '</select>';
+      html += '<input type="number" id="fs-attr-mv-n" value="' + ((d.moveRange && d.moveRange.n) || 0) + '">';
+      html += '</div>';
+
+      html += '<div class="form-row" style="margin-top:12px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">攻击范围</label></div>';
+      html += '<div class="fs-range-row">';
+      html += '<select id="fs-attr-atk-shape">';
+      ['+', 'r', 'square'].forEach(function (s) {
+        html += '<option value="' + s + '"' + ((d.attackRange && d.attackRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
+      });
+      html += '</select>';
+      html += '<input type="number" id="fs-attr-atk-n" value="' + ((d.attackRange && d.attackRange.n) || 0) + '">';
+      html += '</div>';
+    }
+
+    if (type === 'minion') {
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">小兵属性</label></div>';
+      html += '<div class="fs-attr-grid">';
+      html += '<div class="form-row"><label>品质</label><select id="fs-attr-rarity">';
+      [{ v: 'common', t: '普通' }, { v: 'rare', t: '稀有' }, { v: 'epic', t: '史诗' }].forEach(function (o) {
+        html += '<option value="' + o.v + '"' + (d.rarity === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div class="form-row"><label>类型</label><select id="fs-attr-tag">';
+      [{ v: 'infantry', t: '步兵' }, { v: 'scout', t: '侦察' }, { v: 'siege', t: '攻城' }].forEach(function (o) {
+        html += '<option value="' + o.v + '"' + (d.tag === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div class="form-row"><label>消耗</label><input type="number" id="fs-attr-cost" value="' + (d.cost != null ? d.cost : 1) + '"></div>';
+      html += '<div class="form-row"><label>入卡组</label><select id="fs-attr-in-deck">';
+      html += '<option value="1"' + (d.inDeck !== false ? ' selected' : '') + '>是</option>';
+      html += '<option value="0"' + (d.inDeck === false ? ' selected' : '') + '>否</option>';
+      html += '</select></div>';
+      html += '</div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-desc" value="' + escapeHtml(d.description || '') + '"></div>';
+    }
+
+    if (type === 'skill') {
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">技能属性</label></div>';
+      html += '<div class="fs-attr-grid">';
+      html += '<div class="form-row"><label>类型</label><select id="fs-attr-skill-type">';
+      ['主动', '被动', '触发'].forEach(function (s) {
+        html += '<option value="' + s + '"' + (d.type === s ? ' selected' : '') + '>' + s + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div class="form-row"><label>冷却</label><input type="number" id="fs-attr-skill-cd" value="' + (d.cooldown || 0) + '"></div>';
+      html += '<div class="form-row"><label>限定技</label><select id="fs-attr-skill-limited">';
+      html += '<option value="0"' + (!d.limited ? ' selected' : '') + '>否</option>';
+      html += '<option value="1"' + (d.limited ? ' selected' : '') + '>是</option>';
+      html += '</select></div>';
+      html += '</div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>触发条件</label><input type="text" id="fs-attr-skill-trigger" value="' + escapeHtml(d.trigger || '') + '"></div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-skill-desc" value="' + escapeHtml(d.desc || '') + '"></div>';
+
+      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">预览范围</label></div>';
+      html += '<div class="fs-range-row">';
+      html += '<select id="fs-attr-pv-shape">';
+      html += '<option value="">（无）</option>';
+      ['+', 'r', 'square'].forEach(function (s) {
+        html += '<option value="' + s + '"' + ((d.preview && d.preview.shape === s) ? ' selected' : '') + '>' + s + '</option>';
+      });
+      html += '</select>';
+      html += '<input type="number" id="fs-attr-pv-n" value="' + ((d.preview && d.preview.n) || 3) + '">';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    panel.innerHTML = html;
+  }
+
+  function renderSkillsTab() {
+    var listEl = $('fs-skills-list');
+    var editorBody = $('fs-skills-editor-body');
+    var editorHead = $('fs-skills-editor-head');
+    if (!listEl || !editorBody) return;
+
+    var skills = fsEditorState.data.skills || [];
+    listEl.innerHTML = '';
+
+    if (skills.length === 0) {
+      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#6e7681;font-size:12px;">暂无技能，点击 + 新建</div>';
+    } else {
+      skills.forEach(function (s, idx) {
+        var item = document.createElement('div');
+        item.className = 'fs-skill-item' + (idx === fsEditorState.activeSkillIdx ? ' active' : '');
+        item.innerHTML = '<span>' + escapeHtml(s.name || '未命名') + '</span>' +
+          '<span class="fs-skill-type">' + escapeHtml(s.type || '主动') + '</span>';
+        item.onclick = function () {
+          selectSkill(idx);
+        };
+        listEl.appendChild(item);
+      });
+    }
+
+    if (fsEditorState.activeSkillIdx >= 0 && fsEditorState.activeSkillIdx < skills.length) {
+      renderSkillEditor(skills[fsEditorState.activeSkillIdx]);
+    } else {
+      if (editorHead) {
+        editorHead.innerHTML = '<span class="fs-skills-editor-title">请选择技能</span>';
+      }
+      editorBody.innerHTML = '<div class="fs-empty-state">从左侧选择一个技能进行编辑</div>';
+    }
+  }
+
+  function addNewSkill() {
+    saveCurrentSkillCode();
+    var newSkill = {
+      id: 'skill' + (Date.now() % 100000),
+      name: '新技能',
+      type: '主动',
+      cooldown: 0,
+      limited: false,
+      trigger: '',
+      desc: '',
+      preview: null,
+      filterCode: '',
+      contentCode: '',
+      initCode: '',
+      sound: { cast: '', hit: '', voice: '' },
+      aiHint: null
+    };
+    if (!fsEditorState.data.skills) fsEditorState.data.skills = [];
+    fsEditorState.data.skills.push(newSkill);
+    fsEditorState.activeSkillIdx = fsEditorState.data.skills.length - 1;
+    fsEditorState.activeCodeTab = 'filter';
+    renderSkillsTab();
+  }
+
+  function selectSkill(idx) {
+    if (idx === fsEditorState.activeSkillIdx) return;
+    saveCurrentSkillCode();
+    fsEditorState.activeSkillIdx = idx;
+    fsEditorState.activeCodeTab = 'filter';
+    renderSkillsTab();
+  }
+
+  function saveCurrentSkillCode() {
+    if (fsEditorState.activeSkillIdx < 0) return;
+    if (!fsEditorState.data || !fsEditorState.data.skills) return;
+    var skill = fsEditorState.data.skills[fsEditorState.activeSkillIdx];
+    if (!skill) return;
+
+    var tabs = ['filter', 'content', 'init'];
+    tabs.forEach(function (tab) {
+      var ta = fsEditorState.codeEditors[tab];
+      if (ta) {
+        if (tab === 'filter') skill.filterCode = ta.value;
+        else if (tab === 'content') skill.contentCode = ta.value;
+        else if (tab === 'init') skill.initCode = ta.value;
+      }
+    });
+  }
+
+  function renderSkillEditor(skill) {
+    var editorBody = $('fs-skills-editor-body');
+    var editorHead = $('fs-skills-editor-head');
+    if (!editorBody) return;
+
+    if (editorHead) {
+      editorHead.innerHTML =
+        '<span class="fs-skills-editor-title">' + escapeHtml(skill.name || '未命名技能') + '</span>' +
+        '<div class="fs-code-sub-tabs">' +
+          '<button class="fs-code-sub-tab' + (fsEditorState.activeCodeTab === 'filter' ? ' active' : '') + '" data-tab="filter">filter</button>' +
+          '<button class="fs-code-sub-tab' + (fsEditorState.activeCodeTab === 'content' ? ' active' : '') + '" data-tab="content">content</button>' +
+          '<button class="fs-code-sub-tab' + (fsEditorState.activeCodeTab === 'init' ? ' active' : '') + '" data-tab="init">init</button>' +
+        '</div>';
+    }
+
+    editorBody.innerHTML =
+      '<div class="fs-skill-code-wrap">' +
+        '<div class="code-editor" id="fs-skill-code-editor">' +
+          '<span class="code-label">' + fsEditorState.activeCodeTab + 'Code</span>' +
+          '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+          '<textarea spellcheck="false"></textarea>' +
+        '</div>' +
+      '</div>';
+
+    var editorEl = $('fs-skill-code-editor');
+    var ta = editorEl.querySelector('textarea');
+    var code = fsEditorState.activeCodeTab === 'filter' ? skill.filterCode :
+               fsEditorState.activeCodeTab === 'content' ? skill.contentCode :
+               skill.initCode;
+    ta.value = code || '';
+    setupFsSkillCodeEditor(editorEl);
+    fsEditorState.codeEditors[fsEditorState.activeCodeTab] = ta;
+
+    var subTabs = qsa('.fs-code-sub-tab', editorHead);
+    subTabs.forEach(function (tab) {
+      tab.onclick = function () {
+        var tabName = tab.dataset.tab;
+        switchCodeTab(tabName);
+      };
+    });
+
+    setTimeout(function () {
+      ta.focus();
+    }, 50);
+  }
+
+  function setupFsSkillCodeEditor(editorEl) {
+    if (!editorEl) return;
+    var ta = editorEl.querySelector('textarea');
+    var preLayer = editorEl.querySelector('.hl-layer');
+    var codeEl = editorEl.querySelector('.hl-layer code');
+    if (!ta || !preLayer || !codeEl) return;
+
+    function sync() {
+      var content = ta.value;
+      var displayText = content;
+      if (displayText.charAt(displayText.length - 1) === '\n') {
+        displayText = displayText + ' ';
+      }
+      codeEl.innerHTML = highlightText(displayText);
+      preLayer.scrollTop = ta.scrollTop;
+      preLayer.scrollLeft = ta.scrollLeft;
+      validateSyntax(ta.value);
+    }
+
+    var timer = null;
+    ta.addEventListener('input', function () {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(sync, 40);
+    });
+    ta.addEventListener('scroll', function () {
+      preLayer.scrollTop = ta.scrollTop;
+      preLayer.scrollLeft = ta.scrollLeft;
+    });
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var s = ta.selectionStart, end = ta.selectionEnd;
+        ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
+        ta.selectionStart = ta.selectionEnd = s + 2;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(sync, 40);
+      }
+    });
+    sync();
+  }
+
+  function switchCodeTab(tabName) {
+    if (tabName === fsEditorState.activeCodeTab) return;
+    saveCurrentSkillCode();
+    fsEditorState.activeCodeTab = tabName;
+    var skills = fsEditorState.data.skills || [];
+    if (fsEditorState.activeSkillIdx >= 0 && fsEditorState.activeSkillIdx < skills.length) {
+      renderSkillEditor(skills[fsEditorState.activeSkillIdx]);
+    }
+  }
+
+  function renderSoundsTab() {
+    var panel = $('fs-panel-sounds');
+    if (!panel) return;
+    var d = fsEditorState.data;
+    var type = fsEditorState.type;
+    var html = '<div class="fs-attr-form">';
+
+    html += '<div class="form-row"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">音效设置</label></div>';
+
+    var buildSoundRow = function (key, label, val) {
+      return '<div class="form-row"><label>' + label + '</label>' +
+        '<div class="sound-select-row">' +
+          '<select class="sound-select" data-sound-key="' + key + '" data-value="' + escapeHtmlAttr(val) + '">' +
+          '<option value="">（无）</option></select>' +
+          '<button type="button" class="btn-mini play fs-sound-preview" data-sound-key="' + key + '" title="试听">▶</button>' +
+          '<button type="button" class="btn-mini upload fs-sound-quick-upload" data-sound-key="' + key + '" title="上传新音频">📤</button>' +
+        '</div></div>';
+    };
+
+    if (type === 'general') {
+      html += '<div class="fs-attr-grid">';
+      var voiceKeys = [
+        ['select', '选择'], ['move', '移动'], ['attack', '攻击'], ['hurt', '受伤'],
+        ['death', '死亡'], ['kill', '击杀'], ['skill', '技能'], ['victory', '胜利']
+      ];
+      voiceKeys.forEach(function (pair) {
+        var key = pair[0], label = pair[1];
+        var val = (d.voice && d.voice[key]) || '';
+        html += buildSoundRow(key, label + '语音', val);
+      });
+      html += '</div>';
+    } else if (type === 'minion') {
+      html += '<div class="fs-attr-grid">';
+      var soundKeys = [['deploy', '部署'], ['attack', '攻击'], ['death', '死亡']];
+      soundKeys.forEach(function (pair) {
+        var key = pair[0], label = pair[1];
+        var val = (d.sound && d.sound[key]) || '';
+        html += buildSoundRow(key, label + '音效', val);
+      });
+      html += '</div>';
+    } else if (type === 'skill') {
+      html += '<div class="fs-attr-grid">';
+      var sndKeys = [['cast', '释放'], ['hit', '命中'], ['voice', '专属语音']];
+      sndKeys.forEach(function (pair) {
+        var key = pair[0], label = pair[1];
+        var val = (d.sound && d.sound[key]) || '';
+        html += buildSoundRow(key, label + '音效', val);
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    panel.innerHTML = html;
+    populateAllSoundSelects(panel);
+  }
+
+  function collectSoundsForm() {
+    if (!fsEditorState.data) return;
+    var d = fsEditorState.data;
+    var type = fsEditorState.type;
+    var panel = $('fs-panel-sounds');
+    if (!panel) return;
+
+    var selects = qsa('.sound-select', panel);
+    selects.forEach(function (sel) {
+      var key = sel.dataset.soundKey;
+      if (!key) return;
+      if (type === 'general') {
+        if (!d.voice) d.voice = {};
+        d.voice[key] = sel.value;
+      } else {
+        if (!d.sound) d.sound = {};
+        d.sound[key] = sel.value;
+      }
+    });
+  }
+
+  function saveFsEditor() {
+    saveCurrentTabData();
+    collectSoundsForm();
+
+    var type = fsEditorState.type;
+    var d = fsEditorState.data;
+    var extId = fsEditorState.extId;
+
+    if (!d.id || !d.name) {
+      alert('请填写 id 和名称');
+      return;
+    }
+
+    var apiPath, bodyData;
+
+    if (type === 'general') {
+      apiPath = '/api/diy/submit';
+      bodyData = { general: d, skills: d.skills || [], extId: extId || undefined };
+    } else if (type === 'minion') {
+      apiPath = '/api/diy/minion/submit';
+      bodyData = { minion: d, skills: d.skills || [], extId: extId || undefined };
+    } else if (type === 'skill') {
+      apiPath = '/api/diy/skill/submit';
+      bodyData = { skill: d, extId: extId || undefined };
+    }
+
+    apiFetch(apiPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData)
+    })
+      .then(function (r) {
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('json') === -1) {
+          return r.text().then(function (txt) {
+            throw new Error('服务器返回了非 JSON 响应（HTTP ' + r.status + '）');
+          });
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        if (data && data.ok) {
+          closeFsEditor();
+          loadExtensions();
+        } else {
+          alert('保存失败：' + (data && data.error ? data.error : '未知错误'));
+        }
+      })
+      .catch(function (err) {
+        alert('保存失败：' + err.message);
+      });
+  }
+
+  function closeFsEditor() {
+    var mask = $('fs-editor');
+    if (mask) {
+      mask.classList.remove('open');
+      mask.setAttribute('aria-hidden', 'true');
+    }
+    if (fsEditorState.onKeydown) {
+      document.removeEventListener('keydown', fsEditorState.onKeydown);
+      fsEditorState.onKeydown = null;
+    }
+    fsEditorState.type = null;
+    fsEditorState.mode = null;
+    fsEditorState.extId = null;
+    fsEditorState.data = null;
+    fsEditorState.activeMainTab = 'attr';
+    fsEditorState.activeSkillIdx = -1;
+    fsEditorState.activeCodeTab = 'filter';
+    fsEditorState.codeEditors = { filter: null, content: null, init: null };
+    window._fsApiClose();
+  }
 
   // 在当前光标位置插入文字（用于 API 点击插入）
   function insertAtCursor(text) {
-    var ta = fsEditorState.cloneTextarea;
+    var ta;
+    if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
+      ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
+    } else {
+      ta = fsEditorState.cloneTextarea;
+    }
     if (!ta) return;
     var start = ta.selectionStart;
     var end = ta.selectionEnd;
@@ -4571,15 +5263,33 @@ Effect.fx.clearFx('myZone');</code></pre>
     var saveBtn = $('fs-editor-save');
     var cancelBtn = $('fs-editor-cancel');
     var formatBtn = $('fs-editor-format');
-    if (saveBtn) saveBtn.addEventListener('click', saveAndCloseFullscreenEditor);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeFullscreenEditor);
+    if (saveBtn) saveBtn.addEventListener('click', function () {
+      if (fsEditorState.type) {
+        saveFsEditor();
+      } else {
+        saveAndCloseFullscreenEditor();
+      }
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', function () {
+      if (fsEditorState.type) {
+        closeFsEditor();
+      } else {
+        closeFullscreenEditor();
+      }
+    });
     if (formatBtn) formatBtn.addEventListener('click', function () {
-      var ta = fsEditorState.cloneTextarea;
+      var ta;
+      if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
+        ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
+      } else {
+        ta = fsEditorState.cloneTextarea;
+      }
       if (!ta) return;
       try {
         ta.value = formatJsCode(ta.value);
-        var pre = qs('.fs-editor-body .hl-layer');
-        var code = qs('.fs-editor-body .hl-layer code');
+        var editorEl = ta.closest('.code-editor');
+        var pre = editorEl ? editorEl.querySelector('.hl-layer') : qs('.fs-editor-body .hl-layer');
+        var code = editorEl ? editorEl.querySelector('.hl-layer code') : qs('.fs-editor-body .hl-layer code');
         if (pre && code) {
           var val = ta.value;
           if (val.charAt(val.length - 1) === '\n') val = val + ' ';
@@ -4594,7 +5304,13 @@ Effect.fx.clearFx('myZone');</code></pre>
     // 点击遮罩空白区关闭
     var mask = $('fs-editor');
     if (mask) mask.addEventListener('click', function (e) {
-      if (e.target === mask) saveAndCloseFullscreenEditor();
+      if (e.target === mask) {
+        if (fsEditorState.type) {
+          saveFsEditor();
+        } else {
+          saveAndCloseFullscreenEditor();
+        }
+      }
     });
   });
 
@@ -5184,11 +5900,93 @@ Effect.fx.clearFx('myZone');</code></pre>
     // 加载拓展列表
     loadExtensions();
 
+    // 列表页：拓展下拉变化事件
+    var gExtSel = $('g-ext');
+    if (gExtSel) {
+      gExtSel.addEventListener('change', function () {
+        renderGeneralsTable();
+      });
+    }
+    var sExtSel = $('s-ext');
+    if (sExtSel) {
+      sExtSel.addEventListener('change', function () {
+        renderSkillsTable();
+      });
+    }
+    var mExtSel = $('m-ext');
+    if (mExtSel) {
+      mExtSel.addEventListener('change', function () {
+        renderMinionsTable();
+      });
+    }
+
+    // 列表页：新建按钮事件
+    var btnNewGeneral = $('btn-new-general');
+    if (btnNewGeneral) {
+      btnNewGeneral.addEventListener('click', function () {
+        var extId = gExtSel ? gExtSel.value : '';
+        if (!extId) { alert('请先选择一个拓展'); return; }
+        openFsEditor('general', extId, null);
+      });
+    }
+    var btnNewSkill = $('btn-new-skill');
+    if (btnNewSkill) {
+      btnNewSkill.addEventListener('click', function () {
+        var extId = sExtSel ? sExtSel.value : '';
+        if (!extId) { alert('请先选择一个拓展'); return; }
+        openFsEditor('skill', extId, null);
+      });
+    }
+    var btnNewMinion = $('btn-new-minion');
+    if (btnNewMinion) {
+      btnNewMinion.addEventListener('click', function () {
+        var extId = mExtSel ? mExtSel.value : '';
+        if (!extId) { alert('请先选择一个拓展'); return; }
+        openFsEditor('minion', extId, null);
+      });
+    }
+
     // 加载独立技能列表
     loadIndepSkills();
 
     // 加载音频资源池（填充所有 .sound-select 下拉）
     loadSounds();
+
+    // 音频管理：上传按钮
+    var btnUploadSound = $('btn-upload-sound');
+    var soundUploadInput = $('sound-upload-input');
+    if (btnUploadSound && soundUploadInput) {
+      btnUploadSound.addEventListener('click', function () {
+        soundUploadInput.click();
+      });
+      soundUploadInput.addEventListener('change', function () {
+        var files = soundUploadInput.files;
+        if (!files || !files.length) return;
+        var doneCount = 0;
+        for (var i = 0; i < files.length; i++) {
+          (function (file) {
+            var baseId = deriveSoundIdFromFile(file.name);
+            uploadSoundFile(file, baseId, function () {
+              doneCount++;
+              if (doneCount >= files.length) {
+                renderSoundManagerList();
+              }
+            });
+          })(files[i]);
+        }
+        soundUploadInput.value = '';
+      });
+    }
+
+    // 音频管理：刷新按钮
+    var btnRefreshSounds = $('btn-refresh-sounds');
+    if (btnRefreshSounds) {
+      btnRefreshSounds.addEventListener('click', function () {
+        loadSounds().then(function () {
+          renderSoundManagerList();
+        });
+      });
+    }
 
     // 初始步骤
     updateStep();
@@ -5212,6 +6010,7 @@ Effect.fx.clearFx('myZone');</code></pre>
           projBtns.style.display = tabName === 'usermgr' ? 'none' : '';
         }
         if (tabName === 'usermgr') { loadUserList(); }
+        if (tabName === 'soundmgr') { renderSoundManagerList(); }
       });
     });
 
@@ -5874,6 +6673,316 @@ Effect.fx.clearFx('myZone');</code></pre>
   }
 
   // ============================================================
+  // 音频管理面板
+  // ============================================================
+  var soundMgrState = {
+    renamingId: null,
+    replacingId: null
+  };
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function formatDate(ts) {
+    if (!ts) return '';
+    var d = new Date(ts);
+    function pad(n) { return n < 10 ? '0' + n : n; }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function renderSoundManagerList() {
+    var listEl = $('sound-list');
+    var statsEl = $('sound-stats');
+    if (!listEl) return;
+
+    var sounds = SOUNDS_POOL || [];
+
+    if (statsEl) {
+      var totalSize = sounds.reduce(function (sum, s) { return sum + (s.size || 0); }, 0);
+      statsEl.textContent = '共 ' + sounds.length + ' 个音频文件，总大小 ' + formatFileSize(totalSize);
+    }
+
+    if (!sounds.length) {
+      listEl.innerHTML = '<div class="sound-empty">暂无音频文件，点击上方按钮上传</div>';
+      return;
+    }
+
+    var html = '';
+    sounds.forEach(function (s) {
+      var isRenaming = soundMgrState.renamingId === s.id;
+      html +=
+        '<div class="sound-card" data-sound-id="' + escapeHtmlAttr(s.id) + '">' +
+          '<div class="sound-card-head">' +
+            '<div style="flex:1;min-width:0;">' +
+              (isRenaming
+                ? '<input type="text" class="sound-rename-input" id="sound-rename-input" value="' + escapeHtmlAttr(s.id) + '" data-original-id="' + escapeHtmlAttr(s.id) + '">'
+                : '<div class="sound-card-id">' + escapeHtml(s.id) + '</div>'
+              ) +
+            '</div>' +
+          '</div>' +
+          '<div class="sound-card-info">' +
+            '<span>' + escapeHtml(s.file || '') + '</span>' +
+            '<span>' + formatFileSize(s.size || 0) + '</span>' +
+          '</div>' +
+          '<div class="sound-card-info">' +
+            '<span>上传时间：' + formatDate(s.mtime) + '</span>' +
+          '</div>' +
+          '<div class="sound-card-actions">' +
+            '<button class="btn-mini play sound-mgr-play" data-sound-id="' + escapeHtmlAttr(s.id) + '">▶ 试听</button>' +
+            (isRenaming
+              ? '<button class="btn-mini sound-mgr-rename-save" data-sound-id="' + escapeHtmlAttr(s.id) + '">✓ 确定</button>' +
+                '<button class="btn-mini sound-mgr-rename-cancel">✕ 取消</button>'
+              : '<button class="btn-mini sound-mgr-rename" data-sound-id="' + escapeHtmlAttr(s.id) + '">✎ 重命名</button>'
+            ) +
+            '<button class="btn-mini sound-mgr-replace" data-sound-id="' + escapeHtmlAttr(s.id) + '">⟳ 替换</button>' +
+            '<button class="btn-mini danger sound-mgr-delete" data-sound-id="' + escapeHtmlAttr(s.id) + '">🗑 删除</button>' +
+          '</div>' +
+        '</div>';
+    });
+    listEl.innerHTML = html;
+
+    if (isRenaming) {
+      var input = $('sound-rename-input');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+  }
+
+  function deleteSound(soundId) {
+    if (!soundId) return;
+    if (!confirm('确定删除音频「' + soundId + '」？删除后无法恢复。')) return;
+
+    apiFetch('/api/sound/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ soundId: soundId })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok) {
+          if (typeof showMsg === 'function') showMsg('✓ 已删除', 'success');
+          loadSounds().then(function () {
+            renderSoundManagerList();
+          });
+        } else {
+          if (typeof showMsg === 'function') showMsg('✗ ' + (data && data.error ? data.error : '删除失败'), 'error');
+        }
+      })
+      .catch(function (e) {
+        if (typeof showMsg === 'function') showMsg('✗ 网络错误：' + e.message, 'error');
+      });
+  }
+
+  function renameSound(oldId, newId) {
+    if (!oldId || !newId) return;
+    newId = newId.trim();
+    if (!newId) return;
+    if (newId === oldId) {
+      soundMgrState.renamingId = null;
+      renderSoundManagerList();
+      return;
+    }
+
+    var newIdClean = newId.startsWith('sd_') ? newId : 'sd_' + newId;
+    if (newIdClean === oldId) {
+      soundMgrState.renamingId = null;
+      renderSoundManagerList();
+      return;
+    }
+
+    // 检查是否已存在
+    if (SOUNDS_POOL.some(function (s) { return s.id === newIdClean; })) {
+      alert('音频 ID「' + newIdClean + '」已存在，请使用其他名称。');
+      return;
+    }
+
+    // 先获取旧文件内容，然后上传为新ID，再删除旧文件
+    if (typeof showMsg === 'function') showMsg('重命名中...', 'info');
+    fetch('/api/sound/get?id=' + encodeURIComponent(oldId))
+      .then(function (r) {
+        if (!r.ok) throw new Error('获取旧文件失败');
+        return r.blob();
+      })
+      .then(function (blob) {
+        var ext = '.' + (oldId.split('.').pop() || 'mp3');
+        var fileName = newIdClean + ext;
+        var file = new File([blob], fileName, { type: blob.type });
+
+        var fd = new FormData();
+        fd.append('file', file);
+        fd.append('soundId', newIdClean.replace(/^sd_/, ''));
+
+        return apiFetch('/api/sound/upload', { method: 'POST', body: fd })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.ok) throw new Error(data && data.error ? data.error : '上传新文件失败');
+            return data.soundId;
+          });
+      })
+      .then(function (newSoundId) {
+        return apiFetch('/api/sound/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ soundId: oldId })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.ok) throw new Error(data && data.error ? data.error : '删除旧文件失败');
+            return newSoundId;
+          });
+      })
+      .then(function () {
+        if (typeof showMsg === 'function') showMsg('✓ 重命名成功', 'success');
+        soundMgrState.renamingId = null;
+        return loadSounds();
+      })
+      .then(function () {
+        renderSoundManagerList();
+      })
+      .catch(function (e) {
+        if (typeof showMsg === 'function') showMsg('✗ 重命名失败：' + e.message, 'error');
+      });
+  }
+
+  // 音频管理面板事件绑定
+  document.addEventListener('click', function (e) {
+    var playBtn = e.target.closest('.sound-mgr-play');
+    if (playBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var soundId = playBtn.dataset.soundId;
+      previewSound(soundId, playBtn);
+      return;
+    }
+
+    var renameBtn = e.target.closest('.sound-mgr-rename');
+    if (renameBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      soundMgrState.renamingId = renameBtn.dataset.soundId;
+      renderSoundManagerList();
+      return;
+    }
+
+    var renameSaveBtn = e.target.closest('.sound-mgr-rename-save');
+    if (renameSaveBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var input = $('sound-rename-input');
+      var originalId = input ? input.dataset.originalId : '';
+      var newId = input ? input.value : '';
+      renameSound(originalId, newId);
+      return;
+    }
+
+    var renameCancelBtn = e.target.closest('.sound-mgr-rename-cancel');
+    if (renameCancelBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      soundMgrState.renamingId = null;
+      renderSoundManagerList();
+      return;
+    }
+
+    var deleteBtn = e.target.closest('.sound-mgr-delete');
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteSound(deleteBtn.dataset.soundId);
+      return;
+    }
+
+    var replaceBtn = e.target.closest('.sound-mgr-replace');
+    if (replaceBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var sndId = replaceBtn.dataset.soundId;
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.mp3,.ogg,.wav,.m4a,.aac';
+      input.onchange = function () {
+        if (input.files && input.files[0]) {
+          var file = input.files[0];
+          var baseId = sndId.replace(/^sd_/, '');
+          uploadSoundFile(file, baseId, function () {
+            renderSoundManagerList();
+          });
+        }
+      };
+      input.click();
+      return;
+    }
+
+    // 全屏编辑器音效Tab：试听按钮
+    var fsPreviewBtn = e.target.closest('.fs-sound-preview');
+    if (fsPreviewBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var soundKey = fsPreviewBtn.dataset.soundKey;
+      var row = fsPreviewBtn.closest('.sound-select-row');
+      var sel = row ? row.querySelector('.sound-select') : null;
+      var sndId = sel ? sel.value : '';
+      previewSound(sndId, fsPreviewBtn);
+      return;
+    }
+
+    // 全屏编辑器音效Tab：快速上传按钮
+    var fsUploadBtn = e.target.closest('.fs-sound-quick-upload');
+    if (fsUploadBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var sKey = fsUploadBtn.dataset.soundKey;
+      var sRow = fsUploadBtn.closest('.sound-select-row');
+      var sSel = sRow ? sRow.querySelector('.sound-select') : null;
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.mp3,.ogg,.wav,.m4a,.aac';
+      fileInput.onchange = function () {
+        if (fileInput.files && fileInput.files[0]) {
+          var file = fileInput.files[0];
+          var baseId = deriveSoundIdFromFile(file.name);
+          uploadSoundFile(file, baseId, function (newSoundId) {
+            if (sSel && newSoundId) {
+              sSel.value = newSoundId;
+              // 触发 change 事件
+              sSel.dispatchEvent(new Event('change'));
+            }
+            // 重新渲染音效Tab以更新下拉列表
+            if (fsEditorState.activeMainTab === 'sounds') {
+              renderSoundsTab();
+            }
+          });
+        }
+      };
+      fileInput.click();
+      return;
+    }
+  });
+
+  // 音频管理：回车确认重命名
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && soundMgrState.renamingId) {
+      var input = $('sound-rename-input');
+      if (input && document.activeElement === input) {
+        e.preventDefault();
+        var originalId = input.dataset.originalId || '';
+        var newId = input.value;
+        renameSound(originalId, newId);
+      }
+    }
+    if (e.key === 'Escape' && soundMgrState.renamingId) {
+      soundMgrState.renamingId = null;
+      renderSoundManagerList();
+    }
+  });
+
+  // ============================================================
   // 加载拓展列表（左侧面板 + 拓展选择下拉）
   // ============================================================
   function loadExtensions() {
@@ -5975,6 +7084,10 @@ Effect.fx.clearFx('myZone');</code></pre>
             });
           }
         }
+
+        // 更新缓存并渲染列表表格
+        extensionsCache = (data.ok && data.extensions) ? data.extensions : [];
+        renderAllListTables();
       })
       .catch(function () {
         container.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
@@ -5982,6 +7095,8 @@ Effect.fx.clearFx('myZone');</code></pre>
         if (skillContainer) skillContainer.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
         var minionContainer = $('minion-ext-list-container');
         if (minionContainer) minionContainer.innerHTML = '<span class="empty-state">加载失败（需要启动后端服务）</span>';
+        extensionsCache = [];
+        renderAllListTables();
       });
   }
 
@@ -6059,6 +7174,130 @@ Effect.fx.clearFx('myZone');</code></pre>
     });
 
     return card;
+  }
+
+  // ============================================================
+  // 列表页渲染：武将 / 独立技能 / 小兵
+  // ============================================================
+  var extensionsCache = [];
+
+  function findExtensionById(extId) {
+    if (!extensionsCache || !extensionsCache.length) return null;
+    return extensionsCache.find(function (ext) { return ext.id === extId; }) || null;
+  }
+
+  function renderGeneralsTable() {
+    var extSel = $('g-ext');
+    var tbody = $('generals-table-body');
+    if (!extSel || !tbody) return;
+
+    var extId = extSel.value;
+    var ext = findExtensionById(extId);
+    var generals = (ext && ext.generals) ? ext.generals : [];
+
+    if (!generals.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px;">暂无武将数据</td></tr>';
+      return;
+    }
+
+    var html = '';
+    generals.forEach(function (g) {
+      var moveText = g.moveRange
+        ? (g.moveRange.shape || '+') + (g.moveRange.n != null ? g.moveRange.n : '')
+        : '';
+      var atkText = g.attackRange
+        ? (g.attackRange.shape || '+') + (g.attackRange.n != null ? g.attackRange.n : '')
+        : '';
+      var skillCount = Array.isArray(g.skills) ? g.skills.length : (g.skillsCount != null ? g.skillsCount : 0);
+
+      html +=
+        '<tr>' +
+          '<td class="id-col">' + escapeHtml(g.id) + '</td>' +
+          '<td class="name-col">' + escapeHtml(g.name) + '</td>' +
+          '<td class="num">' + (g.hp != null ? g.hp : '') + '</td>' +
+          '<td class="num">' + (g.atk != null ? g.atk : '') + '</td>' +
+          '<td class="num">' + (g.def != null ? g.def : '') + '</td>' +
+          '<td>' + escapeHtml(moveText) + '</td>' +
+          '<td>' + escapeHtml(atkText) + '</td>' +
+          '<td class="num">' + skillCount + '</td>' +
+          '<td class="actions">' +
+            '<button class="btn-mini list-edit-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+            '<button class="btn-mini danger list-del-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-item-name="' + escapeHtmlAttr(g.name) + '">删除</button>' +
+          '</td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function renderSkillsTable() {
+    var extSel = $('s-ext');
+    var tbody = $('skills-table-body');
+    if (!extSel || !tbody) return;
+
+    var extId = extSel.value;
+    var ext = findExtensionById(extId);
+    var skills = (ext && ext.skills) ? ext.skills : [];
+
+    if (!skills.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px;">暂无技能数据</td></tr>';
+      return;
+    }
+
+    var html = '';
+    skills.forEach(function (s) {
+      html +=
+        '<tr>' +
+          '<td class="id-col">' + escapeHtml(s.id) + '</td>' +
+          '<td class="name-col">' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.type || '') + '</td>' +
+          '<td class="num">' + (s.cooldown != null ? s.cooldown : 0) + '</td>' +
+          '<td>' + escapeHtml(s.trigger || '') + '</td>' +
+          '<td class="actions">' +
+            '<button class="btn-mini list-edit-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+            '<button class="btn-mini danger list-del-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-item-name="' + escapeHtmlAttr(s.name) + '">删除</button>' +
+          '</td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function renderMinionsTable() {
+    var extSel = $('m-ext');
+    var tbody = $('minions-table-body');
+    if (!extSel || !tbody) return;
+
+    var extId = extSel.value;
+    var ext = findExtensionById(extId);
+    var minions = (ext && ext.minions) ? ext.minions : [];
+
+    if (!minions.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无小兵数据</td></tr>';
+      return;
+    }
+
+    var html = '';
+    minions.forEach(function (m) {
+      html +=
+        '<tr>' +
+          '<td class="id-col">' + escapeHtml(m.id) + '</td>' +
+          '<td class="name-col">' + escapeHtml(m.name) + '</td>' +
+          '<td class="num">' + (m.hp != null ? m.hp : '') + '</td>' +
+          '<td class="num">' + (m.atk != null ? m.atk : '') + '</td>' +
+          '<td class="num">' + (m.def != null ? m.def : '') + '</td>' +
+          '<td class="num">' + (m.cost != null ? m.cost : '') + '</td>' +
+          '<td class="actions">' +
+            '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+            '<button class="btn-mini danger list-del-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-item-name="' + escapeHtmlAttr(m.name) + '">删除</button>' +
+          '</td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function renderAllListTables() {
+    renderGeneralsTable();
+    renderSkillsTable();
+    renderMinionsTable();
   }
 
   // ============================================================
@@ -6154,6 +7393,78 @@ Effect.fx.clearFx('myZone');</code></pre>
         body: JSON.stringify({ id: dmid })
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.ok) loadExtensions(); else alert(d.error || '删除失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
+    }
+
+    // 列表页：编辑武将
+    var listEditGenBtn = e.target.closest('.list-edit-general');
+    if (listEditGenBtn) {
+      var itemId = listEditGenBtn.dataset.itemId;
+      var extId = listEditGenBtn.dataset.extId;
+      openFsEditor('general', extId, itemId);
+      return;
+    }
+
+    // 列表页：删除武将
+    var listDelGenBtn = e.target.closest('.list-del-general');
+    if (listDelGenBtn) {
+      var gid = listDelGenBtn.dataset.itemId;
+      var gname = listDelGenBtn.dataset.itemName || gid;
+      if (!confirm('确定删除武将「' + gname + '」？')) return;
+      apiFetch('/api/diy/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gid })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { loadExtensions(); } else alert(d.error || '删除失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
+    }
+
+    // 列表页：编辑技能
+    var listEditSkillBtn = e.target.closest('.list-edit-skill');
+    if (listEditSkillBtn) {
+      var skillItemId = listEditSkillBtn.dataset.itemId;
+      var skillExtId = listEditSkillBtn.dataset.extId;
+      openFsEditor('skill', skillExtId, skillItemId);
+      return;
+    }
+
+    // 列表页：删除技能
+    var listDelSkillBtn = e.target.closest('.list-del-skill');
+    if (listDelSkillBtn) {
+      var sid = listDelSkillBtn.dataset.itemId;
+      var sname = listDelSkillBtn.dataset.itemName || sid;
+      if (!confirm('确定删除技能「' + sname + '」？')) return;
+      apiFetch('/api/skill/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sid })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { loadExtensions(); } else alert(d.error || '删除失败');
+      }).catch(function (e) { alert(e.message); });
+      return;
+    }
+
+    // 列表页：编辑小兵
+    var listEditMinBtn = e.target.closest('.list-edit-minion');
+    if (listEditMinBtn) {
+      var minItemId = listEditMinBtn.dataset.itemId;
+      var minExtId = listEditMinBtn.dataset.extId;
+      openFsEditor('minion', minExtId, minItemId);
+      return;
+    }
+
+    // 列表页：删除小兵
+    var listDelMinBtn = e.target.closest('.list-del-minion');
+    if (listDelMinBtn) {
+      var mid = listDelMinBtn.dataset.itemId;
+      var mname = listDelMinBtn.dataset.itemName || mid;
+      if (!confirm('确定删除小兵「' + mname + '」？')) return;
+      apiFetch('/api/diy/minion/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: mid })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { loadExtensions(); } else alert(d.error || '删除失败');
       }).catch(function (e) { alert(e.message); });
       return;
     }
