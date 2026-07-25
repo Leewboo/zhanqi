@@ -1096,6 +1096,13 @@
     background: rgba(88, 166, 255, 0.2);
     color: var(--blue);
   }
+  .fs-skill-item .fs-skill-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .fs-skill-item .fs-skill-type {
     font-size: var(--text-xxs);
     padding: 1px 6px;
@@ -1107,6 +1114,26 @@
   .fs-skill-item.active .fs-skill-type {
     background: rgba(88, 166, 255, 0.3);
     color: var(--blue);
+  }
+  .fs-skill-del {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--dark-muted);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .fs-skill-del:hover {
+    background: rgba(248, 81, 73, 0.2);
+    color: #f85149;
   }
   .fs-skills-editor {
     flex: 1;
@@ -4505,7 +4532,11 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '<option value="1"' + (d.limited ? ' selected' : '') + '>是</option>';
       html += '</select></div>';
       html += '</div>';
-      html += '<div class="form-row" style="margin-top:12px;"><label>触发条件</label><input type="text" id="fs-attr-skill-trigger" value="' + escapeHtml(d.trigger || '') + '"></div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>触发条件</label><select id="fs-attr-skill-trigger"><option value="">（无）</option>';
+      [['turnStart','回合开始'],['turnEnd','回合结束'],['onKill','击杀敌人'],['onKilled','自身被杀'],['onAttack','发起攻击'],['onAttacked','被攻击后'],['onMove','移动结束'],['onHeal','被治疗时'],['onSkillCast','技能发动后']].forEach(function (o) {
+        html += '<option value="' + o[0] + '"' + (d.trigger === o[0] ? ' selected' : '') + '>' + o[0] + ' · ' + o[1] + '</option>';
+      });
+      html += '</select></div>';
       html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-skill-desc" value="' + escapeHtml(d.desc || '') + '"></div>';
 
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">预览范围</label></div>';
@@ -4557,10 +4588,15 @@ Effect.fx.clearFx('myZone');</code></pre>
       skills.forEach(function (s, idx) {
         var item = document.createElement('div');
         item.className = 'fs-skill-item' + (idx === fsEditorState.activeSkillIdx ? ' active' : '');
-        item.innerHTML = '<span>' + escapeHtml(s.name || '未命名') + '</span>' +
-          '<span class="fs-skill-type">' + escapeHtml(s.type || '主动') + '</span>';
-        item.onclick = function () {
-          selectSkill(idx);
+        item.innerHTML = '<span class="fs-skill-name">' + escapeHtml(s.name || '未命名') + '</span>' +
+          '<span class="fs-skill-type">' + escapeHtml(s.type || '主动') + '</span>' +
+          '<button class="fs-skill-del" title="删除技能">✕</button>';
+        item.onclick = function (e) {
+          if (e.target.closest('.fs-skill-del')) {
+            deleteSkill(idx);
+          } else {
+            selectSkill(idx);
+          }
         };
         listEl.appendChild(item);
       });
@@ -4608,6 +4644,18 @@ Effect.fx.clearFx('myZone');</code></pre>
     renderSkillsTab();
   }
 
+  function deleteSkill(idx) {
+    if (!fsEditorState.data || !fsEditorState.data.skills) return;
+    var skill = fsEditorState.data.skills[idx];
+    if (!skill) return;
+    if (!confirm('确定删除技能「' + (skill.name || '未命名') + '」？')) return;
+    fsEditorState.data.skills.splice(idx, 1);
+    if (fsEditorState.activeSkillIdx >= fsEditorState.data.skills.length) {
+      fsEditorState.activeSkillIdx = fsEditorState.data.skills.length - 1;
+    }
+    renderSkillsTab();
+  }
+
   function saveCurrentSkillCode() {
     if (fsEditorState.activeSkillIdx < 0) return;
     if (!fsEditorState.data) return;
@@ -4647,7 +4695,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (typeEl) skill.type = typeEl.value;
       if (cdEl) skill.cooldown = parseInt(cdEl.value, 10) || 0;
       if (limitedEl) skill.limited = limitedEl.value === '1';
-      if (triggerEl) skill.trigger = triggerEl.value.trim() || null;
+      if (triggerEl) skill.trigger = triggerEl.value || null;
       if (descEl) skill.desc = descEl.value.trim();
       if (pvShapeEl) {
         if (pvShapeEl.value) {
@@ -4695,7 +4743,11 @@ Effect.fx.clearFx('myZone');</code></pre>
               '<option value="1"' + (skill.limited ? ' selected' : '') + '>是</option>' +
             '</select></div>' +
           '</div>' +
-          '<div class="form-row" style="margin-top:10px;"><label>触发条件</label><input type="text" id="fs-skill-trigger" value="' + escapeHtml(skill.trigger || '') + '" placeholder="如 onAttacked, onKilled"></div>' +
+          '<div class="form-row" style="margin-top:10px;"><label>触发条件</label><select id="fs-skill-trigger"><option value="">（无）</option>' +
+            [['turnStart','回合开始'],['turnEnd','回合结束'],['onKill','击杀敌人'],['onKilled','自身被杀'],['onAttack','发起攻击'],['onAttacked','被攻击后'],['onMove','移动结束'],['onHeal','被治疗时'],['onSkillCast','技能发动后']].map(function (o) {
+              return '<option value="' + o[0] + '"' + (skill.trigger === o[0] ? ' selected' : '') + '>' + o[0] + ' · ' + o[1] + '</option>';
+            }).join('') +
+          '</select></div>' +
           '<div class="form-row" style="margin-top:10px;"><label>描述</label><input type="text" id="fs-skill-desc" value="' + escapeHtml(skill.desc || '') + '"></div>' +
           '<div class="form-row" style="margin-top:10px;"><label>预览范围</label>' +
             '<div class="fs-range-row">' +
@@ -4761,7 +4813,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         var items = qsa('.fs-skill-item', $('fs-skills-list'));
         var curItem = items[fsEditorState.activeSkillIdx];
         if (curItem) {
-          var nameSpan = curItem.querySelector('span:first-child');
+          var nameSpan = curItem.querySelector('.fs-skill-name');
           if (nameSpan) nameSpan.textContent = nameInput.value || '未命名';
         }
       });
