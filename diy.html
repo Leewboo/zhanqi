@@ -1461,6 +1461,74 @@
     border-color: var(--red, var(--red-dark));
   }
   table.gen-table .btn-mini.danger:hover { background: var(--red-bg); }
+
+  /* ====== 手机端卡片式表格 ====== */
+  .mobile-card-row td { padding: 6px !important; border: none !important; }
+  .mobile-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--border-light);
+  }
+  .mobile-card-id {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: var(--text-xs);
+    color: var(--fg-tertiary);
+    padding: 2px 6px;
+    background: var(--bg-soft);
+    border-radius: var(--radius-xs);
+  }
+  .mobile-card-name {
+    font-size: var(--text-md);
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .mobile-card-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .mobile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 10px;
+    background: var(--bg-soft);
+    border-radius: var(--radius-sm);
+    min-width: 56px;
+    flex: 1;
+  }
+  .mobile-stat-label {
+    font-size: var(--text-xxs);
+    color: var(--fg-tertiary);
+    margin-bottom: 2px;
+  }
+  .mobile-stat:last-child {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--fg);
+  }
+  .mobile-card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .mobile-card-actions .btn-mini {
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+  }
+
   .range-cell {
     font-size: var(--text-sm);
     color: var(--fg-tertiary);
@@ -7388,32 +7456,71 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
+    var isMobile = window.innerWidth <= 768;
     var html = '';
-    generals.forEach(function (g) {
-      var moveText = g.moveRange
-        ? (g.moveRange.shape || '+') + (g.moveRange.n != null ? g.moveRange.n : '')
-        : '';
-      var atkText = g.attackRange
-        ? (g.attackRange.shape || '+') + (g.attackRange.n != null ? g.attackRange.n : '')
-        : '';
-      var skillCount = Array.isArray(g.skills) ? g.skills.length : (g.skillsCount != null ? g.skillsCount : 0);
 
-      html +=
-        '<tr>' +
-          '<td class="id-col">' + escapeHtml(g.id) + '</td>' +
-          '<td class="name-col">' + escapeHtml(g.name) + '</td>' +
-          '<td class="num">' + (g.hp != null ? g.hp : '') + '</td>' +
-          '<td class="num">' + (g.atk != null ? g.atk : '') + '</td>' +
-          '<td class="num">' + (g.def != null ? g.def : '') + '</td>' +
-          '<td>' + escapeHtml(moveText) + '</td>' +
-          '<td>' + escapeHtml(atkText) + '</td>' +
-          '<td class="num">' + skillCount + '</td>' +
-          '<td class="actions">' +
-            '<button class="btn-mini list-edit-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
-            '<button class="btn-mini danger list-del-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-item-name="' + escapeHtmlAttr(g.name) + '">删除</button>' +
-          '</td>' +
-        '</tr>';
-    });
+    if (isMobile) {
+      generals.forEach(function (g) {
+        var moveText = g.moveRange
+          ? (g.moveRange.shape || '+') + (g.moveRange.n != null ? g.moveRange.n : '')
+          : '';
+        var atkText = g.attackRange
+          ? (g.attackRange.shape || '+') + (g.attackRange.n != null ? g.attackRange.n : '')
+          : '';
+        var skillCount = Array.isArray(g.skills) ? g.skills.length : (g.skillsCount != null ? g.skillsCount : 0);
+
+        html +=
+          '<tr class="mobile-card-row">' +
+            '<td colspan="9">' +
+              '<div class="mobile-card">' +
+                '<div class="mobile-card-header">' +
+                  '<span class="mobile-card-id">' + escapeHtml(g.id) + '</span>' +
+                  '<span class="mobile-card-name">' + escapeHtml(g.name) + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-stats">' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">HP</span>' + (g.hp != null ? g.hp : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">ATK</span>' + (g.atk != null ? g.atk : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">DEF</span>' + (g.def != null ? g.def : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">移动</span>' + escapeHtml(moveText) + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">攻击</span>' + escapeHtml(atkText) + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">技能</span>' + skillCount + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-actions">' +
+                  '<button class="btn-mini list-edit-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+                  '<button class="btn-mini danger list-del-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-item-name="' + escapeHtmlAttr(g.name) + '">删除</button>' +
+                '</div>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+      });
+    } else {
+      generals.forEach(function (g) {
+        var moveText = g.moveRange
+          ? (g.moveRange.shape || '+') + (g.moveRange.n != null ? g.moveRange.n : '')
+          : '';
+        var atkText = g.attackRange
+          ? (g.attackRange.shape || '+') + (g.attackRange.n != null ? g.attackRange.n : '')
+          : '';
+        var skillCount = Array.isArray(g.skills) ? g.skills.length : (g.skillsCount != null ? g.skillsCount : 0);
+
+        html +=
+          '<tr>' +
+            '<td class="id-col">' + escapeHtml(g.id) + '</td>' +
+            '<td class="name-col">' + escapeHtml(g.name) + '</td>' +
+            '<td class="num">' + (g.hp != null ? g.hp : '') + '</td>' +
+            '<td class="num">' + (g.atk != null ? g.atk : '') + '</td>' +
+            '<td class="num">' + (g.def != null ? g.def : '') + '</td>' +
+            '<td>' + escapeHtml(moveText) + '</td>' +
+            '<td>' + escapeHtml(atkText) + '</td>' +
+            '<td class="num">' + skillCount + '</td>' +
+            '<td class="actions">' +
+              '<button class="btn-mini list-edit-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+              '<button class="btn-mini danger list-del-general" data-item-id="' + escapeHtmlAttr(g.id) + '" data-item-name="' + escapeHtmlAttr(g.name) + '">删除</button>' +
+            '</td>' +
+          '</tr>';
+      });
+    }
+
     tbody.innerHTML = html;
   }
 
@@ -7431,21 +7538,49 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
+    var isMobile = window.innerWidth <= 768;
     var html = '';
-    skills.forEach(function (s) {
-      html +=
-        '<tr>' +
-          '<td class="id-col">' + escapeHtml(s.id) + '</td>' +
-          '<td class="name-col">' + escapeHtml(s.name) + '</td>' +
-          '<td>' + escapeHtml(s.type || '') + '</td>' +
-          '<td class="num">' + (s.cooldown != null ? s.cooldown : 0) + '</td>' +
-          '<td>' + escapeHtml(s.trigger || '') + '</td>' +
-          '<td class="actions">' +
-            '<button class="btn-mini list-edit-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
-            '<button class="btn-mini danger list-del-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-item-name="' + escapeHtmlAttr(s.name) + '">删除</button>' +
-          '</td>' +
-        '</tr>';
-    });
+
+    if (isMobile) {
+      skills.forEach(function (s) {
+        html +=
+          '<tr class="mobile-card-row">' +
+            '<td colspan="6">' +
+              '<div class="mobile-card">' +
+                '<div class="mobile-card-header">' +
+                  '<span class="mobile-card-id">' + escapeHtml(s.id) + '</span>' +
+                  '<span class="mobile-card-name">' + escapeHtml(s.name) + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-stats">' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">类型</span>' + escapeHtml(s.type || '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">冷却</span>' + (s.cooldown != null ? s.cooldown : 0) + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">触发</span>' + escapeHtml(s.trigger || '-') + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-actions">' +
+                  '<button class="btn-mini list-edit-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+                  '<button class="btn-mini danger list-del-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-item-name="' + escapeHtmlAttr(s.name) + '">删除</button>' +
+                '</div>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+      });
+    } else {
+      skills.forEach(function (s) {
+        html +=
+          '<tr>' +
+            '<td class="id-col">' + escapeHtml(s.id) + '</td>' +
+            '<td class="name-col">' + escapeHtml(s.name) + '</td>' +
+            '<td>' + escapeHtml(s.type || '') + '</td>' +
+            '<td class="num">' + (s.cooldown != null ? s.cooldown : 0) + '</td>' +
+            '<td>' + escapeHtml(s.trigger || '') + '</td>' +
+            '<td class="actions">' +
+              '<button class="btn-mini list-edit-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+              '<button class="btn-mini danger list-del-skill" data-item-id="' + escapeHtmlAttr(s.id) + '" data-item-name="' + escapeHtmlAttr(s.name) + '">删除</button>' +
+            '</td>' +
+          '</tr>';
+      });
+    }
+
     tbody.innerHTML = html;
   }
 
@@ -7463,22 +7598,51 @@ Effect.fx.clearFx('myZone');</code></pre>
       return;
     }
 
+    var isMobile = window.innerWidth <= 768;
     var html = '';
-    minions.forEach(function (m) {
-      html +=
-        '<tr>' +
-          '<td class="id-col">' + escapeHtml(m.id) + '</td>' +
-          '<td class="name-col">' + escapeHtml(m.name) + '</td>' +
-          '<td class="num">' + (m.hp != null ? m.hp : '') + '</td>' +
-          '<td class="num">' + (m.atk != null ? m.atk : '') + '</td>' +
-          '<td class="num">' + (m.def != null ? m.def : '') + '</td>' +
-          '<td class="num">' + (m.cost != null ? m.cost : '') + '</td>' +
-          '<td class="actions">' +
-            '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
-            '<button class="btn-mini danger list-del-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-item-name="' + escapeHtmlAttr(m.name) + '">删除</button>' +
-          '</td>' +
-        '</tr>';
-    });
+
+    if (isMobile) {
+      minions.forEach(function (m) {
+        html +=
+          '<tr class="mobile-card-row">' +
+            '<td colspan="7">' +
+              '<div class="mobile-card">' +
+                '<div class="mobile-card-header">' +
+                  '<span class="mobile-card-id">' + escapeHtml(m.id) + '</span>' +
+                  '<span class="mobile-card-name">' + escapeHtml(m.name) + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-stats">' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">HP</span>' + (m.hp != null ? m.hp : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">ATK</span>' + (m.atk != null ? m.atk : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">DEF</span>' + (m.def != null ? m.def : '-') + '</span>' +
+                  '<span class="mobile-stat"><span class="mobile-stat-label">费用</span>' + (m.cost != null ? m.cost : '-') + '</span>' +
+                '</div>' +
+                '<div class="mobile-card-actions">' +
+                  '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+                  '<button class="btn-mini danger list-del-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-item-name="' + escapeHtmlAttr(m.name) + '">删除</button>' +
+                '</div>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+      });
+    } else {
+      minions.forEach(function (m) {
+        html +=
+          '<tr>' +
+            '<td class="id-col">' + escapeHtml(m.id) + '</td>' +
+            '<td class="name-col">' + escapeHtml(m.name) + '</td>' +
+            '<td class="num">' + (m.hp != null ? m.hp : '') + '</td>' +
+            '<td class="num">' + (m.atk != null ? m.atk : '') + '</td>' +
+            '<td class="num">' + (m.def != null ? m.def : '') + '</td>' +
+            '<td class="num">' + (m.cost != null ? m.cost : '') + '</td>' +
+            '<td class="actions">' +
+              '<button class="btn-mini list-edit-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-ext-id="' + escapeHtmlAttr(extId) + '">编辑</button>' +
+              '<button class="btn-mini danger list-del-minion" data-item-id="' + escapeHtmlAttr(m.id) + '" data-item-name="' + escapeHtmlAttr(m.name) + '">删除</button>' +
+            '</td>' +
+          '</tr>';
+      });
+    }
+
     tbody.innerHTML = html;
   }
 
@@ -7487,6 +7651,14 @@ Effect.fx.clearFx('myZone');</code></pre>
     renderSkillsTable();
     renderMinionsTable();
   }
+
+  var _resizeTimeout = null;
+  window.addEventListener('resize', function () {
+    if (_resizeTimeout) clearTimeout(_resizeTimeout);
+    _resizeTimeout = setTimeout(function () {
+      renderAllListTables();
+    }, 200);
+  });
 
   // ============================================================
   // 拓展操作事件委托（启用/禁用/导出/删除拓展 + 删除/编辑武将）
