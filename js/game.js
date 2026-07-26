@@ -3549,15 +3549,15 @@
       if (idx >= queue.length) {
         // 队列执行完毕
         // 检查技能是否恢复了行动次数（如 resetAttack/resetMove），如果有则重新规划并继续
-        if (!actor._aiReplanned) {
-          actor._aiReplanned = true;
+        actor._aiReplanCount = (actor._aiReplanCount || 0) + 1;
+        if (actor._aiReplanCount <= 5) {
           const reaplan = this._aiPlanActorAction(actor);
           if (reaplan && reaplan.steps.length) {
             this._aiRunStep(actor, reaplan.steps, 0);
             return;
           }
         }
-        delete actor._aiReplanned;
+        delete actor._aiReplanCount;
         this._scheduleNext();
         return;
       }
@@ -4306,8 +4306,8 @@
       const atkVal = Effect.getEffectiveAttack(actor);
       // 攻击音效：播放 attack 语音
       Effect.playPieceVoice(actor, 'attack');
-      const dmg = Effect.damage(actor, target, atkVal);
       actor.attacked = true;
+      const dmg = Effect.damage(actor, target, atkVal);
       this.highlighted = [];
       this.mode = null;
       this._render();
