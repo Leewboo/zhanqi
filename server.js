@@ -262,7 +262,12 @@ app.use(koaBody({
   enableTypes: ['json', 'form', 'multipart'],
   multipart: true,
   jsonLimit: '10mb',
-  formLimit: '10mb'
+  formLimit: '10mb',
+  formidable: {
+    uploadDir: AUDIO_DIR,        // 临时文件目录（formidable v3 需显式指定）
+    keepExtensions: true,        // 保留扩展名
+    maxFileSize: 10 * 1024 * 1024  // 单文件最大 10MB
+  }
 }));
 
 const CACHE_LONG  = 60 * 60 * 24 * 30;
@@ -481,7 +486,8 @@ app.use(async (ctx, next) => {
 
   // POST /api/portrait/upload  上传立绘（multipart：字段名 file）
   if (ctx.path === '/api/portrait/upload' && ctx.method === 'POST') {
-    const file = ctx.request.files?.file;
+    let file = ctx.request.files?.file;
+    if (Array.isArray(file)) file = file[0];  // 多文件时取第一个
     if (!file) { ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return; }
     const originalName = String(file.originalFilename || file.name || '');
     const ext = path.extname(originalName).toLowerCase();
@@ -580,19 +586,21 @@ app.use(async (ctx, next) => {
 
   // POST /api/sound/upload  上传音频（multipart：file, soundId, type）
   if (ctx.path === '/api/sound/upload' && ctx.method === 'POST') {
-    const file = ctx.request.files?.file;
+    let file = ctx.request.files?.file;
+    if (Array.isArray(file)) file = file[0];  // 多文件时取第一个
     if (!file) { ctx.status = 400; ctx.body = { ok: false, error: '未上传文件' }; return; }
     const originalName = String(file.originalFilename || file.name || '');
     const ext = path.extname(originalName).toLowerCase();
     if (!ALLOWED_AUDIO_EXT.includes(ext)) {
       ctx.status = 400; ctx.body = { ok: false, error: '仅支持音频格式：' + ALLOWED_AUDIO_EXT.join(', ') }; return;
     }
+    if (!file.filepath) { ctx.status = 400; ctx.body = { ok: false, error: '文件路径缺失（formidable 未正确解析）' }; return; }
     try {
       const stat = fs.statSync(file.filepath);
       if (stat.size > MAX_AUDIO_SIZE) {
         ctx.status = 400; ctx.body = { ok: false, error: '音频文件不能超过 5MB' }; return;
       }
-    } catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '读取文件失败' }; return; }
+    } catch (e) { ctx.status = 400; ctx.body = { ok: false, error: '读取临时文件失败：' + e.message }; return; }
 
     const body = ctx.request.body || {};
     const requestedId = String(body.soundId || '').trim();
