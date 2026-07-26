@@ -2520,6 +2520,133 @@
       return g.minionPoints[side];
     },
 
+    // 获取手牌数组（只读副本）
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回手牌卡牌数组的浅拷贝（修改不影响真实手牌）
+    getHand(side) {
+      const g = global.Game;
+      if (!g) return [];
+      side = side || g.currentSide;
+      return ((g.minionHand[side] || []).slice());
+    },
+
+    // 搜索手牌中符合条件的卡牌
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // filter: 支持以下形式
+    //   - 字符串：按 id 或 name 模糊匹配
+    //   - 对象：{ id, name, tag, rarity, costMax, costMin } 多条件组合
+    //   - 函数：card => boolean 自定义判断
+    // 返回匹配的卡牌数组（手牌中的引用，非副本）
+    findCard(side, filter) {
+      const g = global.Game;
+      if (!g) return [];
+      side = side || g.currentSide;
+      const hand = g.minionHand[side] || [];
+      if (!filter) return hand.slice();
+      if (typeof filter === 'function') {
+        return hand.filter(filter);
+      }
+      if (typeof filter === 'string') {
+        const kw = filter.toLowerCase();
+        return hand.filter(function (c) {
+          return (c.id && c.id.toLowerCase().indexOf(kw) >= 0) ||
+                 (c.name && c.name.toLowerCase().indexOf(kw) >= 0);
+        });
+      }
+      if (typeof filter === 'object') {
+        return hand.filter(function (c) {
+          if (filter.id && c.id !== filter.id) return false;
+          if (filter.name && c.name !== filter.name) return false;
+          if (filter.tag && c.tag !== filter.tag) return false;
+          if (filter.rarity && c.rarity !== filter.rarity) return false;
+          if (filter.costMin != null && (c.cost || 0) < filter.costMin) return false;
+          if (filter.costMax != null && (c.cost || 0) > filter.costMax) return false;
+          return true;
+        });
+      }
+      return [];
+    },
+
+    // 获取卡组剩余数量
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回卡组剩余卡牌数
+    getDeckCount(side) {
+      const g = global.Game;
+      if (!g) return 0;
+      side = side || g.currentSide;
+      return ((g.minionDraftPool && g.minionDraftPool[side]) || []).length;
+    },
+
+    // 获得特定手牌：把指定卡牌加入手牌（不从卡组抽取）
+    // card: 小兵模板 id 字符串 / 通过 getJson 取到的定义 / 卡牌对象
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回加入手牌的卡牌对象；手牌已满或失败返回 null
+    addCard(card, side) {
+      const g = global.Game;
+      if (!g || !card) return null;
+      side = side || g.currentSide;
+      const hand = g.minionHand[side] || [];
+      const maxHand = 5;  // 手牌上限
+      if (hand.length >= maxHand) {
+        if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 手牌已满，无法获得新卡。', 'turn');
+        return null;
+      }
+      // 解析 card：字符串 id → 从模板取
+      let cardObj = card;
+      if (typeof card === 'string') {
+        cardObj = global.Minions ? (global.Minions.getById ? global.Minions.getById(card) : null) : null;
+        if (!cardObj) {
+          if (g.log) g.log('获得手牌失败：找不到小兵 ' + card, 'turn');
+          return null;
+        }
+        cardObj = Object.assign({}, cardObj);
+      } else if (typeof card === 'object') {
+        cardObj = Object.assign({}, card);
+      } else {
+        return null;
+      }
+      // 分配 instanceId
+      cardObj.instanceId = side + '_api_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : Date.now().toString(36));
+      hand.push(cardObj);
+      g.minionHand[side] = hand;
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 获得了 ' + (cardObj.name || cardObj.id) + '！', 'turn');
+      return cardObj;
+    },
+
+    // 从卡组中抽特定卡到手牌（而非随机抽取）
+    // cardId: 小兵模板 id 字符串 / 卡牌名称
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回抽到的卡牌对象；卡组无此卡或手牌已满返回 null
+    drawSpecificCard(cardId, side) {
+      const g = global.Game;
+      if (!g || !cardId) return null;
+      side = side || g.currentSide;
+      const pool = (g.minionDraftPool && g.minionDraftPool[side]) || [];
+      const hand = g.minionHand[side] || [];
+      const maxHand = 5;
+      if (hand.length >= maxHand) {
+        if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 手牌已满，无法抽取。', 'turn');
+        return null;
+      }
+      // 在卡组中查找匹配的卡牌（按 id 或 name）
+      const idx = pool.findIndex(function (c) {
+        return c.id === cardId || c.name === cardId ||
+               (c.id === 'diyminion_' + cardId);
+      });
+      if (idx < 0) {
+        if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 卡组中未找到 ' + cardId + '。', 'turn');
+        return null;
+      }
+      const card = pool.splice(idx, 1)[0];
+      card.instanceId = side + '_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : Date.now().toString(36));
+      hand.push(card);
+      g.minionHand[side] = hand;
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (g.log) g.log((side === 'red' ? '红方' : '蓝方') + ' 从卡组抽取了 ' + (card.name || card.id) + '！', 'turn');
+      return card;
+    },
+
     // 部署小兵到指定位置
     // card: 卡牌对象（手牌中的，含 instanceId）/ 小兵模板 id 字符串 / 通过 getJson 取到的定义
     // x, y: 部署坐标
