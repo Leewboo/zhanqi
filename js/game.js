@@ -2429,6 +2429,7 @@
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
           p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') + (piece.isMinion ? ' minion ' + piece.rarity : '');
+          p.dataset.gid = piece.generalId || '';  // 唯一标识，供特效回退搜索
           // 隐身棋子半透明
           if (Effect.isUntargetable(piece)) p.style.opacity = '0.45';
 
@@ -4398,6 +4399,8 @@
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
+      // 先渲染一次，确保 DOM 位置与逻辑坐标同步（onMove 被动中的特效才能正确找到 piece）
+      this._render();
       Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: { x, y } });
       Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: { x, y } });
       Effect._checkTraps(actor); // 陷阱触发

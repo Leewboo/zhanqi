@@ -495,7 +495,17 @@
         const xy = this._resolveXY(target);
         if (!xy) return null;
         const cell = this._cellAt(xy.x, xy.y);
-        return cell ? cell.querySelector('.piece') : null;
+        const el = cell ? cell.querySelector('.piece') : null;
+        if (el) return el;
+        // 回退：按 generalId 全局搜索（移动/推开/传送后 DOM 可能还在旧位置）
+        if (target && target.generalId) {
+          const g = global.Game;
+          if (g && g.boardEl) {
+            const found = g.boardEl.querySelector('.piece[data-gid="' + target.generalId + '"]');
+            if (found) return found;
+          }
+        }
+        return null;
       },
 
       // 工具：获取格子中心的视口坐标 { left, top, width, height }
