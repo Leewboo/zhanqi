@@ -3273,13 +3273,14 @@
           const atkCells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, p.x, p.y, {
             pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
           });
+          const onAtkBonus = this._aiOnAttackBonus(p);
           for (const c of atkCells) {
             const e = this.pieceAt(c.x, c.y);
             if (e && e.alive && e.side !== side && !Effect.isUntargetable(e)) {
               if (e.hp <= atk) {
-                score += Effect._aiThreat(e) * 1.5 + 100;  // 必杀优先
+                score += (Effect._aiThreat(e) * 1.5 + 100) * onAtkBonus.mul + onAtkBonus.add;  // 必杀优先
               } else {
-                score += Effect._aiThreat(e) * 0.4;
+                score += Effect._aiThreat(e) * 0.4 * onAtkBonus.mul;
               }
             }
           }
@@ -3363,6 +3364,8 @@
         directAtkScore = Effect._aiThreat(directAtk) + 20;
         const dmg = Effect.getEffectiveAttack(actor);
         if (directAtk.hp <= dmg) directAtkScore *= 2;  // 能击杀翻倍
+        const bonus = this._aiOnAttackBonus(actor);
+        directAtkScore = directAtkScore * bonus.mul + bonus.add;
       }
 
       // 候选规划
@@ -3422,9 +3425,11 @@
           let planScore = movePlan.score * 0.6;  // 移动本身价值打折
           if (atkAfterMove) {
             const dmg = Effect.getEffectiveAttack(actor);
-            const t = Effect._aiThreat(atkAfterMove) + 20;
+            let t = Effect._aiThreat(atkAfterMove) + 20;
+            if (atkAfterMove.hp <= dmg) t += 60;  // 移动后必杀
+            const bonus = this._aiOnAttackBonus(actor);
+            t = t * bonus.mul + bonus.add;
             planScore += t;
-            if (atkAfterMove.hp <= dmg) planScore += 60;  // 移动后必杀
           }
           plans.push({
             steps: [
@@ -3446,9 +3451,12 @@
             const atkAfterMove = this._aiAttackTargetAt(actor, movePlan.x, movePlan.y);
             let planScore = movePlan.score * 0.4 + skillAfterMove.score;
             if (atkAfterMove) {
-              planScore += Effect._aiThreat(atkAfterMove) + 20;
+              let atkBonus = Effect._aiThreat(atkAfterMove) + 20;
               const dmg = Effect.getEffectiveAttack(actor);
-              if (atkAfterMove.hp <= dmg) planScore += 50;
+              if (atkAfterMove.hp <= dmg) atkBonus += 50;
+              const bonus = this._aiOnAttackBonus(actor);
+              atkBonus = atkBonus * bonus.mul + bonus.add;
+              planScore += atkBonus;
             }
             plans.push({
               steps: [
@@ -3744,10 +3752,12 @@
       if (!actor.attacked) {
         const atkTarget = this._aiBestAttackTarget(actor);
         if (atkTarget) {
-          // 攻击得分：目标威胁度 + 致命加成
+          // 攻击得分：目标威胁度 + 致命加成 + onAttack 被动加成
           let score = Effect._aiThreat(atkTarget);
           const dmg = Effect.getEffectiveAttack(actor);
           if (atkTarget.hp <= dmg) score *= 2;  // 能击杀
+          const bonus = this._aiOnAttackBonus(actor);
+          score = score * bonus.mul + bonus.add;
           score += 20;  // 攻击的基础分（保证有目标时优先攻击）
           if (score > best.score) best = { score, type: 'attack', target: atkTarget };
         }
@@ -3968,6 +3978,28 @@
         if (p && p.alive && p.side === side) count++;
       }
       return count;
+    },
+
+    // 估算 onAttack 被动技能的额外攻击价值（倍率 + 固定加分）
+    _aiOnAttackBonus(actor) {
+      if (!actor.skills) return { mul: 1, add: 0 };
+      let mul = 1;
+      let add = 0;
+      for (const sk of actor.skills) {
+        if (sk.type !== '被动' || sk.trigger !== 'onAttack') continue;
+        const src = (typeof sk.contentCode === 'string' ? sk.contentCode : '') + '\n' + (sk.desc || '');
+        // 连击 / 恢复攻击 → 相当于多打一次，倍率 +0.8（保守估计）
+        if (/resetAttack|恢复攻击|连击|再.*攻击|额外攻击|basicAttack/.test(src)) mul += 0.8;
+        // 眩晕 / 控制 → 固定加分
+        if (/眩晕|stun|冻结|freeze|魅惑|charm|沉默|silence|禁锢|束缚|定身/.test(src)) add += 35;
+        // 回血 / 吸血 / 治疗 → 固定加分
+        if (/heal|回血|恢复生命|回复|吸血|leech/.test(src)) add += 20;
+        // 额外伤害 / 真实伤害 → 倍率再加
+        if (/extra.*damage|额外伤害|真实伤害|ignoreDef|无视防御.*伤害/.test(src)) mul += 0.4;
+        // 减益 / 破甲 → 小加分
+        if (/减益|debuff|降低防御|减防|破甲/.test(src)) add += 15;
+      }
+      return { mul, add };
     },
 
     // 找最佳攻击目标（威胁度最高/最易击杀）
