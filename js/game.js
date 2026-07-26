@@ -3274,11 +3274,14 @@
             pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
           });
           const onAtkBonus = this._aiOnAttackBonus(p);
+          const onKillBonus = this._aiPassiveBonus(p, 'onKill');
           for (const c of atkCells) {
             const e = this.pieceAt(c.x, c.y);
             if (e && e.alive && e.side !== side && !Effect.isUntargetable(e)) {
               if (e.hp <= atk) {
-                score += (Effect._aiThreat(e) * 1.5 + 100) * onAtkBonus.mul + onAtkBonus.add;  // 必杀优先
+                let killScore = (Effect._aiThreat(e) * 1.5 + 100) * onAtkBonus.mul + onAtkBonus.add;
+                killScore = killScore * onKillBonus.mul + onKillBonus.add;
+                score += killScore;  // 必杀优先
               } else {
                 score += Effect._aiThreat(e) * 0.4 * onAtkBonus.mul;
               }
@@ -3287,7 +3290,12 @@
         }
 
         // (b) 即将受到致命威胁 → 必须立刻行动（反击/逃离/治疗）
-        const posThreat = Effect._aiPositionThreat(p);
+        let posThreat = Effect._aiPositionThreat(p);
+        // onAttacked 反制被动降低位置威胁感
+        const onAtkBonus = this._aiPassiveBonus(p, 'onAttacked');
+        if (onAtkBonus.counter > 0) {
+          posThreat = Math.max(0, posThreat - onAtkBonus.counter);
+        }
         const willDie = posThreat > p.hp * 1.2;
         if (willDie) {
           score += 60;
@@ -3363,9 +3371,14 @@
       if (directAtk) {
         directAtkScore = Effect._aiThreat(directAtk) + 20;
         const dmg = Effect.getEffectiveAttack(actor);
-        if (directAtk.hp <= dmg) directAtkScore *= 2;  // 能击杀翻倍
+        const canKill = directAtk.hp <= dmg;
+        if (canKill) directAtkScore *= 2;  // 能击杀翻倍
         const bonus = this._aiOnAttackBonus(actor);
         directAtkScore = directAtkScore * bonus.mul + bonus.add;
+        if (canKill) {
+          const killBonus = this._aiPassiveBonus(actor, 'onKill');
+          directAtkScore = directAtkScore * killBonus.mul + killBonus.add;
+        }
       }
 
       // 候选规划
@@ -3425,10 +3438,15 @@
           let planScore = movePlan.score * 0.6;  // 移动本身价值打折
           if (atkAfterMove) {
             const dmg = Effect.getEffectiveAttack(actor);
+            const canKill = atkAfterMove.hp <= dmg;
             let t = Effect._aiThreat(atkAfterMove) + 20;
-            if (atkAfterMove.hp <= dmg) t += 60;  // 移动后必杀
+            if (canKill) t += 60;  // 移动后必杀
             const bonus = this._aiOnAttackBonus(actor);
             t = t * bonus.mul + bonus.add;
+            if (canKill) {
+              const killBonus = this._aiPassiveBonus(actor, 'onKill');
+              t = t * killBonus.mul + killBonus.add;
+            }
             planScore += t;
           }
           plans.push({
@@ -3453,9 +3471,14 @@
             if (atkAfterMove) {
               let atkBonus = Effect._aiThreat(atkAfterMove) + 20;
               const dmg = Effect.getEffectiveAttack(actor);
-              if (atkAfterMove.hp <= dmg) atkBonus += 50;
+              const canKill = atkAfterMove.hp <= dmg;
+              if (canKill) atkBonus += 50;
               const bonus = this._aiOnAttackBonus(actor);
               atkBonus = atkBonus * bonus.mul + bonus.add;
+              if (canKill) {
+                const killBonus = this._aiPassiveBonus(actor, 'onKill');
+                atkBonus = atkBonus * killBonus.mul + killBonus.add;
+              }
               planScore += atkBonus;
             }
             plans.push({
@@ -3752,12 +3775,17 @@
       if (!actor.attacked) {
         const atkTarget = this._aiBestAttackTarget(actor);
         if (atkTarget) {
-          // 攻击得分：目标威胁度 + 致命加成 + onAttack 被动加成
+          // 攻击得分：目标威胁度 + 致命加成 + onAttack 被动加成 + onKill 被动收益
           let score = Effect._aiThreat(atkTarget);
           const dmg = Effect.getEffectiveAttack(actor);
-          if (atkTarget.hp <= dmg) score *= 2;  // 能击杀
+          const canKill = atkTarget.hp <= dmg;
+          if (canKill) score *= 2;  // 能击杀
           const bonus = this._aiOnAttackBonus(actor);
           score = score * bonus.mul + bonus.add;
+          if (canKill) {
+            const killBonus = this._aiPassiveBonus(actor, 'onKill');
+            score = score * killBonus.mul + killBonus.add;
+          }
           score += 20;  // 攻击的基础分（保证有目标时优先攻击）
           if (score > best.score) best = { score, type: 'attack', target: atkTarget };
         }
@@ -3980,26 +4008,65 @@
       return count;
     },
 
-    // 估算 onAttack 被动技能的额外攻击价值（倍率 + 固定加分）
-    _aiOnAttackBonus(actor) {
-      if (!actor.skills) return { mul: 1, add: 0 };
+    // 统一估算指定触发时机的被动技能额外价值
+    // trigger: 'onAttack' | 'onKill' | 'onMove' | 'onAttacked'
+    // 返回: { mul: 倍率加成, add: 固定加分, counter: 反制价值（onAttacked用）}
+    _aiPassiveBonus(actor, trigger) {
+      if (!actor.skills) return { mul: 1, add: 0, counter: 0 };
       let mul = 1;
       let add = 0;
+      let counter = 0;
       for (const sk of actor.skills) {
-        if (sk.type !== '被动' || sk.trigger !== 'onAttack') continue;
+        if (sk.type !== '被动' || sk.trigger !== trigger) continue;
         const src = (typeof sk.contentCode === 'string' ? sk.contentCode : '') + '\n' + (sk.desc || '');
-        // 连击 / 恢复攻击 → 相当于多打一次，倍率 +0.8（保守估计）
-        if (/resetAttack|恢复攻击|连击|再.*攻击|额外攻击|basicAttack/.test(src)) mul += 0.8;
-        // 眩晕 / 控制 → 固定加分
-        if (/眩晕|stun|冻结|freeze|魅惑|charm|沉默|silence|禁锢|束缚|定身/.test(src)) add += 35;
-        // 回血 / 吸血 / 治疗 → 固定加分
-        if (/heal|回血|恢复生命|回复|吸血|leech/.test(src)) add += 20;
-        // 额外伤害 / 真实伤害 → 倍率再加
-        if (/extra.*damage|额外伤害|真实伤害|ignoreDef|无视防御.*伤害/.test(src)) mul += 0.4;
-        // 减益 / 破甲 → 小加分
-        if (/减益|debuff|降低防御|减防|破甲/.test(src)) add += 15;
+        // ===== 通用关键词 =====
+        // 连击 / 恢复攻击 / 再次行动
+        if (/resetAttack|恢复攻击|连击|再.*攻击|额外攻击|basicAttack|再次行动|resetAction/.test(src)) mul += 0.8;
+        // 眩晕 / 控制
+        if (/眩晕|stun|冻结|freeze|魅惑|charm|沉默|silence|禁锢|束缚|定身|嘲讽|taunt/.test(src)) add += 35;
+        // 回血 / 吸血 / 治疗
+        if (/heal|回血|恢复生命|回复|吸血|leech|regen|再生/.test(src)) add += 20;
+        // 额外伤害 / 真实伤害
+        if (/extra.*damage|额外伤害|真实伤害|ignoreDef|无视防御.*伤害|附加伤害/.test(src)) mul += 0.4;
+        // 减益 / 破甲
+        if (/减益|debuff|降低防御|减防|破甲|降低攻击|减攻/.test(src)) add += 15;
+        // 增益自身
+        if (/增益|buff|攻击\+|防御\+|提升攻击|提升防御|atkBuff|defBuff/.test(src)) add += 18;
+        // 召唤 / 召唤物
+        if (/召唤|summon|召唤物|spawn/.test(src)) add += 30;
+
+        // ===== onAttacked 专属：反制价值 =====
+        if (trigger === 'onAttacked') {
+          // 反伤 / 荆棘
+          if (/反伤|荆棘|thorns|反击|counter|反制/.test(src)) counter += 25;
+          // 眩晕攻击者
+          if (/眩晕.*攻击者|stun.*attacker|冻结攻击者|freeze.*attacker/.test(src)) counter += 35;
+          // 护盾 / 减伤
+          if (/护盾|shield|减伤|伤害降低|伤害减免|dodge|闪避/.test(src)) counter += 20;
+        }
+
+        // ===== onKill 专属：击杀奖励 =====
+        if (trigger === 'onKill') {
+          // 击杀后恢复攻击 / 连续击杀
+          if (/击杀后.*攻击|击杀.*恢复|连杀|斩杀|斩击/.test(src)) mul += 0.5;
+          // 击杀回血 / 吸魂
+          if (/击杀.*回血|击杀.*恢复|吸魂|嗜血|击杀.*heal/.test(src)) add += 25;
+        }
+
+        // ===== onMove 专属：移动后效果 =====
+        if (trigger === 'onMove') {
+          // 移动后伤害 / 冲锋
+          if (/冲锋|冲撞|移动后.*伤害|charge.*damage/.test(src)) mul += 0.5;
+          // 移动后增益
+          if (/移动后.*增益|移动后.*提升|疾跑|冲锋.*buff/.test(src)) add += 15;
+        }
       }
-      return { mul, add };
+      return { mul, add, counter };
+    },
+
+    // onAttack 被动攻击价值（兼容旧调用）
+    _aiOnAttackBonus(actor) {
+      return this._aiPassiveBonus(actor, 'onAttack');
     },
 
     // 找最佳攻击目标（威胁度最高/最易击杀）
@@ -4087,9 +4154,15 @@
       if (!enemies.length || !moveCells.length) return null;
 
       const hpRatio = actor.hp / (actor.maxHp || 200);
-      const posThreat = Effect._aiPositionThreat(actor);
+      let posThreat = Effect._aiPositionThreat(actor);
+      const onAttackedBonus = this._aiPassiveBonus(actor, 'onAttacked');
+      if (onAttackedBonus.counter > 0) {
+        posThreat = Math.max(0, posThreat - onAttackedBonus.counter);
+      }
       const shouldEscape = hpRatio < 0.4 && posThreat > Effect.getEffectiveAttack(actor) * 2;
       const hasLowHpAlly = allies.some(a => a.hp / (a.maxHp || 200) < 0.3);
+      const moveBonus = this._aiPassiveBonus(actor, 'onMove');
+      const hasOnMovePassive = moveBonus.mul > 1 || moveBonus.add > 0;
 
       const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
       if (!emptyMoves.length) return null;
@@ -4108,6 +4181,8 @@
           const currentMinDist = Math.min(...enemies.map(e => Math.abs(actor.x - e.x) + Math.abs(actor.y - e.y)));
           score = minDist * 20;
           if (minDist > currentMinDist) score += 50;
+          // 逃跑模式下 onMove 回血/增益也加分
+          if (hasOnMovePassive) score += moveBonus.add * 0.5;
         } else {
           const nearest = enemies.reduce((a, b) => {
             const da = Math.abs(a.x - actor.x) + Math.abs(a.y - actor.y);
@@ -4117,14 +4192,25 @@
           const dist = Math.abs(m.x - nearest.x) + Math.abs(m.y - nearest.y);
           score = Math.max(10, 60 - dist * 3);
 
+          // 统计移动后攻击范围内的敌人数量（用于 onMove 伤害评估）
           const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
             pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
           });
+          let enemyInAtk = 0;
           for (const ac of atkCells) {
             const p = this.pieceAt(ac.x, ac.y);
             if (p && p.alive && p.side !== side) {
               score += Effect._aiThreat(p) * 0.8;
               if (p.hp <= Effect.getEffectiveAttack(actor)) score += 60;
+              enemyInAtk++;
+            }
+          }
+
+          // onMove 被动加成：基础加分 + 敌人越多伤害类加成越高
+          if (hasOnMovePassive) {
+            score += moveBonus.add;
+            if (enemyInAtk > 0 && moveBonus.mul > 1) {
+              score += enemyInAtk * Effect.getEffectiveAttack(actor) * 0.3 * (moveBonus.mul - 1) * 10;
             }
           }
 
