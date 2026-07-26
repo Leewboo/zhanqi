@@ -7460,12 +7460,24 @@ Effect.fx.clearFx('myZone');</code></pre>
   // ============================================================
   function showMsg(text, kind) {
     var el = $('submit-info');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'submit-info';
+      el.className = 'output-msg info';
+      el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;padding:10px 20px;border:1px solid;border-radius:4px;font-size:14px;min-width:200px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+      document.body.appendChild(el);
+    }
     el.textContent = text;
     el.className = 'output-msg ' + (kind || 'info');
     el.style.display = 'block';
+    clearTimeout(showMsg._timer);
+    showMsg._timer = setTimeout(function () {
+      if (el && el.parentNode) el.style.display = 'none';
+    }, 3000);
   }
   function hideMsg() {
     var el = $('submit-info');
+    if (!el) return;
     el.style.display = 'none';
     el.textContent = '';
   }
