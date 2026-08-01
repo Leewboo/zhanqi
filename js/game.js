@@ -1823,6 +1823,8 @@
       actor.x = x;
       actor.y = y;
       actor.moved = true;
+      // 记录移动方向向量（供骑兵冲锋加成判断）
+      actor.moveDir = { dx: x - fromX, dy: y - fromY };
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
@@ -1871,7 +1873,17 @@
 
       // 攻击力由 Effect.getEffectiveAttack 计算（含 buff、标记）
       // 防御由 Effect.damage 内部处理（含 buff、地形、标记 zeroDef）
-      const atkVal = Effect.getEffectiveAttack(actor);
+      let atkVal = Effect.getEffectiveAttack(actor);
+      // 骑兵冲锋加成：本次攻击方向与上次移动方向相同时+20%
+      if (actor.tag === 'cavalry' && actor.moveDir) {
+        const _norm = (v) => { const m = Math.max(Math.abs(v.dx), Math.abs(v.dy)); return m === 0 ? null : { dx: v.dx / m, dy: v.dy / m }; };
+        const md = _norm(actor.moveDir);
+        const ad = _norm({ dx: target.x - actor.x, dy: target.y - actor.y });
+        if (md && ad && md.dx === ad.dx && md.dy === ad.dy) {
+          atkVal = Math.floor(atkVal * 1.2);
+          this.log(actor.name + ' 冲锋加成！攻击+20%');
+        }
+      }
       Effect.damage(actor, target, atkVal);
       this._finishActorAction();
     },
@@ -4108,7 +4120,10 @@
       if (!cells.length) return null;
 
       const allies = this.pieces.filter(p => p.alive && p.side === side);
-      const atk = Effect.getEffectiveAttack(actor);
+      const baseAtk = Effect.getEffectiveAttack(actor);
+      // 骑兵冲锋加成预判：归一化移动方向，用于评估同向攻击的+20%伤害
+      const _normDir = (v) => { const m = Math.max(Math.abs(v.dx), Math.abs(v.dy)); return m === 0 ? null : { dx: v.dx / m, dy: v.dy / m }; };
+      const moveDirNorm = (actor.tag === 'cavalry' && actor.moveDir) ? _normDir(actor.moveDir) : null;
 
       let best = null, bestScore = -1;
       for (const c of cells) {
@@ -4118,7 +4133,17 @@
 
         let score = Effect._aiThreat(p);
 
-        if (p.hp <= atk) score *= 2.5;
+        // 骑兵冲锋：攻击方向与上次移动方向相同时+20%伤害，AI 据此修正击杀线并偏好同向攻击
+        let atkVsP = baseAtk;
+        if (moveDirNorm) {
+          const ad = _normDir({ dx: p.x - actor.x, dy: p.y - actor.y });
+          if (ad && ad.dx === moveDirNorm.dx && ad.dy === moveDirNorm.dy) {
+            atkVsP = Math.floor(atkVsP * 1.2);
+            score += 15;
+          }
+        }
+
+        if (p.hp <= atkVsP) score *= 2.5;
 
         let allyCanAttack = 0;
         for (const a of allies) {
@@ -4424,6 +4449,8 @@
       actor.x = x;
       actor.y = y;
       actor.moved = true;
+      // 记录移动方向向量（供骑兵冲锋加成判断）
+      actor.moveDir = { dx: x - fromX, dy: y - fromY };
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
@@ -4452,7 +4479,17 @@
         }
       });
       if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
-      const atkVal = Effect.getEffectiveAttack(actor);
+      let atkVal = Effect.getEffectiveAttack(actor);
+      // 骑兵冲锋加成：本次攻击方向与上次移动方向相同时+20%
+      if (actor.tag === 'cavalry' && actor.moveDir) {
+        const _norm = (v) => { const m = Math.max(Math.abs(v.dx), Math.abs(v.dy)); return m === 0 ? null : { dx: v.dx / m, dy: v.dy / m }; };
+        const md = _norm(actor.moveDir);
+        const ad = _norm({ dx: target.x - actor.x, dy: target.y - actor.y });
+        if (md && ad && md.dx === ad.dx && md.dy === ad.dy) {
+          atkVal = Math.floor(atkVal * 1.2);
+          this.log(actor.name + ' 冲锋加成！攻击+20%');
+        }
+      }
       // 攻击音效：播放 attack 语音
       Effect.playPieceVoice(actor, 'attack');
       actor.attacked = true;
