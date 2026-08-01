@@ -2454,6 +2454,134 @@
       });
     },
 
+    // ========== AI 战术分析（自定义 AI 逻辑可用） ==========
+    // 以下函数均为纯查询：不修改棋盘、不触发特效/事件，DIY 作者可安全调用。
+    // side 参数统一支持：'enemy'(相对 actor 的敌方) / 'ally'(相对 actor 的友方) / 数字(0红 1蓝)
+    //   传 'enemy'/'ally' 时需提供 actor 以判断敌我；传数字时无需 actor。
+
+    // 统计以 (x,y) 为中心、rangeDef 范围内的某方棋子数量
+    // rangeDef: { shape, n }，默认 { shape:'square', n:1 }
+    countPiecesAt(x, y, rangeDef, side, actor) {
+      if (!global.Game) return 0;
+      rangeDef = rangeDef || { shape: 'square', n: 1 };
+      const cells = Range.cellsInRange(rangeDef.shape || 'square', rangeDef.n || 1, x, y, { includeSelf: false });
+      let count = 0;
+      for (const c of cells) {
+        const p = global.Game.pieceAt(c.x, c.y);
+        if (!p || !p.alive) continue;
+        if (actor) {
+          if (side === 'enemy' && p.side === actor.side) continue;
+          if (side === 'ally' && p.side !== actor.side) continue;
+        }
+        if (typeof side === 'number' && p.side !== side) continue;
+        count++;
+      }
+      return count;
+    },
+
+    // 在 centerRange 范围内选一格，使其 aoeRange 内的 side 方棋子数量最多（AOE 落点选择）
+    // centerRange: { shape, n, center:{x,y} }，center 省略时默认 {0,0}
+    // aoeRange: { shape, n }，默认 { shape:'square', n:1 }
+    // 返回 { x, y, count } 或 null；平局返回第一个
+    bestCellForHits(centerRange, aoeRange, side, actor) {
+      if (!global.Game || !centerRange) return null;
+      aoeRange = aoeRange || { shape: 'square', n: 1 };
+      const cx = (centerRange.center && typeof centerRange.center.x === 'number') ? centerRange.center.x : 0;
+      const cy = (centerRange.center && typeof centerRange.center.y === 'number') ? centerRange.center.y : 0;
+      const candidates = Range.cellsInRange(centerRange.shape || 'square', centerRange.n || 1, cx, cy, { includeSelf: true });
+      let best = null, bestCount = -1;
+      for (const c of candidates) {
+        const cnt = Effect.countPiecesAt(c.x, c.y, aoeRange, side, actor);
+        if (cnt > bestCount) { bestCount = cnt; best = { x: c.x, y: c.y, count: cnt }; }
+      }
+      return best;
+    },
+
+    // 在 actor 的移动范围内找最安全的格子（位置威胁最低）
+    // moveRange: 可选 { shape, n }，默认使用 actor 的有效移动范围
+    // 返回 { x, y, threat } 或 null；包含当前位置（不移动也算选项）
+    findSafestCell(actor, moveRange) {
+      if (!global.Game || !actor || !actor.alive) return null;
+      const g = global.Game;
+      const mr = moveRange || Effect.getEffectiveMoveRange(actor);
+      const cells = Range.reachableCells(actor.x, actor.y, mr.n, g, mr.shape);
+      // reachableCells 不含起点且已排除被占据格；补上当前位置作为"不移动"选项
+      const all = [{ x: actor.x, y: actor.y }].concat(cells);
+      let best = null, bestThreat = Infinity;
+      const oldX = actor.x, oldY = actor.y;
+      for (const c of all) {
+        // 临时把 actor 移到该格评估位置威胁（纯查询，评估完恢复）
+        actor.x = c.x; actor.y = c.y;
+        const threat = Effect._aiPositionThreat(actor);
+        if (threat < bestThreat) { bestThreat = threat; best = { x: c.x, y: c.y, threat: threat }; }
+      }
+      actor.x = oldX; actor.y = oldY;
+      return best;
+    },
+
+    // 在 actor 的移动范围内找进攻最优格子（能攻击到的敌人威胁总和最高）
+    // moveRange: 可选 { shape, n }，默认使用 actor 的有效移动范围
+    // 返回 { x, y, score } 或 null；包含当前位置
+    findAggressiveCell(actor, moveRange) {
+      if (!global.Game || !actor || !actor.alive) return null;
+      const g = global.Game;
+      const mr = moveRange || Effect.getEffectiveMoveRange(actor);
+      const cells = Range.reachableCells(actor.x, actor.y, mr.n, g, mr.shape);
+      const all = [{ x: actor.x, y: actor.y }].concat(cells);
+      let best = null, bestScore = -1;
+      const oldX = actor.x, oldY = actor.y;
+      for (const c of all) {
+        actor.x = c.x; actor.y = c.y;
+        const atkRange = Effect.getEffectiveAttackRange(actor);
+        // 评估时排除 actor 自身（避免自己挡自己视线）
+        const atkCells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, c.x, c.y, {
+          pieceAt: (px, py) => { const p = g.pieceAt(px, py); return (p && p.alive && p !== actor) ? p : null; }
+        });
+        let score = 0;
+        for (const ac of atkCells) {
+          const p = g.pieceAt(ac.x, ac.y);
+          if (p && p.alive && p.side !== actor.side) score += Effect._aiThreat(p);
+        }
+        if (score > bestScore) { bestScore = score; best = { x: c.x, y: c.y, score: score }; }
+      }
+      actor.x = oldX; actor.y = oldY;
+      return best;
+    },
+
+    // 综合评估某格对 actor 的价值：进攻机会 - 位置威胁 + 推进度
+    // 返回数字，越高越好。可用于自定义 AI 对候选格子排序。
+    //   进攻机会：从该格能攻击到的敌人威胁总和
+    //   位置威胁：站在该格受到的敌方威胁（_aiPositionThreat）
+    //   推进度：离最近敌人的曼哈顿距离（越近越激进，基准 20 格）
+    evaluateCell(actor, x, y) {
+      if (!global.Game || !actor || !actor.alive) return -Infinity;
+      const g = global.Game;
+      const oldX = actor.x, oldY = actor.y;
+      actor.x = x; actor.y = y;
+      // 进攻价值
+      const atkRange = Effect.getEffectiveAttackRange(actor);
+      const atkCells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, x, y, {
+        pieceAt: (px, py) => { const p = g.pieceAt(px, py); return (p && p.alive && p !== actor) ? p : null; }
+      });
+      let offScore = 0, nearestEnemyDist = Infinity;
+      for (const ac of atkCells) {
+        const p = g.pieceAt(ac.x, ac.y);
+        if (p && p.alive && p.side !== actor.side) offScore += Effect._aiThreat(p);
+      }
+      // 位置威胁
+      const threat = Effect._aiPositionThreat(actor);
+      // 推进度：离最近敌人距离
+      for (const e of g.pieces) {
+        if (e.alive && e.side !== actor.side) {
+          const d = Math.abs(e.x - x) + Math.abs(e.y - y);
+          if (d < nearestEnemyDist) nearestEnemyDist = d;
+        }
+      }
+      actor.x = oldX; actor.y = oldY;
+      const advance = nearestEnemyDist === Infinity ? 0 : (20 - nearestEnemyDist);
+      return offScore - threat + advance;
+    },
+
     // 获取武将/小兵的详细信息定义（用于查询特定单位的属性、技能、描述等）
     // id: 武将 id（如 'diy_xxx'）/ 小兵 id（如 'minion_sword' / 'diyminion_xxx'）
     // 返回该定义对象的深拷贝（修改不会影响游戏数据），未找到返回 null
