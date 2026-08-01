@@ -456,6 +456,22 @@ init(actor) {
 | `Game.minionHand[side]` | 直接访问某方手牌 |
 | `Game.minionPoints[side]` | 直接访问某方部署点 |
 
+### AI 战术分析（自定义 AI 逻辑可用）
+以下均为纯查询函数：不修改棋盘、不触发特效/事件，可安全用于自定义 AI 决策。
+
+**side 参数统一支持三种写法：**
+- `'enemy'` — 相对 actor 的敌方（需同时传 actor）
+- `'ally'` — 相对 actor 的友方（需同时传 actor）
+- 数字 `0` / `1` — 绝对阵营（0=红方，1=蓝方），无需 actor
+
+| 函数 | 说明 |
+|------|------|
+| `Effect.countPiecesAt(x, y, rangeDef, side, actor?)` | 统计 (x,y) 周围范围内某方棋子数量，rangeDef 默认 `{shape:'square',n:1}` |
+| `Effect.bestCellForHits(centerRange, aoeRange, side, actor?)` | 在 centerRange 范围内选一格，使其 aoeRange 内某方棋子最多（AOE 落点选择），返回 `{x,y,count}` 或 null |
+| `Effect.findSafestCell(actor, moveRange?)` | 移动范围内最安全格子（位置威胁最低），返回 `{x,y,threat}`；包含当前位置 |
+| `Effect.findAggressiveCell(actor, moveRange?)` | 移动范围内进攻最优格子（能攻击的敌人威胁总和最高），返回 `{x,y,score}` |
+| `Effect.evaluateCell(actor, x, y)` | 综合评估某格价值：进攻机会 − 位置威胁 + 推进度，返回数字越高越好 |
+
 ### 地形与工具
 | 函数 | 说明 |
 |------|------|
