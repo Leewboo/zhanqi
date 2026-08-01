@@ -3116,7 +3116,7 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           <div class="api-tag"><b>Effect.stealStat(actor, target, stat, amt)</b> — <span style="color:#c0392b;">★</span>永久偷取属性</div>
           <div class="api-tag"><b>Effect.placeTrap(x, y, opts)</b> — <span style="color:#c0392b;">★</span>放置陷阱</div>
           <div class="api-tag"><b>Effect.clearTraps(opts)</b> — <span style="color:#c0392b;">★</span>清除陷阱</div>
-          <div class="api-tag"><b>Effect.changeTerrain(x, y, type)</b> — 改地形：r(河)/m(山)/f(林)/w(沼)/plain</div>
+          <div class="api-tag"><b>Effect.changeTerrain(x, y, type)</b> — 改地形：r(河)/m(林)/f(营)/w(城)/mt(山)/plain</div>
           <div class="api-tag"><b>Effect.random(min, max)</b> — 随机整数</div>
           <div class="api-tag"><b>Effect.chance(p)</b> — 概率判定，返回 true/false</div>
           <div class="api-tag"><b>Game.log(text)</b> — 写战报</div>
@@ -3577,7 +3577,7 @@ var cells = Effect.searchCell(
         <p style="margin-top:12px;"><b>Effect.changeTerrain(x, y, type)</b> — 改变地形</p>
         <ul>
           <li><code>x, y</code>（number）— 坐标</li>
-          <li><code>type</code>（字符串）— <code>'r'</code>河流 / <code>'m'</code>山地 / <code>'f'</code>森林 / <code>'w'</code>沼泽 / <code>'plain'</code>平原</li>
+          <li><code>type</code>（字符串）— <code>'r'</code>河流 / <code>'m'</code>林地 / <code>'f'</code>营地 / <code>'w'</code>城池 / <code>'mt'</code>山地 / <code>'plain'</code>平原</li>
         </ul>
 
         <p style="margin-top:12px;"><b>Effect.addDeployPoint(side, amount)</b> — 增减部署点</p>
@@ -4828,7 +4828,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       });
       html += '</select></div>';
       html += '<div class="form-row"><label>类型</label><select id="fs-attr-tag">';
-      [{ v: 'infantry', t: '步兵' }, { v: 'scout', t: '侦察' }, { v: 'siege', t: '攻城' }].forEach(function (o) {
+      [{ v: 'infantry', t: '步兵' }, { v: 'scout', t: '侦察' }, { v: 'siege', t: '攻城' }, { v: 'archer', t: '弓兵' }, { v: 'cavalry', t: '骑兵' }].forEach(function (o) {
         html += '<option value="' + o.v + '"' + (d.tag === o.v ? ' selected' : '') + '>' + o.t + '</option>';
       });
       html += '</select></div>';
@@ -5808,7 +5808,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       { sig: 'Effect.searchCell(range, filter)', desc: '★ 强力搜索格子，返回 [{x,y,piece}]。filter={empty,occupied,ownHalf,terrain,piece(棋子过滤),custom}', isNew: true, insert: 'var cells = Effect.searchCell(\n  { shape: \'square\', n: 3, center: { x: actor.x, y: actor.y } },\n  { empty: true }\n);\nif (cells.length) Effect.changeTerrain(cells[0].x, cells[0].y, \'m\');' },
       { sig: 'Effect.getJson(id)', desc: '★ 获取武将/小兵定义的深拷贝（属性、技能、描述）。id 如 \'minion_sword\'/\'diy_xxx\'，未找到返回 null', isNew: true, insert: 'var def = Effect.getJson(\'minion_sword\');\nif (def) Game.log(def.name + \' 攻击力 \' + def.atk + \'，描述：\' + (def.description||def.desc||\'\'));' },
       { group: '工具' },
-      { sig: 'Effect.changeTerrain(x, y, type)', desc: '改变格子地形：r(河)/m(山)/f(林)/w(沼)/plain', insert: 'Effect.changeTerrain(cell.x, cell.y, \'r\');' },
+      { sig: 'Effect.changeTerrain(x, y, type)', desc: '改变格子地形：r(河)/m(林)/f(营)/w(城)/mt(山)/plain', insert: 'Effect.changeTerrain(cell.x, cell.y, \'mt\');' },
       { sig: 'Effect.random(min, max)', desc: '随机整数 [min, max]', insert: 'var n = Effect.random(1, 6);' },
       { sig: 'Effect.chance(p)', desc: '概率判定，p=0~1，返回 true/false', insert: 'if (Effect.chance(0.5)) { }' },
       { sig: 'Game.log(text)', desc: '写入战斗日志', insert: 'Game.log(actor.name + \' 发动【技能名】！\');' },
@@ -8255,7 +8255,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         '<table class="ext-generals-table"><thead><tr><th>小兵名</th><th>品质</th><th>类型</th><th>消耗</th><th>操作</th></tr></thead><tbody>';
       ext.minions.forEach(function (mn) {
         var rarityText = ({ common: '普通', rare: '稀有', epic: '史诗' })[mn.rarity] || mn.rarity || 'common';
-        var tagText = ({ infantry: '步兵', scout: '侦察', siege: '攻城' })[mn.tag] || '步兵';
+        var tagText = ({ infantry: '步兵', scout: '侦察', siege: '攻城', archer: '弓兵', cavalry: '骑兵' })[mn.tag] || '步兵';
         mRows +=
           '<tr>' +
           '<td class="name">' + escapeHtml(mn.name) + '</td>' +

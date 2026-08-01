@@ -17,6 +17,7 @@
   --terrain-f: #d6c2a0;
   --terrain-r: #b9cde3;
   --terrain-w: #e5c7c7;
+  --terrain-mt: #c8b8a0;
   --cell-size: 48px;
 
   --font-title: "XiaoZhuan", "ZCOOL XiaoWei", "PingFang SC", "Microsoft YaHei", serif;
@@ -577,6 +578,7 @@ html, body {
 .cell.terrain-f { background: var(--terrain-f); }
 .cell.terrain-r { background: var(--terrain-r); }
 .cell.terrain-w { background: var(--terrain-w); }
+.cell.terrain-mt { background: var(--terrain-mt); }
 
 /* 区域对称着色 —— 非常淡，不遮挡地形与棋子 */
 .cell.zone-red {
@@ -608,6 +610,10 @@ html, body {
 .cell.terrain-w.zone-red.alt,
 .cell.terrain-w.zone-blue,
 .cell.terrain-w.zone-blue.alt { background-color: rgba(225, 199, 199, 0.9); }
+.cell.terrain-mt.zone-red,
+.cell.terrain-mt.zone-red.alt { background-color: rgba(200, 184, 160, 0.9); }
+.cell.terrain-mt.zone-blue,
+.cell.terrain-mt.zone-blue.alt { background-color: rgba(196, 184, 168, 0.9); }
 
 .cell.move {
   background: var(--cell-move);

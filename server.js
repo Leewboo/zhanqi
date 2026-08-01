@@ -1086,7 +1086,7 @@ app.use(async (ctx, next) => {
       ctx.status = 400; ctx.body = { ok: false, error: '小兵 id 需为 2-30 位字母/数字/下划线' }; return;
     }
     const rarity = ['common', 'rare', 'epic'].includes(minion.rarity) ? minion.rarity : 'common';
-    const tag = ['infantry', 'scout', 'siege'].includes(minion.tag) ? minion.tag : 'infantry';
+    const tag = ['infantry', 'scout', 'siege', 'archer', 'cavalry'].includes(minion.tag) ? minion.tag : 'infantry';
     const cost = Math.max(1, Math.min(5, parseInt(minion.cost) || 1));
 
     // 技能校验

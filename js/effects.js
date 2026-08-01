@@ -103,7 +103,7 @@
       for (const m of marks) {
         if (m.modifiers && typeof m.modifiers.defBuff === 'number') def += m.modifiers.defBuff;
       }
-      // 地形加成（m=山+10, w=水+15, f=林+5）
+      // 地形加成（m=林+10, w=城+15, f=营+5, mt=山+15）
       if (global.Game && global.Game.terrain) {
         const t = target.y >= 0 && global.Game.terrain[target.y]
           ? global.Game.terrain[target.y][target.x]
@@ -111,6 +111,7 @@
         if (t === 'm') def += 10;
         if (t === 'w') def += 15;
         if (t === 'f') def += 5;
+        if (t === 'mt') def += 15;
       }
       // 城池占领加成：站在己方占领的城池上额外 +8 防御（rare 小兵再 +5）
       if (global.Game && typeof global.Game._getCastleDefenseBonus === 'function') {
@@ -125,6 +126,13 @@
       const marks = this.getMarksOn(actor);
       for (const m of marks) {
         if (m.modifiers && typeof m.modifiers.attackRangeDelta === 'number') n += m.modifiers.attackRangeDelta;
+      }
+      // 弓兵(archer)站在山地(mt)上时攻击范围+1
+      if (actor.tag === 'archer' && global.Game && global.Game.terrain) {
+        const t = actor.y >= 0 && global.Game.terrain[actor.y]
+          ? global.Game.terrain[actor.y][actor.x]
+          : 'plain';
+        if (t === 'mt') n += 1;
       }
       return { shape: actor.attackRange.shape, n: Math.max(1, n) };
     },
@@ -360,7 +368,8 @@
       const old = g.terrain[y][x];
       if (old === terrain) return false;
       g._setCellTerrain(x, y, terrain);
-      g.log('(' + x + ',' + y + ') 地形变为 ' + (terrain === 'r' ? '河' : terrain) + '。');
+      var tName = { plain: '平原', m: '林', f: '营', r: '河', w: '城', mt: '山' }[terrain] || terrain;
+      g.log('(' + x + ',' + y + ') 地形变为 ' + tName + '。');
       return true;
     },
 
@@ -2430,7 +2439,7 @@
           if (!inHalf) return false;
         }
         if (filter.terrain) {
-          const t = (g.terrain && g.terrain[c.x] && g.terrain[c.x][c.y]) || 'plain';
+          const t = (g.terrain && g.terrain[c.y] && g.terrain[c.y][c.x]) || 'plain';
           if (t !== filter.terrain) return false;
         }
         if (filter.piece && p) {

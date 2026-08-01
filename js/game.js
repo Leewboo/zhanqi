@@ -116,7 +116,8 @@
     m: '林',
     f: '营',
     r: '河',
-    w: '城'
+    w: '城',
+    mt: '山'
   };
 
   function buildTerrain() {
@@ -158,6 +159,16 @@
     // ============ 前哨营地：双方对称小增益点 ============
     [[4, 1], [7, 1], [4, 10], [7, 10]].forEach(p => set(p[0], p[1], 'f'));
 
+    // ============ 山地：不可跨越，双方对称 strategic blocking terrain ============
+    // 蓝方左翼山地
+    [[1, 2], [1, 3]].forEach(p => set(p[0], p[1], 'mt'));
+    // 蓝方右翼山地
+    [[10, 2], [10, 3]].forEach(p => set(p[0], p[1], 'mt'));
+    // 红方左翼山地
+    [[1, 8], [1, 9]].forEach(p => set(p[0], p[1], 'mt'));
+    // 红方右翼山地
+    [[10, 8], [10, 9]].forEach(p => set(p[0], p[1], 'mt'));
+
     return map;
   }
 
@@ -169,6 +180,7 @@
     if (t === 'm') return 10;
     if (t === 'w') return 15;
     if (t === 'f') return 5;
+    if (t === 'mt') return 15;
     return 0;
   }
 
@@ -673,11 +685,13 @@
         return false;
       }
 
-      // tag 部署规则：infantry 前线三行 / scout 己方半场任意 / siege 己方占领城池相邻格
+      // tag 部署规则：infantry 前线三行 / scout 己方半场任意 / siege 己方占领城池相邻格 / archer 己方半场任意 / cavalry 前线三行
       const tag = card.tag || 'infantry';
       if (!this._isMinionDeployable(card, x, y, side)) {
         const tip = tag === 'siege' ? '攻城兵只能部署在己方占领城池的相邻格！'
           : tag === 'scout' ? '侦察兵只能部署在己方半场！'
+          : tag === 'archer' ? '弓兵只能部署在己方半场！'
+          : tag === 'cavalry' ? '骑兵只能部署在己方前线三行！'
           : '步兵只能部署在己方前线三行！';
         this.log(tip, 'turn');
         return false;
@@ -829,6 +843,16 @@
           if (isCastle(nx, ny) && this.castleOwner[nx + ',' + ny] === side) return true;
         }
         return false;
+      }
+      if (tag === 'archer') {
+        // 弓兵：己方半场任意空格（与侦察相同，远程单位可灵活部署）
+        return isOwnHalf;
+      }
+      if (tag === 'cavalry') {
+        // 骑兵：己方前线三行（与步兵相同，但更具攻击性）
+        const frontStart = side === 'red' ? half : half - 3;
+        const frontEnd = side === 'red' ? half + 3 : half;
+        return y >= frontStart && y < frontEnd;
       }
       // infantry：己方前线三行（蓝方行3-5，红方行6-8）
       const frontStart = side === 'red' ? half : half - 3;
@@ -1747,6 +1771,9 @@
           pieceAt: (x, y) => {
             const p = this.pieceAt(x, y);
             return p && p.alive ? p : null;
+          },
+          terrainFn: (x, y) => {
+            return this.terrain && this.terrain[y] && this.terrain[y][x] === 'mt';
           }
         });
         for (const c of cells) {
@@ -2333,8 +2360,9 @@
     cellMoveCost(x, y) {
       if (!this.terrain) return 1;
       const t = this.terrain[y][x];
-      // 河流(r)消耗2步，其他地形消耗1步
+      // 河流(r)消耗2步，山地(mt)消耗2步，其他地形消耗1步
       if (t === 'r') return 2;
+      if (t === 'mt') return 2;
       return 1;
     },
 

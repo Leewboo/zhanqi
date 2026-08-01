@@ -68,6 +68,12 @@
       ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
       : [[1,0],[-1,0],[0,1],[0,-1]];
 
+    // 山地(mt)不可跨越：可作为目的地但不可作为中转继续扩展
+    const isBlocking = (x, y) => {
+      if (game && game.terrain && game.terrain[y] && game.terrain[y][x] === 'mt') return true;
+      return false;
+    };
+
     const result = [];
     const visited = new Map();
     const queue = [{ x: originX, y: originY, steps: 0 }];
@@ -86,6 +92,8 @@
         if (visited.has(k) && visited.get(k) <= ns) continue;
         visited.set(k, ns);
         result.push({ x: nx, y: ny, steps: ns });
+        // 山地不可跨越：加入结果但不继续扩展
+        if (isBlocking(nx, ny)) continue;
         queue.push({ x: nx, y: ny, steps: ns });
       }
     }
@@ -107,7 +115,7 @@
     king,
     cellsInRange,
     reachableCells,
-    lineBlocked(ax, ay, bx, by, pieceAt) {
+    lineBlocked(ax, ay, bx, by, pieceAt, terrainFn) {
       const dx = bx - ax;
       const dy = by - ay;
       if (dx === 0 && dy === 0) return false;
@@ -119,6 +127,8 @@
         const cy = ay + Math.round(sy * i);
         if (!inBounds(cx, cy)) return true;
         if (pieceAt && pieceAt(cx, cy)) return true;
+        // 山地阻挡视线
+        if (terrainFn && terrainFn(cx, cy)) return true;
       }
       return false;
     },
@@ -126,10 +136,15 @@
       options = options || {};
       const raw = cellsInRange(shape, n, originX, originY, { includeSelf: false });
       const pieceAt = options.pieceAt;
+      // 默认使用 Game 的山地阻挡视线，可通过 options.terrainFn 覆盖
+      const terrainFn = options.terrainFn || ((x, y) => {
+        const g = typeof global !== 'undefined' ? global.Game : (typeof window !== 'undefined' ? window.Game : null);
+        return g && g.terrain && g.terrain[y] && g.terrain[y][x] === 'mt';
+      });
       const list = [];
       for (const c of raw) {
         if (c.x === originX && c.y === originY) continue;
-        if (pieceAt && this.lineBlocked(originX, originY, c.x, c.y, pieceAt)) continue;
+        if (pieceAt && this.lineBlocked(originX, originY, c.x, c.y, pieceAt, terrainFn)) continue;
         list.push(c);
       }
       if (options.includeSelf) list.push({ x: originX, y: originY });
