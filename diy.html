@@ -4717,7 +4717,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (rarityEl) d.rarity = rarityEl.value;
       if (tagEl) d.tag = tagEl.value;
       if (costEl) d.cost = parseInt(costEl.value, 10) || 1;
-      if (inDeckEl) d.inDeck = inDeckEl.checked;
+      if (inDeckEl) d.inDeck = inDeckEl.value === '1';
       if (cardCountEl) {
         var cv = parseInt(cardCountEl.value, 10);
         d.cardCount = isNaN(cv) ? null : cv;
@@ -5086,6 +5086,8 @@ Effect.fx.clearFx('myZone');</code></pre>
   function selectSkill(idx) {
     if (idx === fsEditorState.activeSkillIdx) return;
     saveCurrentSkillCode();
+    // 清除所有 codeEditor 引用，避免旧 textarea 引用污染新技能的数据
+    fsEditorState.codeEditors = { filter: null, content: null, init: null };
     fsEditorState.activeSkillIdx = idx;
     fsEditorState.activeCodeTab = 'filter';
     renderSkillsTab();
@@ -5101,6 +5103,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (fsEditorState.activeSkillIdx >= fsEditorState.data.skills.length) {
       fsEditorState.activeSkillIdx = fsEditorState.data.skills.length - 1;
     }
+    fsEditorState.codeEditors = { filter: null, content: null, init: null };
     renderSkillsTab();
   }
 
