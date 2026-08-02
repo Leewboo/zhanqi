@@ -376,6 +376,7 @@ html, body {
 }
 
 /* 斗蛐蛐观战控制条 */
+.spectate-bar.hidden { display: none; }
 .spectate-bar {
   display: flex;
   align-items: center;
