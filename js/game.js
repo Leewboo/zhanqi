@@ -290,6 +290,7 @@
 
       this.phase = 'draft';
       this._highlightDeployZones();
+      this._updateSpectateBar();  // 根据模式显示/隐藏观战条（仅斗蛐蛐模式显示）
       const effectivePicks = Math.min(PICKS_PER_SIDE, Math.floor(this.draftPool.length / 2));
       this.log('选将开始：将池 ' + this.draftPool.length + ' 将，双方轮流挑选，每方 ' + effectivePicks + ' 人。', 'turn');
       if (this.aiMode) {
