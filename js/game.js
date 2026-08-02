@@ -916,7 +916,7 @@
       const points = this.minionPoints[side];
 
       // 判断是否是本地玩家可控的回合（AI 回合或联机对方回合时不显示手牌）
-      const isLocalTurn = !(this.aiMode && side === this.aiSide) &&
+      const isLocalTurn = !(this.aiMode && (this.bothAi || side === this.aiSide)) &&
         !(this.onlineMode && side !== this._onlineSide);
 
       // 非本地回合：不显示具体手牌，只显示状态提示
@@ -933,7 +933,7 @@
         panel.style.display = 'block';
         const sideName = side === 'red' ? '红方' : '蓝方';
         let suffix = '';
-        if (this.aiMode && side === this.aiSide) suffix = 'AI 思考中...';
+        if (this.aiMode && (this.bothAi || side === this.aiSide)) suffix = 'AI 思考中...';
         if (this.onlineMode && side !== this._onlineSide) suffix = '等待对方部署...';
 
         status.innerHTML = '小兵部署 · <b>' + sideName + '</b> · ' + suffix;
@@ -2989,7 +2989,7 @@
         let suffix = ' · 点击武将卡挑选';
         if (this.onlineMode && side !== this._onlineSide) {
           suffix = ' · 等待对方选将...';
-        } else if (this.aiMode && side === this.aiSide) {
+        } else if (this.aiMode && !this.bothAi && side === this.aiSide) {
           suffix = ' · AI 思考中...';
         }
         status.innerHTML = '选将 · 第 ' + (this.draftIndex + 1) + ' 选 · <b>' + sideName + '方</b>' + suffix;
@@ -3001,7 +3001,7 @@
         const self = this;
         for (const g of pool) {
           const draftSide = this.draftIndex % 2 === 0 ? 'red' : 'blue';
-          const canClick = !(this.aiMode && draftSide === this.aiSide) && this._onlineCanAct(draftSide);
+          const canClick = !(this.aiMode && !this.bothAi && draftSide === this.aiSide) && this._onlineCanAct(draftSide);
           const card = buildDraftCard(g, canClick ? () => self._pickGeneral(g) : null);
           cards.appendChild(card);
         }
@@ -3019,7 +3019,7 @@
         // 联机模式下未轮到自己布阵时提示等待
         if (this.onlineMode && side !== this._onlineSide) {
           tip = ' · 等待对方布阵...';
-        } else if (this.aiMode && side === this.aiSide) {
+        } else if (this.aiMode && (this.bothAi || side === this.aiSide)) {
           tip = ' · AI 布阵中...';
         }
         status.innerHTML = '布阵 · <b>' + (side === 'red' ? '红' : '蓝') + '方</b> · 剩余 ' + pending.length + ' 将' + tip;
