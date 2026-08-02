@@ -396,6 +396,41 @@ init(actor) {
 
 所有选择函数支持 `opts.filter: (cell, piece) => bool` 自定义过滤。
 
+#### AI 偏好（chooseEnemy / chooseAlly / chooseCell）
+AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍可自由点选）。调用时可传以下字段（优先级高于技能 `aiHint`）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `opts.aiPrefer` | string | AI 偏好策略，见下表 |
+| `opts.aiTarget` | string | 强制目标类型：`'enemy'`/`'ally'`/`'cell'`（覆盖自动推断） |
+| `opts.aiAvoidSelf` | bool | 排除 actor 自身 |
+| `opts.aiScore` | function | 自定义评分：`(x, y, piece, actor) => number`，分数最高者选中（最高优先级，覆盖 aiPrefer） |
+| `opts.aoeRange` | `{shape,n}` | 配合格子类偏好的统计范围，默认 `{shape:'r', n:1}` |
+
+**aiPrefer 可选值：**
+
+| 偏好 | 适用 | 说明 |
+|------|------|------|
+| `low_hp` | 敌/友 | 血量百分比最低 |
+| `high_hp` | 敌 | 血量百分比最高（适合削血/百分比伤害） |
+| `high_threat` | 敌/友 | 威胁度最高（敌人优先击杀 / 友军增益给主力） |
+| `nearest` | 敌/友 | 离 actor 最近 |
+| `farthest` | 敌 | 离 actor 最远（拉扯/远程） |
+| `caster` | 敌 | 低防高攻的法师型单位 |
+| `tank` | 敌 | 高防高血的肉盾 |
+| `minion` | 敌 | 优先小兵（清理杂兵） |
+| `general` | 敌 | 优先武将（直取主将） |
+| `low_def` | 敌 | 防御最低（确保伤害） |
+| `injured_ally` | 友 | 残血友军（治疗优先） |
+| `buffer` | 友 | 威胁度最高的友军（增益给主力） |
+| `most_enemies_around` | 格 | 周围敌人最多（AOE 落点） |
+| `most_allies_around` | 格 | 周围友军最多（集合点/群体增益） |
+| `most_enemies_avoid_allies` | 格 | 周围敌人最多且避开友军（避免误伤） |
+| `safest` | 格 | 位置威胁最低（撤退/避险） |
+| `aggressive` | 格 | 能攻击到的敌人威胁总和最高（进攻走位） |
+| `nearest_to_enemy` | 格 | 离最近敌人最近（推进） |
+| `farthest_from_enemy` | 格 | 离最近敌人最远（撤退） |
+
 ### 单位获取
 | 函数 | 说明 |
 |------|------|

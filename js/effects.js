@@ -901,9 +901,25 @@
       if (!valid.length) return null;
 
       const hint = (Effect._aiContext && Effect._aiContext.hint) || null;
-      const targetType = hint ? hint.target : (options.mustEnemy ? 'enemy' : options.mustAlly ? 'ally' : 'cell');
-      const prefer = hint ? (hint.preferTarget || '') : '';
-      const avoidSelf = hint ? (hint.avoidSelf === true) : false;
+      const targetType = options.aiTarget || (hint ? hint.target : (options.mustEnemy ? 'enemy' : options.mustAlly ? 'ally' : 'cell'));
+      // 偏好优先级：options.aiPrefer（调用方显式传入）> hint.preferTarget（技能配置）
+      const prefer = options.aiPrefer || (hint ? (hint.preferTarget || '') : '');
+      const avoidSelf = options.aiAvoidSelf === true || (hint ? (hint.avoidSelf === true) : false);
+
+      // 自定义评分函数优先级最高
+      if (typeof options.aiScore === 'function') {
+        let best = null, bestScore = -Infinity;
+        for (const v of valid) {
+          if (avoidSelf && v.piece === actor) continue;
+          let score;
+          try { score = options.aiScore(v.x, v.y, v.piece, actor); }
+          catch (e) { console.error('[aiScore] 执行错误', e); score = 0; }
+          if (typeof score !== 'number') score = 0;
+          if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
+        }
+        if (!best && valid.length) best = { x: valid[0].x, y: valid[0].y };
+        return best;
+      }
 
       let best = null, bestScore = -Infinity;
 
@@ -916,14 +932,31 @@
           // 目标偏好策略
           if (prefer === 'low_hp') {
             score = (1 - v.piece.hp / (v.piece.maxHp || 200)) * 200;  // 血越低分越高
+          } else if (prefer === 'high_hp') {
+            score = (v.piece.hp / (v.piece.maxHp || 200)) * 200;  // 血越多分越高（适合削血/百分比伤害）
           } else if (prefer === 'high_threat') {
             score = Effect._aiThreat(v.piece) * 1.5;
           } else if (prefer === 'nearest') {
             const dist = Math.abs(v.piece.x - actor.x) + Math.abs(v.piece.y - actor.y);
             score = 1000 - dist * 10;  // 越近分越高
+          } else if (prefer === 'farthest') {
+            const dist = Math.abs(v.piece.x - actor.x) + Math.abs(v.piece.y - actor.y);
+            score = dist * 10;  // 越远分越高（适合拉扯/远程）
           } else if (prefer === 'caster') {
             // 优先攻击低防高攻的法师型单位
             score = (v.piece.atk || 0) * 3 - (v.piece.def || 0);
+          } else if (prefer === 'tank') {
+            // 优先攻击高防高血的前排肉盾
+            score = (v.piece.def || 0) + (v.piece.maxHp || 0) * 0.3;
+          } else if (prefer === 'minion') {
+            // 优先攻击小兵（清理杂兵）
+            score = v.piece.isMinion ? 300 : 0;
+          } else if (prefer === 'general') {
+            // 优先攻击武将（直取主将）
+            score = v.piece.isMinion ? 0 : 300;
+          } else if (prefer === 'low_def') {
+            // 优先攻击低防御目标（确保伤害）
+            score = 200 - Effect.getEffectiveDefense(v.piece);
           }
           // 低血量补刀加成
           if (v.piece.hp <= Effect.getEffectiveAttack(actor)) score *= 2;
@@ -936,19 +969,23 @@
           if (avoidSelf && v.piece === actor) continue;
           const hpPct = v.piece.hp / (v.piece.maxHp || 200);
           // 排除满血友军（治疗无用）
-          if (hpPct >= 0.99 && hint && hint.type === 'heal') continue;
+          if (hpPct >= 0.99 && (prefer === 'injured_ally' || (hint && hint.type === 'heal'))) continue;
           let score;
-          if (prefer === 'injured_ally') {
+          if (prefer === 'injured_ally' || prefer === 'low_hp') {
             score = (1 - hpPct) * 200;  // 残血友军优先
-          } else if (prefer === 'high_threat' && hint && hint.type === 'buff') {
-            score = Effect._aiThreat(v.piece);  // 增益给主力
+          } else if (prefer === 'high_threat' || prefer === 'buffer') {
+            // 增益给主力：威胁度最高的友军
+            score = Effect._aiThreat(v.piece);
+          } else if (prefer === 'nearest') {
+            const dist = Math.abs(v.piece.x - actor.x) + Math.abs(v.piece.y - actor.y);
+            score = 1000 - dist * 10;
           } else {
             score = (1 - hpPct) * 100;
           }
           if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
         }
         // 若都是满血，选威胁度最高的友军（增益给主力）
-        if (!best && hint && hint.type === 'buff') {
+        if (!best && (prefer === 'high_threat' || (hint && hint.type === 'buff'))) {
           for (const v of valid) {
             if (!v.piece) continue;
             if (avoidSelf && v.piece === actor) continue;
@@ -957,19 +994,77 @@
           }
         }
       } else if (targetType === 'cell') {
-        // 选能命中最多敌人的格子（AOE 伤害类）
+        // 格子选择：支持多种 AOE 落点 / 走位偏好
+        // aoeRange：评估落点时统计周围棋子用的范围，默认 {shape:'r', n:1}
+        const aoeRange = options.aoeRange || { shape: 'r', n: 1 };
         for (const v of valid) {
-          // 估算以此为落点能波及的敌人数（用方形1范围近似爆炸范围）
-          const aoeCells = Range.cellsInRange('r', 1, v.x, v.y, { includeSelf: true });
-          let enemyHits = 0, allyHits = 0;
-          for (const ac of aoeCells) {
-            const ap = g.pieceAt(ac.x, ac.y);
-            if (ap && ap.alive) {
-              if (ap.side !== actor.side) enemyHits++;
-              else if (ap.generalId !== actor.generalId) allyHits++;
+          let score = 0;
+          if (prefer === 'most_enemies_around') {
+            // 周围敌人最多（AOE 落点）
+            const cnt = Effect.countPiecesAt(v.x, v.y, aoeRange, 'enemy', actor);
+            score = cnt * 50;
+          } else if (prefer === 'most_allies_around') {
+            // 周围友军最多（集合点 / 群体增益落点）
+            const cnt = Effect.countPiecesAt(v.x, v.y, aoeRange, 'ally', actor);
+            score = cnt * 50;
+          } else if (prefer === 'most_enemies_avoid_allies') {
+            // 周围敌人最多且避开友军（避免误伤）
+            const enemyCnt = Effect.countPiecesAt(v.x, v.y, aoeRange, 'enemy', actor);
+            const allyCnt = Effect.countPiecesAt(v.x, v.y, aoeRange, 'ally', actor);
+            score = enemyCnt * 50 - allyCnt * 30;
+          } else if (prefer === 'safest') {
+            // 最安全格子（位置威胁最低）——纯查询评估，不移动
+            const oldX = actor.x, oldY = actor.y;
+            actor.x = v.x; actor.y = v.y;
+            score = -Effect._aiPositionThreat(actor);
+            actor.x = oldX; actor.y = oldY;
+          } else if (prefer === 'aggressive') {
+            // 进攻最优格：能攻击到的敌人威胁总和最高
+            const oldX = actor.x, oldY = actor.y;
+            actor.x = v.x; actor.y = v.y;
+            const atkRange = Effect.getEffectiveAttackRange(actor);
+            const atkCells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, v.x, v.y, {
+              pieceAt: (px, py) => { const p = g.pieceAt(px, py); return (p && p.alive && p !== actor) ? p : null; }
+            });
+            score = 0;
+            for (const ac of atkCells) {
+              const p = g.pieceAt(ac.x, ac.y);
+              if (p && p.alive && p.side !== actor.side) score += Effect._aiThreat(p);
             }
+            actor.x = oldX; actor.y = oldY;
+          } else if (prefer === 'nearest_to_enemy') {
+            // 离最近敌人最近的格子（推进）
+            let nearest = Infinity;
+            for (const e of g.pieces) {
+              if (e.alive && e.side !== actor.side) {
+                const d = Math.abs(e.x - v.x) + Math.abs(e.y - v.y);
+                if (d < nearest) nearest = d;
+              }
+            }
+            score = nearest === Infinity ? 0 : (1000 - nearest * 10);
+          } else if (prefer === 'farthest_from_enemy') {
+            // 离最近敌人最远的格子（撤退）
+            let nearest = Infinity;
+            for (const e of g.pieces) {
+              if (e.alive && e.side !== actor.side) {
+                const d = Math.abs(e.x - v.x) + Math.abs(e.y - v.y);
+                if (d < nearest) nearest = d;
+              }
+            }
+            score = nearest === Infinity ? 0 : (nearest * 10);
+          } else {
+            // 默认：能命中最多敌人的格子（AOE 伤害类，向后兼容）
+            const aoeCells = Range.cellsInRange(aoeRange.shape || 'r', aoeRange.n || 1, v.x, v.y, { includeSelf: true });
+            let enemyHits = 0, allyHits = 0;
+            for (const ac of aoeCells) {
+              const ap = g.pieceAt(ac.x, ac.y);
+              if (ap && ap.alive) {
+                if (ap.side !== actor.side) enemyHits++;
+                else if (ap.generalId !== actor.generalId) allyHits++;
+              }
+            }
+            score = enemyHits * 50 - allyHits * 30;  // 避免误伤友军
           }
-          let score = enemyHits * 50 - allyHits * 30;  // 避免误伤友军
           if (score > bestScore) { bestScore = score; best = { x: v.x, y: v.y }; }
         }
         if (!best) best = { x: valid[0].x, y: valid[0].y };
