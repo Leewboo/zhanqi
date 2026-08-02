@@ -1,3 +1,158 @@
 {
-  "extensions": []
+  "extensions": [
+    {
+      "id": "ext_test",
+      "name": "测试武将",
+      "desc": "用于测试斗蛐蛐模式",
+      "enabled": true,
+      "soundBank": [],
+      "generals": [
+        {
+          "id": "diy_zhaoyun",
+          "name": "赵云",
+          "hp": 180,
+          "atk": 65,
+          "def": 20,
+          "moveRange": { "shape": "+", "n": 4 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "skillIds": ["sk_zhaoyun_longdan"],
+          "_extId": "ext_test"
+        },
+        {
+          "id": "diy_lvbu",
+          "name": "吕布",
+          "hp": 260,
+          "atk": 90,
+          "def": 25,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "skillIds": ["sk_lvbu_wushuang"],
+          "_extId": "ext_test"
+        },
+        {
+          "id": "diy_zhugeliang",
+          "name": "诸葛亮",
+          "hp": 150,
+          "atk": 55,
+          "def": 15,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 2 },
+          "skillIds": ["sk_zhugeliang_bagua"],
+          "_extId": "ext_test"
+        },
+        {
+          "id": "diy_zhangfei",
+          "name": "张飞",
+          "hp": 240,
+          "atk": 75,
+          "def": 30,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "skillIds": ["sk_zhangfei_paoxiao"],
+          "_extId": "ext_test"
+        },
+        {
+          "id": "diy_guanyu",
+          "name": "关羽",
+          "hp": 220,
+          "atk": 80,
+          "def": 22,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "skillIds": ["sk_guanyu_wusheng"],
+          "_extId": "ext_test"
+        },
+        {
+          "id": "diy_huatuo",
+          "name": "华佗",
+          "hp": 160,
+          "atk": 40,
+          "def": 15,
+          "moveRange": { "shape": "+", "n": 3 },
+          "attackRange": { "shape": "+", "n": 2 },
+          "skillIds": ["sk_huatuo_qingnang"],
+          "_extId": "ext_test"
+        }
+      ],
+      "skills": [
+        {
+          "id": "sk_zhaoyun_longdan",
+          "name": "龙胆",
+          "type": "被动",
+          "trigger": "onAttack",
+          "desc": "攻击后20%概率追加一次伤害",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "if (Effect.chance(0.2)) { var enemies = Effect.getEnemiesInRange(actor, {shape:'+', n:1}); if (enemies.length) { Effect.damage(actor, enemies[0], Math.floor(Effect.getEffectiveAttack(actor)*0.5)); Game.log(actor.name + '龙胆追击！'); } }",
+          "_extId": "ext_test"
+        },
+        {
+          "id": "sk_lvbu_wushuang",
+          "name": "无双",
+          "type": "被动",
+          "trigger": "turnStart",
+          "desc": "回合开始时获得攻击加成",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "Effect.modifyAttack(actor, 15, 1); Game.log(actor.name + '无双：攻击+15');",
+          "_extId": "ext_test"
+        },
+        {
+          "id": "sk_zhugeliang_bagua",
+          "name": "八阵",
+          "type": "被动",
+          "trigger": "turnStart",
+          "desc": "回合开始时恢复生命",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "Effect.heal(actor, 25);",
+          "_extId": "ext_test"
+        },
+        {
+          "id": "sk_zhangfei_paoxiao",
+          "name": "咆哮",
+          "type": "被动",
+          "trigger": "onAttacked",
+          "desc": "被攻击时反弹伤害",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "if (context.attacker && context.attacker.alive) { Effect.damage(actor, context.attacker, 15, {ignoreDef:true}); Game.log(actor.name + '咆哮反伤！'); }",
+          "_extId": "ext_test"
+        },
+        {
+          "id": "sk_guanyu_wusheng",
+          "name": "武圣",
+          "type": "被动",
+          "trigger": "onKill",
+          "desc": "击杀后恢复生命",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "Effect.heal(actor, 40); Game.log(actor.name + '武圣：恢复40生命');",
+          "_extId": "ext_test"
+        },
+        {
+          "id": "sk_huatuo_qingnang",
+          "name": "青囊",
+          "type": "被动",
+          "trigger": "turnStart",
+          "desc": "回合开始时治疗周围友军",
+          "filterCode": "return actor && actor.alive;",
+          "contentCode": "var allies = Effect.getAlliesInRange(actor, {shape:'r', n:2}); allies.forEach(function(a){ if (a !== actor) Effect.heal(a, 15); });",
+          "_extId": "ext_test"
+        }
+      ],
+      "minions": [
+        {
+          "id": "diyminion_infantry",
+          "name": "步兵",
+          "hp": 80,
+          "atk": 30,
+          "def": 10,
+          "cost": 1,
+          "cardCount": 4,
+          "inDeck": true,
+          "rarity": "common",
+          "tag": "infantry",
+          "moveRange": { "shape": "+", "n": 2 },
+          "attackRange": { "shape": "+", "n": 1 },
+          "_extId": "ext_test"
+        }
+      ]
+    }
+  ]
 }

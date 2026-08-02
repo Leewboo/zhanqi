@@ -267,7 +267,9 @@
       this.pendingSkillId = null;
       this.highlighted = [];
       this.over = false;
-      this.aiMode = (mode === 'ai');
+      this.aiMode = (mode === 'ai' || mode === 'spectate');
+      this.bothAi = (mode === 'spectate');  // 斗蛐蛐模式：双方都由 AI 控制
+      this._spectatePaused = false;  // 观战暂停标志
       this.onlineMode = (mode === 'online');
       this._onlineSide = this.onlineMode ? GameSettings.onlineSide : null;
       this._onlineAction = false;  // 标记正在回放远端操作，避免重复发送
@@ -299,6 +301,9 @@
         } else {
           this.log('你先手。', 'turn');
         }
+      }
+      if (this.bothAi) {
+        this.log('斗蛐蛐模式：请为双方挑选武将，选完后 AI 自动布阵并开战。', 'turn');
       }
       if (this.onlineMode) {
         const mySideName = this._onlineSide === 'red' ? '红' : '蓝';
@@ -472,7 +477,37 @@
       document.getElementById('room-screen').classList.add('hidden');
       document.getElementById('home-screen').classList.remove('hidden');
       document.getElementById('log').innerHTML = '';
+      const specBar = document.getElementById('spectate-bar');
+      if (specBar) specBar.classList.add('hidden');
       Online.disconnect();
+    },
+
+    // ========== 斗蛐蛐模式（观战）==========
+    // 切换暂停/继续
+    toggleSpectatePause() {
+      if (!this.bothAi) return;
+      this._spectatePaused = !this._spectatePaused;
+      this._updateSpectateBar();
+      if (!this._spectatePaused) {
+        // 继续：重新启动 AI 调度
+        this.log('观战继续。', 'turn');
+        this._maybeAiAct();
+      } else {
+        this.log('观战已暂停。', 'turn');
+      }
+    },
+
+    // 更新观战控制条 UI
+    _updateSpectateBar() {
+      const bar = document.getElementById('spectate-bar');
+      const toggleBtn = document.getElementById('btn-spectate-toggle');
+      if (!bar) return;
+      if (this.bothAi) {
+        bar.classList.remove('hidden');
+        if (toggleBtn) toggleBtn.textContent = this._spectatePaused ? '继续' : '暂停';
+      } else {
+        bar.classList.add('hidden');
+      }
     },
 
     _highlightDeployZones(side) {
@@ -510,6 +545,11 @@
     // 在此期间禁止玩家操作棋盘，避免 AI 思考间隙玩家选中或操作 AI 的棋子
     _isAiControlledPhase() {
       if (!this.aiMode) return false;
+      // 斗蛐蛐模式：选将阶段玩家为双方选将，布阵+战斗 AI 接管双方
+      if (this.bothAi) {
+        if (this.phase === 'draft') return false;
+        return true;  // deploy + battle 都由 AI 控制
+      }
       if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
         return side === this.aiSide;
@@ -570,6 +610,7 @@
       this.log('布阵开始：红方先将武将放到己方（底部）半场。', 'turn');
       this._renderDraftCards();
       this._refreshUi();
+      this._updateSpectateBar();  // 斗蛐蛐模式：显示观战控制条
       this._maybeAiAct();
     },
 
@@ -3060,7 +3101,11 @@
 
       if (!this.aiMode) return;
       let aiShouldAct = false;
-      if (this.phase === 'draft') {
+      if (this.bothAi) {
+        // 斗蛐蛐模式：选将阶段不触发 AI（玩家为双方选将），布阵+战斗双方都触发
+        if (this.phase === 'draft') aiShouldAct = false;
+        else aiShouldAct = true;  // deploy + battle
+      } else if (this.phase === 'draft') {
         const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
         if (side === this.aiSide) aiShouldAct = true;
       } else if (this.phase === 'deploy') {
@@ -3086,8 +3131,10 @@
       if (this.over) return;
       // 如果 AI 行动已结束，不再继续调度
       if (!this._aiActing) return;
-      // 双重保险：只在 AI 回合时执行
-      if (this.phase === 'battle' && this.currentSide !== this.aiSide) return;
+      // 观战暂停：不推进，等待"继续"按钮重新触发 _maybeAiAct
+      if (this._spectatePaused) return;
+      // 双重保险：只在 AI 回合时执行（斗蛐蛐模式双方都由 AI 控制，跳过此守卫）
+      if (this.phase === 'battle' && !this.bothAi && this.currentSide !== this.aiSide) return;
       if (this.phase === 'draft') this._aiPickGeneral();
       else if (this.phase === 'deploy') this._aiPlaceOne();
       else if (this.phase === 'battle') {
@@ -3237,8 +3284,9 @@
       // 模拟：选中 + 放置
       this.deploySelected = gDef;
       this._tryPlacePiece(spot.x, spot.y);
-      // 放完后继续排队下一个
-      if (!this.over && this.phase === 'deploy' && this.deploySide === this.aiSide) {
+      // 放完后继续排队下一个（斗蛐蛐模式双方都由 AI 控制）
+      const aiControlsDeploy = this.bothAi || this.deploySide === this.aiSide;
+      if (!this.over && this.phase === 'deploy' && aiControlsDeploy) {
         const self = this;
         setTimeout(() => self._aiStep(), 500);
       }
@@ -4961,13 +5009,21 @@
     const localBtn = document.getElementById('btn-local');
     const onlineBtn = document.getElementById('btn-online');
     const aiBtn = document.getElementById('btn-ai');
+    const spectateBtn = document.getElementById('btn-spectate');
     const diyBtn = document.getElementById('btn-diy');
     const homeBtn = document.getElementById('btn-home');
     if (localBtn) localBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('local'); });
     if (onlineBtn) onlineBtn.addEventListener('click', () => { showOnlineScreen(); });
     if (aiBtn) aiBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('ai'); });
+    if (spectateBtn) spectateBtn.addEventListener('click', () => { tryPlayBgm(true); Game.startGame('spectate'); });
     if (diyBtn) diyBtn.addEventListener('click', () => { window.location.href = 'diy.html'; });
     if (homeBtn) homeBtn.addEventListener('click', () => Game.goHome());
+
+    // 观战控制按钮
+    const specToggleBtn = document.getElementById('btn-spectate-toggle');
+    const specRestartBtn = document.getElementById('btn-spectate-restart');
+    if (specToggleBtn) specToggleBtn.addEventListener('click', () => Game.toggleSpectatePause());
+    if (specRestartBtn) specRestartBtn.addEventListener('click', () => Game.startGame('spectate'));
 
     // ========== 武将图鉴 ==========
     const galleryBtn = document.getElementById('btn-gallery');

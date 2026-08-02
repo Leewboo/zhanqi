@@ -375,6 +375,29 @@ html, body {
   letter-spacing: 1px;
 }
 
+/* 斗蛐蛐观战控制条 */
+.spectate-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: linear-gradient(90deg, #fff7e6, #fef0e0);
+  border-top: 1px solid #f0d9a8;
+  font-size: 12px;
+}
+.spectate-bar .spectate-label {
+  font-weight: 600;
+  color: #b8860b;
+  letter-spacing: 1px;
+}
+.spectate-bar .act-btn.small {
+  padding: 4px 12px;
+  font-size: 12px;
+  background: #fff;
+  border-color: #d4a84b;
+  color: #8a6d1f;
+}
+
 .act-btn.small {
   padding: 5px 10px;
   font-size: 12px;
