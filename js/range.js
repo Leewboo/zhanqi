@@ -30,10 +30,10 @@
   //     返回 false/undefined/null → 回退到默认判定
   //
   // 默认规则（不写 blockFilter 时）：
-  //   山地(mt)   → 'full' 全阻断（不可达，也不可穿过）
-  //   河流(r)    → 'half' 半阻断（可达，但不可继续穿过）
+  //   山地(mt)   → 'half' 半阻断（能站上去，但不可继续穿过）
+  //   河流(r)    → 'half' 半阻断（能站上去，但不可继续穿过）
   //   敌方棋子    → 'full' 全阻断
-  //   友方棋子    → 'full' 全阻断（棋子占位，不能走上去；旧版友方half已取消）
+  //   友方棋子    → 'full' 全阻断（棋子占位，不能走上去）
   // ============================================================
 
   // 获取地形代码（plain/m/f/r/w/mt）或 null
@@ -66,11 +66,10 @@
   // terrain: 地形代码字符串（如 'mt'/'r'/'plain'...），true 则视为通用阻断
   // pieceAtSide: 可选，actor/发起方的 side，没有则从 Game.currentSide 推断
   function defaultBlockFor(x, y, piece, terrain, pieceAtSide) {
-    // 地形优先：mt 全阻断，r 半阻断
+    // 地形优先：mt 和 r 都是半阻断（能站上去，不能继续穿过去）
     const tCode = (typeof terrain === 'string') ? terrain
       : (terrain === true ? (_terrainAt(x, y) || 'block') : null);
-    if (tCode === 'mt') return 'full';
-    if (tCode === 'r')  return 'half';
+    if (tCode === 'mt' || tCode === 'r') return 'half';
 
     // 棋子：敌方和友方都是全阻断（占位，不能走上去也不能穿过去）
     if (piece) return 'full';
@@ -153,8 +152,8 @@
   // ============================================================
   // shape: '+' 十字（4向BFS）| 'square'/'r'/'x' 方形/圆形/斜角（8向BFS）
   // 默认规则（不写 blockFilter 时）：
-  //   山地(mt)    → full 全阻断（进不去）
-  //   河流(r)     → half 半阻断（能站上去，但不能从河里继续走出去/过河后就停在河上）
+  //   山地(mt)    → half 半阻断（能站上去，但不能继续穿过去/走出来）
+  //   河流(r)     → half 半阻断（能站上去，但不能继续穿过去/过河）
   //   棋子（敌+友）→ full 全阻断（不能站上去，不能穿过去）
   //
   // options（第6个参数，可选）:
@@ -337,10 +336,10 @@
     // 带阻断的范围查询（用于攻击/技能范围）
     // ============================================================
     // 默认规则（不写 blockFilter 时）：
-    //   山地(mt)   → full 全阻断（打不到山头上，也打不到山后面）
-    //   河流(r)    → half 半阻断（打得到河上单位，但打不到河对岸远处的）
-    //   敌方棋子    → full 全阻断（挡视线）
-    //   友方棋子    → half 半阻断（挡视线但能打到友军本人，不挡视线则用 passThrough:true）
+    //   山地(mt)   → half 半阻断（能打到山头上本人，但打不到山后面）
+    //   河流(r)    → half 半阻断（能打到河上单位，但打不到河对岸远处的）
+    //   敌方棋子    → full 全阻断（挡视线，本人也打不到）
+    //   友方棋子    → full 全阻断（挡视线，本人也打不到）
     //
     // options:
     //   pieceAt:      (x, y) => piece | null — 棋子查询
