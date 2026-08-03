@@ -125,6 +125,37 @@ PORT=3000 node server.js
 | 圆形 | `r` | 切比雪夫距离圆形 |
 | 方形 | `square` | 正方形区域 |
 
+### 范围阻断（Block Mode）
+范围拓展时遇到「棋子 / 阻断地形（如山地）」会按阻断模式处理。共三种基础模式 + 一种条件模式：
+
+| 模式 | 代码 | 行为 |
+|------|------|------|
+| 全阻断 | `'full'` | 拓展到这一格结束，**不包含**这一格（此格不可达，也不可穿过） |
+| 半阻断 | `'half'` | 拓展到这一格结束，**包含**这一格（此格可达，但不可继续穿过） |
+| 不阻断 | `'none'` | 正常拓展全部路径（路径穿过此格，此格本身可达） |
+| 条件阻断 | `blockFilter` | 一个过滤器回调，按条件返回上述任一模式 |
+
+**条件阻断示例**：让山地为全阻断、敌方棋子为半阻断、友方棋子不阻断：
+
+```javascript
+const cells = Range.cellsInRangeWithBlock('+', 4, actor.x, actor.y, {
+  pieceAt: (x, y) => Game.pieceAt(x, y),
+  blockFilter: (x, y, piece, terrain) => {
+    if (terrain) return 'full';                 // 山地全阻断
+    if (!piece) return 'none';                  // 空格不阻断
+    if (piece.side === actor.side) return 'none'; // 友方棋子不阻断
+    return 'half';                              // 敌方棋子半阻断
+  }
+});
+```
+
+**`blockFilter` 返回值约定**：
+- 返回 `'full'` / `'half'` / `'none'` → 使用该模式（覆盖默认 `blockMode`）
+- 返回 `false` → 显式不阻断
+- 返回 `undefined` / `null` → 回退到默认判定（`blockMode`）
+
+> 旧版 `passThrough: true` 仍兼容，等价于 `blockMode: 'none'`（完全不阻断）。
+
 ---
 
 ## 小兵卡牌系统
@@ -539,6 +570,33 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | `Game.log(text)` | 写入战斗日志 |
 | `Effect.aiContext()` | 查询当前AI上下文 |
 | `Effect.currentAiSkill()` | 获取AI正在执行的技能 |
+
+### 范围计算 Range
+| 函数 | 说明 |
+|------|------|
+| `Range.cellsInRange(shape, n, x, y, opts)` | 返回形状范围内的所有格子（不判阻断） |
+| `Range.reachableCells(x, y, maxSteps, game, shape, opts)` | BFS 可达格子（移动范围，考虑地形消耗与阻断） |
+| `Range.cellsInRangeWithBlock(shape, n, x, y, opts)` | 带阻断的直线视线范围（攻击/技能范围） |
+| `Range.lineBlocked(ax, ay, bx, by, pieceAt, terrainFn)` | 旧版直线阻断检测（兼容保留） |
+| `Range._resolveBlockMode(x, y, pieceAt, terrainFn, defaultMode, blockFilter)` | 计算单格阻断模式（高级用途） |
+| `Range.inBounds(x, y)` / `Range.key(x, y)` | 边界判定 / 格子键 |
+| `Range.manhattan` / `Range.chebyshev` / `Range.king` | 距离函数 |
+| `Range.plus / circle / square / x` | 形状快捷方法 |
+
+**`cellsInRangeWithBlock` 的 `opts`：**
+- `pieceAt(x,y)` — 棋子查询（用于检测阻断）
+- `terrainFn(x,y)` — 阻断地形查询（默认检测山地 `mt`）
+- `blockMode` — 默认阻断模式：`'full'` / `'half'` / `'none'`（默认 `'half'`）
+- `blockFilter(x,y,piece,terrain)` — 条件阻断，返回 `'full'`/`'half'`/`'none'`/`false`/`undefined`
+- `passThrough` — 旧版兼容，`true` 等价于 `blockMode:'none'`
+- `includeSelf` — 是否包含原点格（默认 `false`）
+
+**`reachableCells` 的 `opts`（第 6 个参数）：**
+- `pieceBlockMode` — 棋子默认阻断模式（默认 `'full'`，即不可移动到棋子上）
+- `terrainBlockMode` — 阻断地形默认模式（默认 `'half'`，即可到达但不可穿过，如山地）
+- `blockFilter(x,y,piece,terrain)` — 条件阻断（同上）
+
+> 阻断模式语义详见 [范围阻断（Block Mode）](#范围阻断block-mode)。
 
 ### 事件系统
 | 函数 | 说明 |
