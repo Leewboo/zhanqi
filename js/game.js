@@ -3240,7 +3240,8 @@
       }));
       scored.sort((a, b) => b.score - a.score);
       const top = scored.slice(0, Math.min(3, scored.length));
-      const pick = top[Math.floor(Math.random() * top.length)];
+      const rng = global.RNG || Math;
+      const pick = top[Math.floor(rng.random() * top.length)];
       this._pickGeneral(pick.g);
     },
 
