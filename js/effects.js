@@ -875,15 +875,19 @@
       const cx = options.center ? options.center.x : actor.x;
       const cy = options.center ? options.center.y : actor.y;
       const range = options.range || { shape: 'square', n: 3 };
+      const passThroughFlag = options.passThrough || range.passThrough;
       const cells = Range.cellsInRangeWithBlock(
         range.shape, range.n, cx, cy, {
           pieceAt: (x, y) => {
             const p = g.pieceAt(x, y);
             if (!p || !p.alive) return null;
-            if (options.passThrough) return null;
+            if (passThroughFlag) return null;
             return p;
           },
-          includeSelf: !options.mustEmpty
+          includeSelf: !options.mustEmpty,
+          passThrough: passThroughFlag,
+          blockMode:   options.blockMode   !== undefined ? options.blockMode   : range.blockMode,
+          blockFilter: options.blockFilter || range.blockFilter || null
         }
       );
       const valid = [];
@@ -1100,15 +1104,20 @@
         const cx = options.center ? options.center.x : actor.x;
         const cy = options.center ? options.center.y : actor.y;
         const range = options.range || { shape: 'square', n: 3 };
+        // range 里的 passThrough/blockMode/blockFilter 优先级：先透传给 cellsInRangeWithBlock
+        const passThroughFlag = options.passThrough || range.passThrough;
         const cells = Range.cellsInRangeWithBlock(
           range.shape, range.n, cx, cy, {
             pieceAt: (x, y) => {
               const p = global.Game.pieceAt(x, y);
               if (!p || !p.alive) return null;
-              if (options.passThrough) return null;
+              if (passThroughFlag) return null;
               return p;
             },
-            includeSelf: !options.mustEmpty
+            includeSelf: !options.mustEmpty,
+            passThrough: passThroughFlag,
+            blockMode:   options.blockMode   !== undefined ? options.blockMode   : range.blockMode,
+            blockFilter: options.blockFilter || range.blockFilter || null
           }
         );
         const valid = [];
