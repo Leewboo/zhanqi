@@ -303,6 +303,42 @@
     _resolveBlockMode: resolveBlockMode,
     _lineBlockedEx: lineBlockedEx,
 
+    // ============================================================
+    // blockOverride：临时覆盖默认阻断模式 + 安全恢复
+    // ============================================================
+    // 例：Range.setBlockOverride({ blockMode: 'none' })
+    // 用完：Range.resetBlockOverride()
+    //
+    // 支持作用域化（推荐，不会漏恢复）：
+    //   Range.withBlockOverride({ blockMode: 'none' }, () => {
+    //     // 这里所有 Range 调用都用穿透模式
+    //     const t = await Effect.chooseEnemy(actor, { range: {...} });
+    //   });
+    //   // 自动恢复
+    blockOverride: null,
+
+    setBlockOverride(obj) {
+      Range.blockOverride = obj || null;
+      return Range.blockOverride;
+    },
+
+    resetBlockOverride() {
+      const prev = Range.blockOverride;
+      Range.blockOverride = null;
+      return prev;
+    },
+
+    // 作用域化调用：同步或异步回调内生效，返回 Promise（可 await）
+    async withBlockOverride(obj, fn) {
+      const saved = Range.blockOverride;
+      try {
+        Range.blockOverride = obj || null;
+        return await fn();
+      } finally {
+        Range.blockOverride = saved;
+      }
+    },
+
     x: (n, x, y, opts) => cellsInRange('x', n, x, y, opts),
     plus: (n, x, y, opts) => cellsInRange('+', n, x, y, opts),
     cross: (n, x, y, opts) => cellsInRange('+', n, x, y, opts),

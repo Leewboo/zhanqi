@@ -598,6 +598,36 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 
 > 阻断模式语义详见 [范围阻断（Block Mode）](#范围阻断block-mode)。
 
+### 阻断模式临时覆盖（一行改全局默认）
+| 函数 | 说明 |
+|------|------|
+| `Range.setBlockOverride(obj)` / `Effect.setBlockOverride(obj)` | 临时覆盖默认阻断模式。obj 可选字段：`blockMode` / `passThrough` / `blockFilter` / `pieceBlockMode` / `terrainBlockMode` / `terrainFn` |
+| `Range.resetBlockOverride()` / `Effect.resetBlockOverride()` | 立即恢复默认阻断逻辑（取消覆盖）|
+| `Range.withBlockOverride(obj, fn)` / `Effect.withBlockOverride(obj, fn)` | **推荐**：作用域化，回调内生效，回调结束 / 抛错 / await 后自动恢复。返回 Promise，可 `await` |
+
+**示例 1：手动 set / reset**
+
+```javascript
+Effect.setBlockOverride({ blockMode: 'none' });   // 一行：穿透
+const target = await Effect.chooseEnemy(actor, { range: { shape: '+', n: 4 } });
+Effect.resetBlockOverride();                       // 用完恢复
+```
+
+**示例 2：作用域化（自动恢复，不会乱套）**
+
+```javascript
+return Effect.withBlockOverride({ blockMode: 'none' }, async () => {
+  const target = await Effect.chooseEnemy(actor, {
+    range: { shape: '+', n: 4 },
+    hintText: '穿甲箭：请选择敌人'
+  });
+  if (!target) return false;
+  actor.skilled = true;
+  Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { ignoreDef: true });
+  return true;
+});
+```
+
 ### 事件系统
 | 函数 | 说明 |
 |------|------|

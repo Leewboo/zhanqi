@@ -1164,6 +1164,17 @@
       return Range.cellsInRange(shape, n, originX, originY, options);
     },
 
+    // ========== 阻断模式临时覆盖（Range.blockOverride 的便捷封装） ==========
+    setBlockOverride(obj) {
+      return Range.setBlockOverride(obj);
+    },
+    resetBlockOverride() {
+      return Range.resetBlockOverride();
+    },
+    async withBlockOverride(obj, fn) {
+      return Range.withBlockOverride(obj, fn);
+    },
+
     // ========== 进阶效果 API ==========
 
     // 拉拽：将目标向 actor 方向拉 n 格

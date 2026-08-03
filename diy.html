@@ -3136,6 +3136,9 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           <div class="api-tag"><b>Range.cellsInRangeWithBlock(shape, n, x, y, opts)</b> — <span style="color:#c0392b;">★</span>带阻断的直线视线范围（攻击/技能范围）</div>
           <div class="api-tag"><b>opts.blockMode</b> — <span style="color:#c0392b;">★</span>阻断模式：<code>'full'</code>全阻断(不含此格)/<code>'half'</code>半阻断(含此格)/<code>'none'</code>不阻断</div>
           <div class="api-tag"><b>opts.blockFilter(x,y,piece,terrain)</b> — <span style="color:#c0392b;">★</span>条件阻断过滤器，返回 <code>'full'</code>/<code>'half'</code>/<code>'none'</code>/<code>false</code>/<code>undefined</code></div>
+          <div class="api-tag"><b>Range.setBlockOverride(obj)</b> / <b>Effect.setBlockOverride(obj)</b> — <span style="color:#c0392b;">★</span>一行临时修改全部Range默认阻断模式</div>
+          <div class="api-tag"><b>Range.resetBlockOverride()</b> / <b>Effect.resetBlockOverride()</b> — <span style="color:#c0392b;">★</span>立即恢复默认阻断逻辑</div>
+          <div class="api-tag"><b>Range.withBlockOverride(obj, fn)</b> / <b>Effect.withBlockOverride(obj, fn)</b> — <span style="color:#c0392b;">★</span>作用域化：回调内生效，退出自动恢复（可await）</div>
           <div class="api-tag"><b>Effect.searchPiece(range, filter, opts)</b> — <span style="color:#c0392b;">★</span>强力搜索棋子，返回数组</div>
           <div class="api-tag"><b>Effect.searchCell(range, filter)</b> — <span style="color:#c0392b;">★</span>强力搜索格子，返回 [{x,y,piece}]</div>
           <div class="api-tag"><b>Effect.getJson(id)</b> — <span style="color:#c0392b;">★</span>获取武将/小兵定义（深拷贝）</div>
@@ -5856,6 +5859,10 @@ Effect.fx.clearFx('myZone');</code></pre>
       { sig: "blockMode: 'half'", desc: '★ 半阻断：拓展到这一格结束，包含这一格（可达，但不可继续穿过）', isNew: true, insert: "blockMode: 'half'" },
       { sig: "blockMode: 'none'", desc: '★ 不阻断：正常拓展全部路径（路径穿过此格，此格本身可达）', isNew: true, insert: "blockMode: 'none'" },
       { sig: 'blockFilter(x, y, piece, terrain)', desc: '★ 条件阻断过滤器：返回 \'full\'/\'half\'/\'none\' 覆盖默认；返回 false 显式不阻断；返回 undefined 回退默认', isNew: true, insert: 'blockFilter: function(x, y, piece, terrain) {\n  if (terrain) return \'full\';\n  if (!piece) return \'none\';\n  return \'half\';\n}' },
+      { group: '★ 阻断模式临时覆盖（配合 Effect.choose 等内部调用）' },
+      { sig: 'Range.setBlockOverride(obj) / Effect.setBlockOverride(obj)', desc: '★ 临时设置全局阻断覆盖，一行修改所有Effect内部Range调用默认模式。obj: {blockMode, passThrough, blockFilter, pieceBlockMode, terrainBlockMode, terrainFn}', isNew: true, insert: "Effect.setBlockOverride({ blockMode: 'none' });\n// 之后所有 chooseEnemy / chooseCell 等穿透障碍\nEffect.resetBlockOverride();" },
+      { sig: 'Range.resetBlockOverride() / Effect.resetBlockOverride()', desc: '★ 立即恢复阻断默认逻辑（取消覆盖）', isNew: true, insert: 'Effect.resetBlockOverride();' },
+      { sig: 'Range.withBlockOverride(obj, fn) / Effect.withBlockOverride(obj, fn)', desc: '★ 作用域化：回调内生效，回调结束/抛错/await 后自动恢复。可 await', isNew: true, insert: "return Effect.withBlockOverride({ blockMode: 'none' }, async () => {\n  const target = await Effect.chooseEnemy(actor, {\n    range: { shape: '+', n: 4 },\n    hintText: '穿甲箭：请选择敌人'\n  });\n  if (!target) return false;\n  actor.skilled = true;\n  Effect.damage(actor, target, Effect.getEffectiveAttack(actor), { ignoreDef: true });\n  return true;\n});" },
       { group: '★ 强力搜索' },
       { sig: 'Effect.searchPiece(range, filter, opts)', desc: '★ 强力搜索棋子，返回符合条件数组。range={shape,n,center} 或 null(全棋盘)；filter={side,hp:[min,max],atk:[],def:[],type:\'武将\'|\'小兵\',alive,name,minionId,rarity,custom}', isNew: true, insert: 'var enemies = Effect.searchPiece(\n  { shape: \'r\', n: 3, center: { x: actor.x, y: actor.y } },\n  { side: \'enemy\', hp: [0, 100], type: \'小兵\' },\n  { actor: actor }\n);\nenemies.forEach(function(t){ Effect.damage(actor, t, 40, { ignoreDef: true }); });' },
       { sig: 'Effect.searchCell(range, filter)', desc: '★ 强力搜索格子，返回 [{x,y,piece}]。filter={empty,occupied,ownHalf,terrain,piece(棋子过滤),custom}', isNew: true, insert: 'var cells = Effect.searchCell(\n  { shape: \'square\', n: 3, center: { x: actor.x, y: actor.y } },\n  { empty: true }\n);\nif (cells.length) Effect.changeTerrain(cells[0].x, cells[0].y, \'m\');' },
