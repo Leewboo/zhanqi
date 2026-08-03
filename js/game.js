@@ -2481,13 +2481,14 @@
         const sk = skillList.find(s => s.id === this.pendingSkillId);
         if (sk && sk.preview) {
           let previewCells;
-          if (sk.preview.passThrough) {
-            previewCells = Range.cellsInRange(
-              sk.preview.shape, sk.preview.n, a.x, a.y, { includeSelf: true });
-          } else {
+          // 范围预览默认为不阻断；只有显式 passThrough === false 才启用阻断
+          if (sk.preview.passThrough === false) {
             previewCells = Range.cellsInRangeWithBlock(
               sk.preview.shape, sk.preview.n, a.x, a.y,
               { pieceAt: (x, y) => this.pieceAt(x, y) });
+          } else {
+            previewCells = Range.cellsInRange(
+              sk.preview.shape, sk.preview.n, a.x, a.y, { includeSelf: true });
           }
           activeHighlight = previewCells.map(c => ({ x: c.x, y: c.y, kind: 'skill' }));
         }
@@ -4066,9 +4067,11 @@
         return count;
       }
       const side = actor.side;
+      // 范围预览默认为不阻断；只有显式 passThrough === false 才启用阻断
+      const pt = skill.preview.passThrough === false ? false : true;
       const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
-        passThrough: skill.preview.passThrough
+        passThrough: pt
       });
       let count = 0;
       for (const c of cells) {
@@ -4090,9 +4093,11 @@
         return count;
       }
       const side = actor.side;
+      // 范围预览默认为不阻断；只有显式 passThrough === false 才启用阻断
+      const pt = skill.preview.passThrough === false ? false : true;
       const cells = Range.cellsInRangeWithBlock(skill.preview.shape, skill.preview.n, actor.x, actor.y, {
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; },
-        passThrough: skill.preview.passThrough
+        passThrough: pt
       });
       let count = 0;
       for (const c of cells) {

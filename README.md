@@ -203,7 +203,7 @@ const cells = Range.cellsInRangeWithBlock('+', 4, actor.x, actor.y, {
 - **属性面板**：ID、名称、HP/ATK/DEF、移动/攻击范围（形状+半径）、立绘上传、语音设置
 - **技能管理**：添加/删除技能，支持主动/被动/触发技，技能可独立设置音效
 - **代码编辑器**：全屏代码编辑，支持 API 侧栏速查、代码片段插入
-- **范围预览**：技能可设置 `preview`（预览范围形状）和 `passThrough`（是否穿墙预览）
+- **范围预览**：技能可设置 `preview`（预览范围形状）和 `passThrough`（**默认 `true`** 不阻断，显式 `false` 才启用棋子/地形阻断）
 - **手机适配**：编辑器 UI 自适应手机屏幕
 
 ### 立绘与语音
@@ -275,7 +275,7 @@ my-project.zip
   preview: {              // 技能范围预览（可选）
     shape: '+',           // 形状：+, x, r, square
     n: 4,                 // 半径
-    passThrough: false    // 是否穿墙预览（true 不被阻断）
+    passThrough: true     // 是否穿墙预览（默认 true：不阻断；显式 false 才启用棋子/山地阻断）
   },
   sound: {                // 音效（可选）
     cast: 'skill_cast.mp3',

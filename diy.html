@@ -4779,7 +4779,8 @@ Effect.fx.clearFx('myZone');</code></pre>
         d.preview = {
           shape: pvShape.value,
           n: parseInt(pvN.value, 10) || 3,
-          passThrough: pvPass && pvPass.value === '1'
+          // 默认为不阻断：只有显式选 0 才设为 false，选 1 或未设置（新建时默认）都为 true（不阻断）
+        passThrough: pvPass ? (pvPass.value === '0' ? false : true) : true
         };
       } else {
         d.preview = null;
@@ -4909,9 +4910,10 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '</select>';
       html += '<input type="number" id="fs-attr-pv-n" value="' + ((d.preview && d.preview.n) || 3) + '">';
       html += '</div>';
-      html += '<div class="form-row" style="margin-top:8px;"><label style="font-size:12px;">穿墙预览</label><select id="fs-attr-pv-pass">';
-      html += '<option value="0"' + (!(d.preview && d.preview.passThrough) ? ' selected' : '') + '>否（被棋子阻断）</option>';
-      html += '<option value="1"' + ((d.preview && d.preview.passThrough) ? ' selected' : '') + '>是（无视阻挡）</option>';
+      html += '<div class="form-row" style="margin-top:8px;"><label style="font-size:12px;">穿墙预览（默认不阻断）</label><select id="fs-attr-pv-pass">';
+      // 默认为不阻断（是）；只有显式 passThrough === false 才选「否」
+      html += '<option value="1"' + (!(d.preview && d.preview.passThrough === false) ? ' selected' : '') + '>是（无视阻挡，默认）</option>';
+      html += '<option value="0"' + ((d.preview && d.preview.passThrough === false) ? ' selected' : '') + '>否（被棋子阻断）</option>';
       html += '</select></div>';
     }
 
@@ -5195,7 +5197,8 @@ Effect.fx.clearFx('myZone');</code></pre>
           skill.preview = {
             shape: pvShapeEl.value,
             n: parseInt(pvNEl.value, 10) || 1,
-            passThrough: pvPassEl && pvPassEl.value === '1'
+            // 默认为不阻断：只有显式选 0 才设为 false
+            passThrough: pvPassEl ? (pvPassEl.value === '0' ? false : true) : true
           };
         } else {
           skill.preview = null;
@@ -5325,9 +5328,10 @@ Effect.fx.clearFx('myZone');</code></pre>
               '<input type="number" id="fs-skill-pv-n" value="' + ((skill.preview && skill.preview.n) || 3) + '">' +
             '</div>' +
           '</div>' +
-          '<div class="form-row" style="margin-top:6px;"><label style="font-size:12px;">穿墙预览</label><select id="fs-skill-pv-pass">' +
-            '<option value="0"' + (!(skill.preview && skill.preview.passThrough) ? ' selected' : '') + '>否（被棋子阻断）</option>' +
-            '<option value="1"' + ((skill.preview && skill.preview.passThrough) ? ' selected' : '') + '>是（无视阻挡）</option>' +
+          '<div class="form-row" style="margin-top:6px;"><label style="font-size:12px;">穿墙预览（默认不阻断）</label><select id="fs-skill-pv-pass">' +
+            // 默认为不阻断（是）；只有显式 passThrough === false 才选「否」
+            '<option value="1"' + (!(skill.preview && skill.preview.passThrough === false) ? ' selected' : '') + '>是（无视阻挡，默认）</option>' +
+            '<option value="0"' + ((skill.preview && skill.preview.passThrough === false) ? ' selected' : '') + '>否（被棋子阻断）</option>' +
           '</select></div>' +
           '<div class="form-row" style="margin-top:14px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">音效设置</label></div>' +
           '<div class="fs-attr-grid">' +
