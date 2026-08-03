@@ -110,6 +110,14 @@
   function reachableCells(originX, originY, maxSteps, game, shape, options) {
     shape = shape || '+';
     options = options || {};
+    // 全局临时覆盖：Range.blockOverride = { pieceBlockMode, terrainBlockMode, blockFilter }
+    // 一行设置后所有 Effect 内部移动范围计算自动套用，设 null 即恢复
+    const OV = global.Range && global.Range.blockOverride;
+    if (OV) {
+      if (OV.pieceBlockMode  !== undefined) options.pieceBlockMode  = OV.pieceBlockMode;
+      if (OV.terrainBlockMode!== undefined) options.terrainBlockMode= OV.terrainBlockMode;
+      if (OV.blockFilter     !== undefined) options.blockFilter     = OV.blockFilter;
+    }
     // 方形/圆形/斜角需要 8 方向才能走对角
     const dirs = (shape === 'square' || shape === 'r' || shape === 'x')
       ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
@@ -262,6 +270,15 @@
     // ============================================================
     cellsInRangeWithBlock(shape, n, originX, originY, options) {
       options = options || {};
+      // 全局临时覆盖：Range.blockOverride = { blockMode, passThrough, blockFilter, terrainFn }
+      // 一行设置后所有 Effect 内部范围计算（chooseEnemy/AI评估等）自动套用，设 null 即恢复
+      const OV = global.Range && global.Range.blockOverride;
+      if (OV) {
+        if (OV.blockMode   !== undefined) options.blockMode    = OV.blockMode;
+        if (OV.passThrough !== undefined) options.passThrough  = OV.passThrough;
+        if (OV.blockFilter !== undefined) options.blockFilter  = OV.blockFilter;
+        if (OV.terrainFn   !== undefined) options.terrainFn    = OV.terrainFn;
+      }
       const raw = cellsInRange(shape, n, originX, originY, { includeSelf: false });
       const pieceAt = options.pieceAt;
 
