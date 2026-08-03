@@ -1811,13 +1811,11 @@
           return;
         }
         const atkRange = Effect.getEffectiveAttackRange(actor);
+        // 不传 terrainFn（默认读 Game.terrain 代码字符串），正确识别 mt/r 阻断
         const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
           pieceAt: (x, y) => {
             const p = this.pieceAt(x, y);
             return p && p.alive ? p : null;
-          },
-          terrainFn: (x, y) => {
-            return this.terrain && this.terrain[y] && this.terrain[y][x] === 'mt';
           }
         });
         for (const c of cells) {
@@ -4526,7 +4524,8 @@
     _executeAttack(actor, target) {
       if (actor.side !== this.currentSide || actor.attacked) return false;
       if (!target || !target.alive) return false;
-      const cells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, actor.x, actor.y, {
+      const effRange = Effect.getEffectiveAttackRange(actor);
+      const cells = Range.cellsInRangeWithBlock(effRange.shape, effRange.n, actor.x, actor.y, {
         pieceAt: (px, py) => {
           const p = this.pieceAt(px, py);
           if (!p || !p.alive) return null;

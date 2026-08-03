@@ -71,8 +71,10 @@
       : (terrain === true ? (_terrainAt(x, y) || 'block') : null);
     if (tCode === 'mt' || tCode === 'r') return 'half';
 
-    // 棋子：敌方和友方都是全阻断（占位，不能走上去也不能穿过去）
-    if (piece) return 'full';
+    // 棋子默认是半阻断：
+    //   - 攻击/视线：目标格可达（half=包含此格），但中间的棋子挡住后面的
+    //   - 移动：reachableCells 内会额外强制棋子为全阻断（不能踩上去）
+    if (piece) return 'half';
     return 'none';
   }
 
@@ -198,24 +200,42 @@
     };
 
     // 计算格子的阻断模式（优先级：blockFilter > blockOverride.blockMode/passThrough > 默认规则 > 兜底）
+    // ★ 移动范围特殊：棋子占位一律 full 全阻断（不能踩到棋子身上）
     function getMode(x, y) {
       const piece = pieceAt(x, y);
       const tCode = terrainCodeFn(x, y);
 
       if (typeof blockFilter === 'function') {
         const r = blockFilter(x, y, piece, tCode);
-        if (r === 'full' || r === 'half' || r === 'none') return r;
-        if (r === false) return 'none';
+        if (r === 'full' || r === 'half' || r === 'none') {
+          // 移动范围：如果有棋子，除非 blockFilter 明确不是 full，否则强制 full
+          if (piece && r !== 'none' && r !== 'half') return 'full';
+          return r;
+        }
+        if (r === false) {
+          // 显式不阻断：棋子仍不能踩
+          if (piece) return 'full';
+          return 'none';
+        }
       }
 
-      // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
-      if (ovForceBlockMode !== null) return ovForceBlockMode;
+      // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（除了移动不能踩棋子）
+      if (ovForceBlockMode !== null) {
+        if (piece && ovForceBlockMode === 'none') {
+          // 就算是穿透模式，移动范围也不能踩棋子
+          if (options.pieceBlockMode === 'none') return 'none'; // 只有显式指定才允许
+          return 'full';
+        }
+        return ovForceBlockMode;
+      }
 
-      const dm = defaultBlockFor(x, y, piece, tCode);
+      // ★ 移动范围：任何棋子 → full（不能走上去），除非常量 pieceBlockMode 被显式改掉
+      if (piece) return options.pieceBlockMode || 'full';
+
+      const dm = defaultBlockFor(x, y, null, tCode);
       if (dm) return dm;
 
       // 兼容兜底
-      if (piece) return options.pieceBlockMode || 'full';
       if (tCode === 'mt' || tCode === 'r') return options.terrainBlockMode || 'half';
       return 'none';
     }
@@ -370,17 +390,22 @@
       const OV = global.Range && global.Range.blockOverride;
       let ovForceBlockMode = null;
       if (OV) {
-        if (OV.blockMode    !== undefined) options.blockMode     = OV.blockMode;
-        if (OV.passThrough  !== undefined) options.passThrough   = OV.passThrough;
         if (OV.blockFilter  !== undefined) options.blockFilter   = OV.blockFilter;
         if (OV.terrainFn    !== undefined) options.terrainFn     = OV.terrainFn;
         if (OV.actorSide    !== undefined) options.actorSide     = OV.actorSide;
-        // ★ setBlockOverride 的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+        // ★ setBlockOverride 的 blockMode / passThrough 优先级高于一切（包括调用参数里的）
         if (OV.passThrough === true) ovForceBlockMode = 'none';
         else if (OV.blockMode !== undefined) ovForceBlockMode = OV.blockMode;
       }
+      // ★ 调用级 passThrough/blockMode（来自技能声明）：优先级仅次于全局 OV，高于地形/棋子默认
+      //   例：技能里写 range: {shape:'cross', n:4, passThrough:true}  → 穿透所有
       const raw = cellsInRange(shape, n, originX, originY, { includeSelf: false });
       const pieceAt = options.pieceAt;
+      let callForceBlockMode = null;
+      if (ovForceBlockMode === null) {
+        if (options.passThrough === true) callForceBlockMode = 'none';
+        else if (options.blockMode !== undefined) callForceBlockMode = options.blockMode;
+      }
 
       // 地形代码函数（返回 'mt'/'r'/'plain'/... 字符串，老函数返回 bool 时也兼容）
       const userTerrainFn = options.terrainFn;
@@ -391,8 +416,8 @@
         return null;
       } : function (x, y) { return _terrainAt(x, y) || 'plain'; };
 
-      // options 里的 passThrough/blockMode：只作为兜底（优先级低于 OV 和默认规则）
-      let actualDefaultMode = options.passThrough ? 'none' : (options.blockMode || 'half');
+      // 兜底模式（piece/terrain 都没命中时）：只有当没有任何 override 的情况下才用 half 兜底
+      let actualDefaultMode = (ovForceBlockMode !== null || callForceBlockMode !== null) ? 'none' : 'half';
 
       // 推断发起方阵营（actorSide > origin 棋子 > Game.currentSide）
       let actorSide = options.actorSide;
@@ -405,7 +430,7 @@
       const blockFilter = options.blockFilter;
       const mergedFilter = (blockFilter && typeof blockFilter === 'function') ? blockFilter : null;
 
-      // 优先级：blockFilter > blockOverride.blockMode/passThrough > defaultBlockFor > actualDefaultMode
+      // 优先级：blockFilter > OV.blockMode/passThrough > 调用级 passThrough/blockMode > defaultBlockFor > actualDefaultMode
       function resolveEx(x, y) {
         const piece = pieceAt ? pieceAt(x, y) : null;
         let tVal = terrainFn(x, y);
@@ -417,8 +442,10 @@
           if (r === 'full' || r === 'half' || r === 'none') return r;
           if (r === false) return 'none';
         }
-        // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+        // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（地形、棋子默认 + 调用级）
         if (ovForceBlockMode !== null) return ovForceBlockMode;
+        // ★ 调用级 passThrough / blockMode（来自技能声明）：高于地形/棋子默认规则
+        if (callForceBlockMode !== null) return callForceBlockMode;
 
         const dm = defaultBlockFor(x, y, piece, tCode, actorSide);
         if (dm) return dm;
