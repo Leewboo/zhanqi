@@ -2475,16 +2475,25 @@
         const skillList = a.skills || (a.skill ? [a.skill] : []);
         const sk = skillList.find(s => s.id === this.pendingSkillId);
         if (sk && sk.preview) {
-          let previewCells;
-          // 范围预览默认为不阻断；只有显式 passThrough === false 才启用阻断
-          if (sk.preview.passThrough === false) {
-            previewCells = Range.cellsInRangeWithBlock(
-              sk.preview.shape, sk.preview.n, a.x, a.y,
-              { pieceAt: (x, y) => this.pieceAt(x, y) });
-          } else {
-            previewCells = Range.cellsInRange(
-              sk.preview.shape, sk.preview.n, a.x, a.y, { includeSelf: true });
-          }
+          const pv = sk.preview;
+          // ★ 统一使用 cellsInRangeWithBlock，正确支持 preview.passThrough / blockMode / blockFilter / terrainFn
+          //   默认行为：不阻断（与旧逻辑一致）；只有显式写passThrough:false才走阻断
+          var pt = (pv.passThrough === false) ? false : true;
+          var previewCells = Range.cellsInRangeWithBlock(
+            pv.shape, pv.n, a.x, a.y, {
+              pieceAt: (x, y) => {
+                const p = this.pieceAt(x, y);
+                if (!p || !p.alive) return null;
+                if (pt) return null;
+                return p;
+              },
+              includeSelf: true,
+              passThrough: pt,
+              blockMode:   pv.blockMode,
+              blockFilter: pv.blockFilter || null,
+              terrainFn:   pv.terrainFn || null
+            }
+          );
           activeHighlight = previewCells.map(c => ({ x: c.x, y: c.y, kind: 'skill' }));
         }
       }
