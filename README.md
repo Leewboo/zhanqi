@@ -479,17 +479,23 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | 函数 | 说明 |
 |------|------|
 | `Effect.mark(actor, name, opts)` | 添加标记 |
+| `Effect.addMark(actor, name, turns, opts)` | 添加带回合的标记（到时自动移除） |
 | `Effect.unmark(actor, name)` | 移除标记 |
+| `Effect.removeMark(actor, name)` | 移除标记（`unmark` 别名） |
 | `Effect.unmarkAll(actor)` | 移除所有标记 |
 | `Effect.hasMark(actor, name)` | 是否有某标记 |
 | `Effect.getMarkData(actor, name)` | 获取标记数据 |
 | `Effect.getMarksOn(actor)` | 获取所有标记 |
 | `Effect.detonate(target, markName, callback)` | 引爆标记 |
+| `Effect.addBuff(actor, target, buff)` | 添加 buff 对象到目标 |
+| `Effect.consumeBuff(actor, buffName)` | 消耗指定 buff（返回是否成功） |
+| `Effect.isUntargetable(piece)` | 检查是否隐身不可被选为目标 |
 
 ### 小兵系统
 | 函数 | 说明 |
 |------|------|
 | `Effect.drawCard(side, count)` | 抽小兵卡到手牌 |
+| `Effect.drawSpecificCard(cardId, side)` | 从卡池抽指定 id 的小兵卡到手牌 |
 | `Effect.removeCard(side, target)` | 弃置手牌 |
 | `Effect.addDeployPoint(side, amount)` | 增减部署点 |
 | `Effect.deployMinion(card, x, y, opts)` | 部署小兵 |
@@ -497,6 +503,10 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | `Effect.canDeployMinion(actor, x, y)` | 检查能否部署 |
 | `Effect.getAvailableMinions()` | 获取可用小兵模板 |
 | `Effect.getMinionCount(actor)` | 获取己方小兵数量 |
+| `Effect.getHand(side)` | 获取某方当前手牌数组 |
+| `Effect.findCard(side, filter)` | 按过滤函数查找手牌中的卡（返回首个） |
+| `Effect.getDeckCount(side)` | 获取某方卡池剩余数量 |
+| `Effect.addCard(card, side)` | 向某方卡池添加一张小兵卡 |
 | `Game.minionHand[side]` | 直接访问某方手牌 |
 | `Game.minionPoints[side]` | 直接访问某方部署点 |
 
@@ -522,9 +532,25 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | `Effect.changeTerrain(x, y, type)` | 改变格子地形 |
 | `Effect.random(min, max)` | 随机整数 |
 | `Effect.chance(p)` | 概率判定 |
+| `Effect.drawAoe(shape, n, ox, oy, opts)` | 绘制 AOE 范围预览（视觉提示，不影响逻辑） |
 | `Game.log(text)` | 写入战斗日志 |
 | `Effect.aiContext()` | 查询当前AI上下文 |
 | `Effect.currentAiSkill()` | 获取AI正在执行的技能 |
+
+### 事件系统
+| 函数 | 说明 |
+|------|------|
+| `Effect.on(eventName, cb)` | 注册全局事件监听，返回 cb 本身 |
+| `Effect.off(eventName, cb)` | 移除已注册的事件监听 |
+| `Effect.trigger(eventName, context)` | 触发全局事件，context 传给回调 |
+| `Effect.triggerPassive(actor, eventName, context)` | 触发某棋子的被动技能 |
+
+### 音频
+| 函数 | 说明 |
+|------|------|
+| `Effect.playPieceVoice(piece, eventKey)` | 播放棋子事件语音（select/move/attack/hurt/death/kill/victory） |
+| `Effect.playSkillCastSound(actor, skill)` | 播放技能释放音效（cast + 武将技能语音） |
+| `Effect.playSkillHitSound(skill)` | 播放技能命中音效 |
 
 ---
 

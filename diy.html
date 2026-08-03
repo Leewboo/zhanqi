@@ -2949,6 +2949,16 @@ async function content(actor) {
           <div class="api-tag"><b>Effect.hasMark(target, name)</b> — 是否有某标记</div>
           <div class="api-tag"><b>Effect.getMarkData(target, name)</b> — <span style="color:#c0392b;">★</span>获取标记数据</div>
           <div class="api-tag"><b>Effect.getMarksOn(target)</b> — <span style="color:#c0392b;">★</span>获取所有标记数组</div>
+          <div class="api-tag"><b>Effect.addMark(actor, name, turns, opts)</b> — <span style="color:#c0392b;">★</span>加带回合的标记（到时自动移除）</div>
+          <div class="api-tag"><b>Effect.removeMark(actor, name)</b> — <span style="color:#c0392b;">★</span>移除标记（unmark 别名）</div>
+          <div class="api-tag"><b>Effect.detonate(target, markName, cb)</b> — <span style="color:#c0392b;">★</span>引爆标记并回调</div>
+          <div class="api-tag"><b>Effect.undying(target, stacks)</b> — <span style="color:#c0392b;">★</span>不屈，致命伤锁1血</div>
+          <div class="api-tag"><b>Effect.revive(target, turns, ratio)</b> — <span style="color:#c0392b;">★</span>复活，死后延迟回合以比例血量复活</div>
+          <div class="api-tag"><b>Effect.stealth(target, turns)</b> — <span style="color:#c0392b;">★</span>隐身，无法被选为目标</div>
+          <div class="api-tag"><b>Effect.isUntargetable(piece)</b> — <span style="color:#c0392b;">★</span>检查是否隐身不可选</div>
+          <div class="api-tag"><b>Effect.linkDamage(allyA, allyB, turns, ratio)</b> — <span style="color:#c0392b;">★</span>伤害分摊</div>
+          <div class="api-tag"><b>Effect.addBuff(actor, target, buff)</b> — <span style="color:#c0392b;">★</span>添加 buff 对象到目标</div>
+          <div class="api-tag"><b>Effect.consumeBuff(actor, buffName)</b> — <span style="color:#c0392b;">★</span>消耗指定 buff（返回是否成功）</div>
           <div class="api-tag"><b>Effect.modifyMoveRange(target, delta, turns)</b> — 增减移动力</div>
         </div>
       </div>
@@ -3133,6 +3143,26 @@ Effect.gainTmpSkill(actor, 'skillId', { expiresAtTurn: 5 });  // 第5回合消�
           <div class="api-tag"><b>Effect.getMinionCount(actor)</b> — <span style="color:#c0392b;">★</span>获取己方已部署小兵数量</div>
           <div class="api-tag"><b>Effect.removeCard(side, target)</b> — <span style="color:#c0392b;">★</span>弃置手牌中一张小兵卡</div>
           <div class="api-tag"><b>Effect.addDeployPoint(side, amount)</b> — <span style="color:#c0392b;">★</span>增减部署点（可为负）</div>
+          <div class="api-tag"><b>Effect.getHand(side)</b> — <span style="color:#c0392b;">★</span>获取某方当前手牌数组</div>
+          <div class="api-tag"><b>Effect.findCard(side, filter)</b> — <span style="color:#c0392b;">★</span>按过滤函数查找手牌中的卡（返回首个）</div>
+          <div class="api-tag"><b>Effect.getDeckCount(side)</b> — <span style="color:#c0392b;">★</span>获取某方卡池剩余数量</div>
+          <div class="api-tag"><b>Effect.addCard(card, side)</b> — <span style="color:#c0392b;">★</span>向某方卡池添加一张小兵卡</div>
+          <div class="api-tag"><b>Effect.drawSpecificCard(cardId, side)</b> — <span style="color:#c0392b;">★</span>从卡池抽指定 id 的小兵卡到手牌</div>
+          <div class="api-tag"><b>Effect.drawAoe(shape, n, ox, oy, opts)</b> — <span style="color:#c0392b;">★</span>绘制 AOE 范围预览（视觉提示，不影响逻辑）</div>
+        </div>
+      </div>
+    </div>
+    <div class="collapsible">
+      <div class="collapsible-head">▶ API 速查（事件系统 & 音频）<span class="arrow">›</span></div>
+      <div class="collapsible-body">
+        <div class="api-tag-row">
+          <div class="api-tag"><b>Effect.on(eventName, cb)</b> — <span style="color:#c0392b;">★</span>注册全局事件监听，返回 cb 本身</div>
+          <div class="api-tag"><b>Effect.off(eventName, cb)</b> — <span style="color:#c0392b;">★</span>移除已注册的事件监听</div>
+          <div class="api-tag"><b>Effect.trigger(eventName, context)</b> — <span style="color:#c0392b;">★</span>触发全局事件，context 传给回调</div>
+          <div class="api-tag"><b>Effect.triggerPassive(actor, eventName, context)</b> — <span style="color:#c0392b;">★</span>触发某棋子的被动技能</div>
+          <div class="api-tag"><b>Effect.playPieceVoice(piece, eventKey)</b> — <span style="color:#c0392b;">★</span>播放棋子事件语音（select/move/attack/hurt/death/kill/victory）</div>
+          <div class="api-tag"><b>Effect.playSkillCastSound(actor, skill)</b> — <span style="color:#c0392b;">★</span>播放技能释放音效（cast + 武将技能语音）</div>
+          <div class="api-tag"><b>Effect.playSkillHitSound(skill)</b> — <span style="color:#c0392b;">★</span>播放技能命中音效</div>
         </div>
       </div>
     </div>
