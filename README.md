@@ -610,19 +610,21 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 
 > 阻断模式语义详见 [范围阻断（Block Mode）](#范围阻断block-mode)。
 
-### 阻断模式临时覆盖（一行改全局默认）
+### 阻断模式临时覆盖（一行改全局，优先级最高）
 | 函数 | 说明 |
 |------|------|
-| `Range.setBlockOverride(obj)` / `Effect.setBlockOverride(obj)` | 临时覆盖默认阻断模式。obj 可选字段：`blockMode` / `passThrough` / `blockFilter` / `pieceBlockMode` / `terrainBlockMode` / `terrainFn` |
-| `Range.resetBlockOverride()` / `Effect.resetBlockOverride()` | 立即恢复默认阻断逻辑（取消覆盖）|
+| `Range.setBlockOverride(obj)` / `Effect.setBlockOverride(obj)` | **临时覆盖，优先级高于一切**（山地、河流、棋子默认规则全部失效）。最常用：`{ blockMode: 'none' }` 全穿透；`{ blockMode: 'full' }` 全挡；`{ blockMode: 'half' }` 半挡；也支持 `{ blockFilter: fn }` 做条件覆盖 |
+| `Range.resetBlockOverride()` / `Effect.resetBlockOverride()` | 立即恢复默认阻断逻辑（取消覆盖，地形/棋子默认重新生效）|
 | `Range.withBlockOverride(obj, fn)` / `Effect.withBlockOverride(obj, fn)` | **推荐**：作用域化，回调内生效，回调结束 / 抛错 / await 后自动恢复。返回 Promise，可 `await` |
 
-**示例 1：手动 set / reset**
+> **优先级（从高到低）**：`blockFilter`（本次调用传入或override里的）→ `blockOverride.blockMode/passThrough` → 地形/棋子默认规则（mt=half, r=half, 棋子=full）→ `options.blockMode` 兜底
+
+**示例 1：一行让技能彻底无视山/河/敌人（全穿透）**
 
 ```javascript
-Effect.setBlockOverride({ blockMode: 'none' });   // 一行：穿透
+Effect.setBlockOverride({ blockMode: 'none' });
 const target = await Effect.chooseEnemy(actor, { range: { shape: '+', n: 4 } });
-Effect.resetBlockOverride();                       // 用完恢复
+Effect.resetBlockOverride();   // 用完立刻恢复默认
 ```
 
 **示例 2：作用域化（自动恢复，不会乱套）**
@@ -631,7 +633,7 @@ Effect.resetBlockOverride();                       // 用完恢复
 return Effect.withBlockOverride({ blockMode: 'none' }, async () => {
   const target = await Effect.chooseEnemy(actor, {
     range: { shape: '+', n: 4 },
-    hintText: '穿甲箭：请选择敌人'
+    hintText: '穿甲箭：请选择敌人（无视一切阻挡）'
   });
   if (!target) return false;
   actor.skilled = true;

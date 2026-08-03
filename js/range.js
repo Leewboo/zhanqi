@@ -92,7 +92,14 @@
       const r = blockFilter(x, y, piece, terrainCode || terrain);
       if (r === 'full' || r === 'half' || r === 'none') return r;
       if (r === false) return 'none';
-      // undefined/null → 回退到默认
+      // undefined/null → 回退
+    }
+
+    // ★ setBlockOverride 的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+    const OV = global.Range && global.Range.blockOverride;
+    if (OV) {
+      if (OV.passThrough === true) return 'none';
+      if (OV.blockMode !== undefined) return OV.blockMode;
     }
 
     // 新默认规则
@@ -164,12 +171,16 @@
   function reachableCells(originX, originY, maxSteps, game, shape, options) {
     shape = shape || '+';
     options = options || {};
-    // 全局临时覆盖
+    // 全局临时覆盖（优先级最高，覆盖一切默认规则）
     const OV = global.Range && global.Range.blockOverride;
+    // OV 里的 blockMode / passThrough：如果存在 → 优先级高于 defaultBlockFor（地形 + 棋子默认）
+    let ovForceBlockMode = null;
     if (OV) {
       if (OV.blockFilter     !== undefined) options.blockFilter     = OV.blockFilter;
       if (OV.pieceBlockMode  !== undefined) options.pieceBlockMode  = OV.pieceBlockMode;
       if (OV.terrainBlockMode!== undefined) options.terrainBlockMode= OV.terrainBlockMode;
+      if (OV.passThrough === true) ovForceBlockMode = 'none';
+      else if (OV.blockMode !== undefined) ovForceBlockMode = OV.blockMode;
     }
     // 方形/圆形/斜角需要 8 方向才能走对角
     const dirs = (shape === 'square' || shape === 'r' || shape === 'x')
@@ -186,7 +197,7 @@
       return 'plain';
     };
 
-    // 计算格子的阻断模式（用新的统一默认规则）
+    // 计算格子的阻断模式（优先级：blockFilter > blockOverride.blockMode/passThrough > 默认规则 > 兜底）
     function getMode(x, y) {
       const piece = pieceAt(x, y);
       const tCode = terrainCodeFn(x, y);
@@ -196,6 +207,9 @@
         if (r === 'full' || r === 'half' || r === 'none') return r;
         if (r === false) return 'none';
       }
+
+      // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+      if (ovForceBlockMode !== null) return ovForceBlockMode;
 
       const dm = defaultBlockFor(x, y, piece, tCode);
       if (dm) return dm;
@@ -352,14 +366,18 @@
     // ============================================================
     cellsInRangeWithBlock(shape, n, originX, originY, options) {
       options = options || {};
-      // 全局临时覆盖
+      // 全局临时覆盖（优先级最高，覆盖一切默认规则）
       const OV = global.Range && global.Range.blockOverride;
+      let ovForceBlockMode = null;
       if (OV) {
         if (OV.blockMode    !== undefined) options.blockMode     = OV.blockMode;
         if (OV.passThrough  !== undefined) options.passThrough   = OV.passThrough;
         if (OV.blockFilter  !== undefined) options.blockFilter   = OV.blockFilter;
         if (OV.terrainFn    !== undefined) options.terrainFn     = OV.terrainFn;
         if (OV.actorSide    !== undefined) options.actorSide     = OV.actorSide;
+        // ★ setBlockOverride 的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+        if (OV.passThrough === true) ovForceBlockMode = 'none';
+        else if (OV.blockMode !== undefined) ovForceBlockMode = OV.blockMode;
       }
       const raw = cellsInRange(shape, n, originX, originY, { includeSelf: false });
       const pieceAt = options.pieceAt;
@@ -373,7 +391,7 @@
         return null;
       } : function (x, y) { return _terrainAt(x, y) || 'plain'; };
 
-      // passThrough=true → 全穿透（跳过默认规则，统一 none）
+      // options 里的 passThrough/blockMode：只作为兜底（优先级低于 OV 和默认规则）
       let actualDefaultMode = options.passThrough ? 'none' : (options.blockMode || 'half');
 
       // 推断发起方阵营（actorSide > origin 棋子 > Game.currentSide）
@@ -385,11 +403,9 @@
       if (!actorSide) actorSide = _currentSide();
 
       const blockFilter = options.blockFilter;
-      // 如果没有 blockFilter，包装一层默认规则（用 resolveBlockMode 内部的统一默认）
       const mergedFilter = (blockFilter && typeof blockFilter === 'function') ? blockFilter : null;
 
-      // lineBlockedEx 调用 resolveBlockMode，它已经走新默认规则，
-      // 但我们要把 actorSide 传进去 → 通过闭包重写一次 resolve
+      // 优先级：blockFilter > blockOverride.blockMode/passThrough > defaultBlockFor > actualDefaultMode
       function resolveEx(x, y) {
         const piece = pieceAt ? pieceAt(x, y) : null;
         let tVal = terrainFn(x, y);
@@ -401,6 +417,9 @@
           if (r === 'full' || r === 'half' || r === 'none') return r;
           if (r === false) return 'none';
         }
+        // ★ setBlockOverride 设置的 blockMode / passThrough 优先级高于一切（地形、棋子默认）
+        if (ovForceBlockMode !== null) return ovForceBlockMode;
+
         const dm = defaultBlockFor(x, y, piece, tCode, actorSide);
         if (dm) return dm;
         return (piece || (tVal && tVal !== false)) ? actualDefaultMode : 'none';
