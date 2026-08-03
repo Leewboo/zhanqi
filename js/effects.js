@@ -2746,7 +2746,7 @@
     },
 
     // 加/减部署点：为指定方调整部署点数
-    // amount 为正则增加，为负则扣除（不低于 0）
+    // amount 为正则增加，为负则扣除（范围 [0, 15]）
     // 返回调整后的部署点数
     addDeployPoint(side, amount) {
       const g = global.Game;
@@ -2754,12 +2754,42 @@
       side = side || g.currentSide;
       amount = parseInt(amount) || 0;
       const cur = g.minionPoints[side] || 0;
-      g.minionPoints[side] = Math.max(0, cur + amount);
+      const MAX = global.Game && global.Game.MINION_MAX_POINTS ? global.Game.MINION_MAX_POINTS : 15;
+      g.minionPoints[side] = Math.max(0, Math.min(MAX, cur + amount));
       if (g._renderMinionPanel) g._renderMinionPanel();
       if (g.log && amount !== 0) {
         g.log((side === 'red' ? '红方' : '蓝方') + ' 部署点 ' + (amount > 0 ? '+' : '') + amount + '（当前 ' + g.minionPoints[side] + '）。', 'turn');
       }
       return g.minionPoints[side];
+    },
+
+    // 设置部署点为指定值（夹在 [0, 15] 之间）
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // amount: 要设置的目标部署点数
+    // 返回设置后的部署点数
+    setDeployPoint(side, amount) {
+      const g = global.Game;
+      if (!g) return 0;
+      side = side || g.currentSide;
+      amount = parseInt(amount) || 0;
+      const MAX = global.Game && global.Game.MINION_MAX_POINTS ? global.Game.MINION_MAX_POINTS : 15;
+      const before = g.minionPoints[side] || 0;
+      g.minionPoints[side] = Math.max(0, Math.min(MAX, amount));
+      if (g._renderMinionPanel) g._renderMinionPanel();
+      if (g.log && before !== g.minionPoints[side]) {
+        g.log((side === 'red' ? '红方' : '蓝方') + ' 部署点设置为 ' + g.minionPoints[side] + '。', 'turn');
+      }
+      return g.minionPoints[side];
+    },
+
+    // 获取某方当前部署点数
+    // side: 'red'|'blue'，缺省取 Game.currentSide
+    // 返回部署点数量（数字）
+    getDeployPoint(side) {
+      const g = global.Game;
+      if (!g) return 0;
+      side = side || g.currentSide;
+      return g.minionPoints[side] || 0;
     },
 
     // 获取手牌数组（只读副本）

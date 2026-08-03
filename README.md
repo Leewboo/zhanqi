@@ -497,7 +497,9 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | `Effect.drawCard(side, count)` | 抽小兵卡到手牌 |
 | `Effect.drawSpecificCard(cardId, side)` | 从卡池抽指定 id 的小兵卡到手牌 |
 | `Effect.removeCard(side, target)` | 弃置手牌 |
-| `Effect.addDeployPoint(side, amount)` | 增减部署点 |
+| `Effect.addDeployPoint(side, amount)` | 增减部署点（上限 15，下限 0） |
+| `Effect.getDeployPoint(side)` | 获取某方当前部署点数 |
+| `Effect.setDeployPoint(side, amount)` | 设置某方部署点为指定值（上限 15，下限 0） |
 | `Effect.deployMinion(card, x, y, opts)` | 部署小兵 |
 | `Effect.summonMinion(actor, minionId, x, y)` | 直接召唤小兵 |
 | `Effect.canDeployMinion(actor, x, y)` | 检查能否部署 |
@@ -509,6 +511,7 @@ AI 模式下自动按偏好选择；玩家模式下不影响交互（玩家仍�
 | `Effect.addCard(card, side)` | 向某方卡池添加一张小兵卡 |
 | `Game.minionHand[side]` | 直接访问某方手牌 |
 | `Game.minionPoints[side]` | 直接访问某方部署点 |
+| `Game.MINION_MAX_POINTS` | 部署点上限常量（当前 15） |
 
 ### AI 战术分析（自定义 AI 逻辑可用）
 以下均为纯查询函数：不修改棋盘、不触发特效/事件，可安全用于自定义 AI 决策。

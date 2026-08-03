@@ -1,6 +1,7 @@
 (function (global) {
   const SIZE = Range.BOARD_SIZE;
   const DEFAULT_PICKS = 5;
+  const MINION_MAX_POINTS = 15;        // 部署点上限（超出时不再增长）
 
   // ============ 城池占领系统 ============
   // 城池坐标（与 buildTerrain 中的 'w' 一致）
@@ -206,6 +207,7 @@
   }
 
   const Game = {
+    MINION_MAX_POINTS: MINION_MAX_POINTS,  // 部署点上限（对外暴露给 effects.js 使用）
     boardEl: null,
     phase: 'draft', // draft | deploy | battle
     turn: 1,
@@ -677,7 +679,7 @@
       }
 
       // 第一回合红方额外获得部署点（先手补偿）
-      this.minionPoints.red += 1;
+      this.minionPoints.red = Math.min(MINION_MAX_POINTS, this.minionPoints.red + 1);
       this._drawMinionCards('red', 1);
 
       this._refreshUi();
@@ -2150,7 +2152,8 @@
 
       // 回合开始：当前方获得 1 点部署点并抽 1 张小兵卡
       if (this.minionDraftPool && this.minionDraftPool[this.currentSide]) {
-        this.minionPoints[this.currentSide] = (this.minionPoints[this.currentSide] || 0) + 1;
+        const nextVal = (this.minionPoints[this.currentSide] || 0) + 1;
+        this.minionPoints[this.currentSide] = Math.min(MINION_MAX_POINTS, nextVal);
         this._drawMinionCards(this.currentSide, 1);
         this.minionSelected = null;
       }
