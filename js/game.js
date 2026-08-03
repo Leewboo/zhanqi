@@ -2415,11 +2415,8 @@
     },
 
     cellMoveCost(x, y) {
-      if (!this.terrain) return 1;
-      const t = this.terrain[y][x];
-      // 河流(r)消耗2步，山地(mt)消耗2步，其他地形消耗1步
-      if (t === 'r') return 2;
-      if (t === 'mt') return 2;
+      // 移除地形消耗行动力的设定；统一1步消耗
+      // 阻断逻辑改用 blockMode 实现（山地全阻断、河流半阻断）
       return 1;
     },
 
