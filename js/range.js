@@ -281,6 +281,31 @@
   }
 
   // ============================================================
+  // Bresenham 直线遍历
+  // ============================================================
+  // 返回从 (ax,ay) 到 (bx,by) 直线上的所有格子（不含起点，含终点）
+  // 适用于任意斜率（包括非45度的斜线如 (0,0)→(2,1)），是方形/圆形范围视线检测的关键
+  function _bresenhamLine(ax, ay, bx, by) {
+    const points = [];
+    let x = ax, y = ay;
+    const dx = Math.abs(bx - ax);
+    const dy = Math.abs(by - ay);
+    const sx = ax < bx ? 1 : -1;
+    const sy = ay < by ? 1 : -1;
+    let err = dx - dy;
+    // 安全上限：dx+dy 足够覆盖所有情况
+    const limit = dx + dy + 1;
+    for (let i = 0; i < limit + 2; i++) {
+      if (x === bx && y === by) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x += sx; }
+      if (e2 < dx)  { err += dx; y += sy; }
+      points.push({ x, y });
+    }
+    return points;
+  }
+
+  // ============================================================
   // 直线视线检测（用于攻击/技能范围）
   // ============================================================
   // 检查从 (ax,ay) 到 (bx,by) 的直线是否被阻断
@@ -291,26 +316,19 @@
   //   目标格本身:       'half' → 可达 | 'full' → 不可达 | 'none' → 可达
   // ============================================================
   function lineBlockedEx(ax, ay, bx, by, pieceAt, terrainFn, defaultMode, blockFilter) {
-    const dx = bx - ax;
-    const dy = by - ay;
-    if (dx === 0 && dy === 0) return false;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy));
-    const sx = dx === 0 ? 0 : dx / Math.abs(dx);
-    const sy = dy === 0 ? 0 : dy / Math.abs(dy);
-    for (let i = 1; i <= steps; i++) {
-      const cx = ax + Math.round(sx * i);
-      const cy = ay + Math.round(sy * i);
-      if (!inBounds(cx, cy)) return true;  // 出界 = 全阻断
-      const isTarget = (i === steps);
+    if (ax === bx && ay === by) return false;
+    // ★ 用 Bresenham 直线算法遍历，正确处理任意斜率（方形/圆形范围的关键）
+    const points = _bresenhamLine(ax, ay, bx, by);
+    const last = points.length - 1;
+    for (let i = 0; i < points.length; i++) {
+      const cx = points[i].x;
+      const cy = points[i].y;
+      if (!inBounds(cx, cy)) return true;
+      const isTarget = (i === last);
       const mode = resolveBlockMode(cx, cy, pieceAt, terrainFn, defaultMode, blockFilter);
-      if (mode === 'none') continue;  // 不阻断：继续
-      // 'half' 或 'full' → 拓展到此格结束
-      if (isTarget) {
-        // 目标格本身：半阻断可达，全阻断不可达
-        return mode === 'full';
-      }
-      // 中间格阻断 → 目标（在更远处）不可达
-      return true;
+      if (mode === 'none') continue;
+      if (isTarget) return mode === 'full';
+      return true; // 中间格 half/full → 阻断
     }
     return false;
   }
@@ -318,21 +336,19 @@
   // 用自定义 resolve 函数做直线视线检测（cellsInRangeWithBlock 内部使用）
   // resolveFn(x, y) => 'none'|'half'|'full'
   function _lineBlockedWithResolve(ax, ay, bx, by, resolveFn) {
-    const dx = bx - ax;
-    const dy = by - ay;
-    if (dx === 0 && dy === 0) return false;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy));
-    const sx = dx === 0 ? 0 : dx / Math.abs(dx);
-    const sy = dy === 0 ? 0 : dy / Math.abs(dy);
-    for (let i = 1; i <= steps; i++) {
-      const cx = ax + Math.round(sx * i);
-      const cy = ay + Math.round(sy * i);
+    if (ax === bx && ay === by) return false;
+    // ★ 用 Bresenham 直线算法遍历，正确处理任意斜率（方形/圆形范围的关键）
+    const points = _bresenhamLine(ax, ay, bx, by);
+    const last = points.length - 1;
+    for (let i = 0; i < points.length; i++) {
+      const cx = points[i].x;
+      const cy = points[i].y;
       if (!inBounds(cx, cy)) return true;
-      const isTarget = (i === steps);
+      const isTarget = (i === last);
       const mode = resolveFn(cx, cy);
       if (mode === 'none') continue;
       if (isTarget) return mode === 'full';
-      return true;
+      return true; // 中间格 half/full → 阻断
     }
     return false;
   }
@@ -350,15 +366,12 @@
     // 旧版 lineBlocked（兼容保留）：中间格有棋子或阻断地形则返回 true
     // 新代码请使用 cellsInRangeWithBlock + blockMode/blockFilter
     lineBlocked(ax, ay, bx, by, pieceAt, terrainFn) {
-      const dx = bx - ax;
-      const dy = by - ay;
-      if (dx === 0 && dy === 0) return false;
-      const steps = Math.max(Math.abs(dx), Math.abs(dy));
-      const sx = dx === 0 ? 0 : dx / Math.abs(dx);
-      const sy = dy === 0 ? 0 : dy / Math.abs(dy);
-      for (let i = 1; i < steps; i++) {
-        const cx = ax + Math.round(sx * i);
-        const cy = ay + Math.round(sy * i);
+      if (ax === bx && ay === by) return false;
+      // ★ 用 Bresenham 直线算法遍历中间格（不含起点和终点）
+      const points = _bresenhamLine(ax, ay, bx, by);
+      for (let i = 0; i < points.length - 1; i++) {
+        const cx = points[i].x;
+        const cy = points[i].y;
         if (!inBounds(cx, cy)) return true;
         if (pieceAt && pieceAt(cx, cy)) return true;
         if (terrainFn && terrainFn(cx, cy)) return true;
