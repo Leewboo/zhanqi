@@ -241,6 +241,39 @@
     }
 
     const result = [];
+
+    // ============================================================
+    // 十字形 '+'：使用四方向射线法，遇到阻断即停，杜绝绕路跃子
+    //   每个方向沿直线独立推进：full → 该方向终止且不包含；
+    //                           half → 包含该格但终止；
+    //                           none → 包含该格并继续。
+    // ============================================================
+    if (shape === '+') {
+      const fourDirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dy] of fourDirs) {
+        let cx = originX, cy = originY;
+        let steps = 0;
+        while (true) {
+          cx += dx;
+          cy += dy;
+          if (!inBounds(cx, cy)) break;
+          const cost = game ? game.cellMoveCost(cx, cy) : 1;
+          steps += cost;
+          if (steps > maxSteps) break;
+
+          const mode = getMode(cx, cy);
+          if (mode === 'full') break;          // 全阻断：该方向终止
+          result.push({ x: cx, y: cy, steps });// half/none：该格可达
+          if (mode === 'half') break;          // 半阻断：该方向终止
+          // none：继续该方向
+        }
+      }
+      return result;
+    }
+
+    // ============================================================
+    // 其他形状（square/r/x）：BFS 允许绕路，配合 visited+几何过滤
+    // ============================================================
     const visited = new Map();
     const queue = [{ x: originX, y: originY, steps: 0 }];
     visited.set(key(originX, originY), 0);
@@ -255,8 +288,8 @@
         if (ns > maxSteps) continue;
 
         const k = key(nx, ny);
-        // ★ 已访问过的格子：如果之前以更少或相等步数到达过，跳过
-        //   （包括 full 阻断格——也标记 visited 防止重复检测）
+        // 已访问过的格子：如果之前以更少或相等步数到达过，跳过
+        // （包括 full 阻断格——也标记 visited 防止重复检测）
         if (visited.has(k) && visited.get(k) <= ns) continue;
 
         const mode = getMode(nx, ny);
