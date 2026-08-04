@@ -254,14 +254,19 @@
         const ns = cur.steps + cost;
         if (ns > maxSteps) continue;
 
-        const mode = getMode(nx, ny);
-        // 全阻断：不可到达，不可穿过
-        if (mode === 'full') continue;
-
         const k = key(nx, ny);
+        // ★ 已访问过的格子：如果之前以更少或相等步数到达过，跳过
+        //   （包括 full 阻断格——也标记 visited 防止重复检测）
         if (visited.has(k) && visited.get(k) <= ns) continue;
-        visited.set(k, ns);
 
+        const mode = getMode(nx, ny);
+        // 全阻断：不可到达，不可穿过——但仍标记 visited 防止其他路径重复尝试
+        if (mode === 'full') {
+          visited.set(k, ns);
+          continue;
+        }
+
+        visited.set(k, ns);
         // 不阻断 / 半阻断：格子可达，加入结果
         result.push({ x: nx, y: ny, steps: ns });
 
