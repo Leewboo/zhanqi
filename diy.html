@@ -994,6 +994,10 @@
   .fs-editor-body .code-editor .fullscreen-btn {
     display: none;
   }
+  /* 技能代码编辑器内的全屏按钮需要显示（上一条规则会误伤，这里用更高优先级覆盖） */
+  #fs-skill-code-editor .fullscreen-btn {
+    display: inline-block;
+  }
 
   /* ========= 编辑器主 Tab 栏 ========= */
   .fs-editor-main-tabs {
@@ -1431,6 +1435,22 @@
     height: 100%;
     border: none;
     border-radius: 0;
+  }
+
+  /* 技能代码编辑器聚焦模式：隐藏主Tab/技能列表/属性表单，代码框撑满，保留 API 侧栏与代码子Tab */
+  #fs-editor.fs-code-focus #fs-editor-main-tabs { display: none; }
+  #fs-editor.fs-code-focus .fs-skills-sidebar { display: none; }
+  #fs-editor.fs-code-focus .fs-skill-attr-section { display: none; }
+  #fs-editor.fs-code-focus .fs-skills-editor-body {
+    padding: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #fs-editor.fs-code-focus .fs-skill-code-wrap {
+    height: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   /* 技能属性表单（深色主题） */
@@ -5549,27 +5569,50 @@ Effect.fx.clearFx('myZone');</code></pre>
       }
     });
 
-    // 全屏写代码按钮：打开全屏编辑器（保留 API 侧栏）
+    // 全屏写代码按钮：切换聚焦模式（隐藏其他面板，代码框撑满，保留 API 侧栏与代码子Tab）
     var fsBtn = editorEl.querySelector('.fullscreen-btn');
     if (fsBtn) {
+      // 已处于聚焦模式时（如切代码子Tab后重建按钮），同步文案
+      var mask = $('fs-editor');
+      if (mask && mask.classList.contains('fs-code-focus')) {
+        fsBtn.textContent = '⤡ 退出全屏';
+      }
       fsBtn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        // 先保存当前代码到 skill（防止切 tab 丢失）
-        if (typeof saveCurrentSkillCode === 'function') saveCurrentSkillCode();
-        // 自定义标题/提示文字，并打开时默认激活 API 侧栏的 effect tab
-        var tabName = fsEditorState.activeCodeTab || 'filter';
-        var titleMap = { filter: '筛选条件 (filterCode)', content: '执行逻辑 (contentCode)', init: '初始化 (initCode)' };
-        openFullscreenEditor(editorEl, {
-          title: '全屏写代码 · ' + (titleMap[tabName] || tabName),
-          hint: 'ESC 保存关闭 · 右侧 API 点击即插入 · 配色可切换',
-          language: 'javascript',
-          apiTab: 'effect'
-        });
+        if (typeof toggleSkillCodeFocus === 'function') toggleSkillCodeFocus();
       });
     }
 
     sync();
+  }
+
+  // 技能代码编辑器聚焦模式：ESC 退出聚焦（capture 阶段拦截，避免触发外层“ESC 保存关闭”）
+  function _skillCodeFocusEsc(e) {
+    var mask = $('fs-editor');
+    if (e.key === 'Escape' && mask && mask.classList.contains('fs-code-focus')) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSkillCodeFocus(false);
+    }
+  }
+
+  // 切换技能代码编辑器聚焦模式；force 可传 true/false 显式开关
+  function toggleSkillCodeFocus(force) {
+    var mask = $('fs-editor');
+    if (!mask) return;
+    var focused = (typeof force === 'boolean') ? force : !mask.classList.contains('fs-code-focus');
+    mask.classList.toggle('fs-code-focus', focused);
+    var fsBtn = qs('#fs-skill-code-editor .fullscreen-btn');
+    if (fsBtn) fsBtn.textContent = focused ? '⤡ 退出全屏' : '⤢ 全屏写代码';
+    if (focused) {
+      document.addEventListener('keydown', _skillCodeFocusEsc, true);
+      // 聚焦代码框
+      var ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
+      if (ta) setTimeout(function () { ta.focus(); }, 50);
+    } else {
+      document.removeEventListener('keydown', _skillCodeFocusEsc, true);
+    }
   }
 
   function switchCodeTab(tabName) {
@@ -5747,8 +5790,10 @@ Effect.fx.clearFx('myZone');</code></pre>
     var mask = $('fs-editor');
     if (mask) {
       mask.classList.remove('open');
+      mask.classList.remove('fs-code-focus');
       mask.setAttribute('aria-hidden', 'true');
     }
+    document.removeEventListener('keydown', _skillCodeFocusEsc, true);
     if (fsEditorState.onKeydown) {
       document.removeEventListener('keydown', fsEditorState.onKeydown);
       fsEditorState.onKeydown = null;
