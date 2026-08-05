@@ -3859,7 +3859,6 @@ Effect.fx.clearFx('myZone');</code></pre>
           <option value="androidstudio">Android Studio</option>
         </select>
       </div>
-      <button id="fs-editor-home" class="btn">🏠 主页</button>
       <button id="fs-api-toggle" onclick="window._fsApiToggle()">📖 API</button>
       <button id="fs-editor-format" class="btn">⇥ 格式化</button>
       <button id="fs-editor-save" class="btn primary">✓ 保存</button>
@@ -3976,6 +3975,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       </div>
     </div>
     <div class="diy-project-btns">
+      <button id="btn-diy-home" class="btn-mini" title="返回主页">🏠 主页</button>
       <button id="btn-ext-new" class="btn-mini" title="新建拓展包">＋ 新建拓展</button>
       <button id="btn-ext-import" class="btn-mini" title="从 ZIP 导入拓展">📥 导入拓展</button>
     </div>
@@ -5422,6 +5422,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       '<div class="fs-skill-code-wrap">' +
         '<div class="code-editor" id="fs-skill-code-editor">' +
           '<span class="code-label">' + fsEditorState.activeCodeTab + 'Code</span>' +
+          '<button class="fullscreen-btn" type="button">⤢ 全屏写代码</button>' +
           '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
           '<textarea spellcheck="false"></textarea>' +
         '</div>' +
@@ -5531,6 +5532,27 @@ Effect.fx.clearFx('myZone');</code></pre>
         timer = setTimeout(sync, 40);
       }
     });
+
+    // 全屏写代码按钮：打开全屏编辑器（保留 API 侧栏）
+    var fsBtn = editorEl.querySelector('.fullscreen-btn');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        // 先保存当前代码到 skill（防止切 tab 丢失）
+        if (typeof saveCurrentSkillCode === 'function') saveCurrentSkillCode();
+        // 自定义标题/提示文字，并打开时默认激活 API 侧栏的 effect tab
+        var tabName = fsEditorState.activeCodeTab || 'filter';
+        var titleMap = { filter: '筛选条件 (filterCode)', content: '执行逻辑 (contentCode)', init: '初始化 (initCode)' };
+        openFullscreenEditor(editorEl, {
+          title: '全屏写代码 · ' + (titleMap[tabName] || tabName),
+          hint: 'ESC 保存关闭 · 右侧 API 点击即插入 · 配色可切换',
+          language: 'javascript',
+          apiTab: 'effect'
+        });
+      });
+    }
+
     sync();
   }
 
@@ -6532,12 +6554,6 @@ Effect.fx.clearFx('myZone');</code></pre>
         closeFullscreenEditor();
       }
     });
-    var homeBtn = $('fs-editor-home');
-    if (homeBtn) homeBtn.addEventListener('click', function () {
-      if (fsEditorState.type) closeFsEditor();
-      else if (typeof closeFullscreenEditor === 'function') closeFullscreenEditor();
-      window.location.href = 'index.html';
-    });
     if (formatBtn) formatBtn.addEventListener('click', function () {
       var ta;
       if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
@@ -7382,6 +7398,14 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     function openModal(id) { var m = $(id); if (m) m.classList.remove('hidden'); }
     function closeModal(id) { var m = $(id); if (m) m.classList.add('hidden'); }
+
+    // 主页按钮：返回站点主页
+    var btnDiyHome = $('btn-diy-home');
+    if (btnDiyHome) {
+      btnDiyHome.addEventListener('click', function () {
+        window.location.href = 'index.html';
+      });
+    }
 
     // 新建拓展按钮
     var btnExtNew = $('btn-ext-new');
