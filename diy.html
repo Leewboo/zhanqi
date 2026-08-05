@@ -9,8 +9,21 @@
 <!-- JSZip for project export/import -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
-<!-- highlight.js（GitHub Dark 配色 + JavaScript 语言） -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
+<!-- highlight.js（多套配色方案 + JavaScript 语言）
+     通过 <link data-hljs-theme> 预加载多套主题；JS 端通过启用/禁用 link 节点切换
+     默认启用 github-dark；用户选择会持久化到 localStorage('diy-hljs-theme') -->
+<link rel="stylesheet" data-hljs-theme="github-dark" data-hljs-default="1"
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
+<link rel="stylesheet" data-hljs-theme="monokai" disabled
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/monokai.min.css" />
+<link rel="stylesheet" data-hljs-theme="atom-one-dark" disabled
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css" />
+<link rel="stylesheet" data-hljs-theme="solarized-dark" disabled
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/solarized-dark.min.css" />
+<link rel="stylesheet" data-hljs-theme="vs" disabled
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/vs.min.css" />
+<link rel="stylesheet" data-hljs-theme="androidstudio" disabled
+      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/androidstudio.min.css" />
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/javascript.min.js"></script>
 
@@ -865,6 +878,38 @@
     gap: 8px;
     align-items: center;
   }
+  /* 高亮方案选择器（紧贴在 actions 左侧） */
+  .fs-theme-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--dark-bg-alt);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-xs);
+    color: var(--dark-muted);
+    font-size: var(--text-sm);
+    letter-spacing: 1px;
+  }
+  .fs-theme-picker label {
+    font-size: var(--text-xs);
+    letter-spacing: 1px;
+    color: var(--dark-muted);
+    user-select: none;
+  }
+  .fs-theme-picker select {
+    background: var(--dark-bg);
+    color: var(--dark-fg);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-xs);
+    padding: 3px 6px;
+    font-size: var(--text-xs);
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+  .fs-theme-picker select:hover { border-color: var(--blue); }
+  .fs-theme-picker select:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(88,166,255,0.2); }
   .fs-editor-actions .btn {
     min-height: 34px;
     padding: 6px 14px;
@@ -3803,6 +3848,17 @@ Effect.fx.clearFx('myZone');</code></pre>
       <small id="fs-editor-hint">ESC 保存关闭 · 点击遮罩保存 · 右侧 API 点击即插入</small>
     </div>
     <div class="fs-editor-actions">
+      <div class="fs-theme-picker" title="切换代码高亮配色方案">
+        <label for="fs-theme-select">配色</label>
+        <select id="fs-theme-select">
+          <option value="github-dark">GitHub Dark</option>
+          <option value="monokai">Monokai</option>
+          <option value="atom-one-dark">Atom One Dark</option>
+          <option value="solarized-dark">Solarized Dark</option>
+          <option value="vs">VS</option>
+          <option value="androidstudio">Android Studio</option>
+        </select>
+      </div>
       <button id="fs-editor-home" class="btn">🏠 主页</button>
       <button id="fs-api-toggle" onclick="window._fsApiToggle()">📖 API</button>
       <button id="fs-editor-format" class="btn">⇥ 格式化</button>
@@ -4328,12 +4384,18 @@ Effect.fx.clearFx('myZone');</code></pre>
 
   // ============================================================
   // 语法高亮：双层编辑器（textarea 透明输入 + <pre><code> 高亮显示）
+  //   language 可选，默认 'javascript'。若 hljs 未加载该语言则回退到 javascript
   // ============================================================
-  function highlightText(text) {
+  function highlightText(text, language) {
+    var lang = language || 'javascript';
     // 使用 highlight.js 的纯文本 API；失败则回退到原文本
     try {
       if (window.hljs && typeof hljs.highlight === 'function') {
-        var result = hljs.highlight(text || '', { language: 'javascript', ignoreIllegals: true });
+        // 若指定语言未注册，则回退到 javascript
+        if (lang !== 'javascript' && hljs.getLanguage && !hljs.getLanguage(lang)) {
+          lang = 'javascript';
+        }
+        var result = hljs.highlight(text || '', { language: lang, ignoreIllegals: true });
         return result.value;
       }
     } catch (e) {}
@@ -6306,8 +6368,14 @@ Effect.fx.clearFx('myZone');</code></pre>
     });
   }
 
-  function openFullscreenEditor(editorEl) {
+  function openFullscreenEditor(editorEl, opts) {
     if (!editorEl) return;
+    // opts 可选字段：
+    //   title:    自定义标题文字（如 "编辑筛选条件"），不传则用 code-label
+    //   hint:     自定义副标题/提示文字（如 "回车换行 · Tab 缩进"），不传则保留默认
+    //   language: 自定义高亮语言（如 'javascript' / 'json'），不传则默认 'javascript'
+    //   apiTab:   打开时默认激活的 API 侧栏 tab 名（如 'effect' / 'snippet'），不传则保持当前
+    opts = opts || {};
     var ta = editorEl.querySelector('textarea');
     if (!ta) return;
     var label = editorEl.querySelector('.code-label');
@@ -6315,6 +6383,8 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     fsEditorState.originalEditor = editorEl;
     fsEditorState.originalTextarea = ta;
+    // 记录本次打开所用的语言，供 cloneSync 高亮使用
+    fsEditorState.currentLanguage = opts.language || 'javascript';
 
     // 克隆编辑器到全屏弹窗
     var body = $('fs-editor-body');
@@ -6322,7 +6392,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     var clone = document.createElement('div');
     clone.className = 'code-editor';
     clone.innerHTML =
-      '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+      '<pre class="hl-layer"><code class="language-' + escapeHtml(fsEditorState.currentLanguage) + '"></code></pre>' +
       '<textarea spellcheck="false">' + escapeHtml(ta.value) + '</textarea>';
     body.appendChild(clone);
 
@@ -6335,7 +6405,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       var val = cloneTa.value;
       var display = val;
       if (display.charAt(display.length - 1) === '\n') display = display + ' ';
-      cloneCode.innerHTML = highlightText(display);
+      cloneCode.innerHTML = highlightText(display, fsEditorState.currentLanguage);
       clonePre.scrollTop = cloneTa.scrollTop;
       clonePre.scrollLeft = cloneTa.scrollLeft;
     }
@@ -6364,8 +6434,22 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     // 构建 API 侧栏
     buildApiPanel();
+    // 若指定了 apiTab，激活对应 tab
+    if (opts.apiTab) {
+      var apiTabBtn = qs('.fs-api-tab[data-tab="' + opts.apiTab + '"]');
+      if (apiTabBtn) apiTabBtn.click();
+    }
 
-    $('fs-editor-label').textContent = '编辑 ' + labelText + ' 代码';
+    // 自定义标题与提示文字
+    $('fs-editor-label').textContent = opts.title || ('编辑 ' + labelText + ' 代码');
+    if (opts.hint !== undefined) {
+      var hintEl = $('fs-editor-hint');
+      if (hintEl) hintEl.textContent = opts.hint;
+    }
+
+    // 同步当前高亮方案到下拉
+    if (typeof window.syncThemeSelect === 'function') window.syncThemeSelect();
+
     var mask = $('fs-editor');
     mask.classList.add('open');
     mask.setAttribute('aria-hidden', 'false');
@@ -6489,6 +6573,100 @@ Effect.fx.clearFx('myZone');</code></pre>
         }
       }
     });
+
+    // ============================================================
+    // 高亮方案切换：启用/禁用对应 <link data-hljs-theme>
+    //   - 持久化到 localStorage('diy-hljs-theme')
+    //   - 切换后立即刷新所有可见的 .code-editor 高亮层
+    // ============================================================
+    var THEME_KEY = 'diy-hljs-theme';
+    // 列出所有可用主题（与 head 中 <link data-hljs-theme> 一一对应）
+    function getThemeList() {
+      var links = document.querySelectorAll('link[data-hljs-theme]');
+      var list = [];
+      for (var i = 0; i < links.length; i++) {
+        list.push(links[i].getAttribute('data-hljs-theme'));
+      }
+      return list;
+    }
+    // 应用某个主题：禁用其他 link，启用对应的；同时刷新所有高亮层
+    function applyHljsTheme(theme) {
+      var links = document.querySelectorAll('link[data-hljs-theme]');
+      var found = false;
+      for (var i = 0; i < links.length; i++) {
+        var t = links[i].getAttribute('data-hljs-theme');
+        if (t === theme) {
+          links[i].removeAttribute('disabled');
+          found = true;
+        } else {
+          links[i].setAttribute('disabled', 'disabled');
+        }
+      }
+      // 若未找到对应主题，回退到默认
+      if (!found) {
+        var def = document.querySelector('link[data-hljs-default="1"]');
+        if (def) def.removeAttribute('disabled');
+        theme = def ? def.getAttribute('data-hljs-theme') : 'github-dark';
+      }
+      // 持久化
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+      // 刷新所有可见的 code-editor 高亮层（小框 + 全屏克隆）
+      refreshAllHighlight();
+      // 同步下拉
+      syncThemeSelect(theme);
+    }
+    // 同步 #fs-theme-select 的当前值
+    function syncThemeSelect(theme) {
+      var sel = $('fs-theme-select');
+      if (!sel) return;
+      if (!theme) {
+        // 探测当前启用的主题
+        var links = document.querySelectorAll('link[data-hljs-theme]');
+        for (var i = 0; i < links.length; i++) {
+          if (!links[i].hasAttribute('disabled')) {
+            theme = links[i].getAttribute('data-hljs-theme');
+            break;
+          }
+        }
+      }
+      if (theme && sel.value !== theme) sel.value = theme;
+    }
+    // 刷新页面上所有 .code-editor 的高亮层
+    function refreshAllHighlight() {
+      var editors = document.querySelectorAll('.code-editor');
+      editors.forEach(function (ed) {
+        var ta = ed.querySelector('textarea');
+        var pre = ed.querySelector('.hl-layer');
+        var code = ed.querySelector('.hl-layer code');
+        if (!ta || !pre || !code) return;
+        var displayText = ta.value;
+        if (displayText.charAt(displayText.length - 1) === '\n') displayText = displayText + ' ';
+        // 全屏克隆用 fsEditorState.currentLanguage；小框用 javascript
+        var lang = (ed.closest('.fs-editor-body') && fsEditorState.currentLanguage) || 'javascript';
+        code.innerHTML = highlightText(displayText, lang);
+        pre.scrollTop = ta.scrollTop;
+        pre.scrollLeft = ta.scrollLeft;
+      });
+    }
+    // 暴露给外部（如 openFullscreenEditor 调用同步）
+    window._syncHljsThemeSelect = syncThemeSelect;
+    // 让 openFullscreenEditor 内的 syncThemeSelect() 指向这里
+    window.syncThemeSelect = syncThemeSelect;
+
+    // 绑定下拉 change
+    var themeSel = $('fs-theme-select');
+    if (themeSel) {
+      themeSel.addEventListener('change', function () {
+        applyHljsTheme(themeSel.value);
+      });
+    }
+
+    // 页面加载时从 localStorage 恢复主题
+    try {
+      var saved = localStorage.getItem(THEME_KEY);
+      if (saved) applyHljsTheme(saved);
+      else syncThemeSelect();
+    } catch (e) { syncThemeSelect(); }
   });
 
   // ============================================================
