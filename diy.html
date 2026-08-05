@@ -1061,7 +1061,8 @@
   }
   .fs-attr-form input[type="text"],
   .fs-attr-form input[type="number"],
-  .fs-attr-form select {
+  .fs-attr-form select,
+  .fs-attr-form textarea {
     width: 100%;
     padding: 8px 12px;
     background: var(--dark-bg);
@@ -1072,8 +1073,14 @@
     font-family: inherit;
     box-sizing: border-box;
   }
+  .fs-attr-form textarea {
+    min-height: 64px;
+    line-height: 1.5;
+    resize: vertical;
+  }
   .fs-attr-form input:focus,
-  .fs-attr-form select:focus {
+  .fs-attr-form select:focus,
+  .fs-attr-form textarea:focus {
     outline: none;
     border-color: var(--blue);
     box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
@@ -1991,7 +1998,8 @@
     .fs-attr-form .form-row { margin-bottom: 12px; }
     .fs-attr-form input[type="text"],
     .fs-attr-form input[type="number"],
-    .fs-attr-form select { padding: 10px 12px; font-size: var(--text-md); }
+    .fs-attr-form select,
+    .fs-attr-form textarea { padding: 10px 12px; font-size: var(--text-md); }
     .fs-range-row select { flex: 0 0 80px; }
 
     /* 技能编辑：左右分栏改上下布局 */
@@ -2167,10 +2175,18 @@
   }
   .skill-card table.tbl td:first-child { padding-left: 0; }
   .skill-card input,
-  .skill-card select {
+  .skill-card select,
+  .skill-card textarea {
     font-size: var(--text-sm);
     padding: 5px 8px;
     min-height: 30px;
+  }
+  .skill-card textarea {
+    width: 100%;
+    resize: vertical;
+    line-height: 1.5;
+    box-sizing: border-box;
+    font-family: inherit;
   }
 
   /* ========= 提交区域 ========= */
@@ -4943,7 +4959,7 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '</select></div>';
       html += '<div class="form-row"><label>卡组数量</label><input type="number" id="fs-attr-card-count" value="' + (d.cardCount != null ? d.cardCount : '') + '" placeholder="按稀有度默认"></div>';
       html += '</div>';
-      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-desc" value="' + escapeHtml(d.description || '') + '"></div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><textarea id="fs-attr-desc" rows="3" placeholder="武将介绍">' + escapeHtml(d.description || '') + '</textarea></div>';
     }
 
     if (type === 'skill') {
@@ -4965,7 +4981,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         html += '<option value="' + o[0] + '"' + (d.trigger === o[0] ? ' selected' : '') + '>' + o[0] + ' · ' + o[1] + '</option>';
       });
       html += '</select></div>';
-      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><input type="text" id="fs-attr-skill-desc" value="' + escapeHtml(d.desc || '') + '"></div>';
+      html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><textarea id="fs-attr-skill-desc" rows="3" placeholder="技能介绍">' + escapeHtml(d.desc || '') + '</textarea></div>';
 
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">预览范围</label></div>';
       html += '<div class="fs-range-row">';
@@ -5383,7 +5399,7 @@ Effect.fx.clearFx('myZone');</code></pre>
               return '<option value="' + o[0] + '"' + (skill.trigger === o[0] ? ' selected' : '') + '>' + o[0] + ' · ' + o[1] + '</option>';
             }).join('') +
           '</select></div>' +
-          '<div class="form-row" style="margin-top:10px;"><label>描述</label><input type="text" id="fs-skill-desc" value="' + escapeHtml(skill.desc || '') + '"></div>' +
+          '<div class="form-row" style="margin-top:10px;"><label>描述</label><textarea id="fs-skill-desc" rows="3" placeholder="技能介绍">' + escapeHtml(skill.desc || '') + '</textarea></div>' +
           '<div class="form-row" style="margin-top:10px;"><label>预览范围</label>' +
             '<div class="fs-range-row">' +
               '<select id="fs-skill-pv-shape">' +
@@ -6808,7 +6824,7 @@ Effect.fx.clearFx('myZone');</code></pre>
             '<th>限定技</th><td colspan="3"><label style="font-size:11px;color:#666;"><input type="checkbox" class="s-limited"' + (p.limited ? ' checked' : '') + ' /> 本局仅一次</label></td>' +
         '</tr>' +
         '<tr class="s-new-fields">' +
-            '<th>trigger</th><td>' +
+            '<th>trigger</th><td colspan="3">' +
                 '<select class="s-trigger s-passive-field">' +
                   '<option value="">无（主动）</option>' +
                   '<option value="onKill"' + (p.trigger === 'onKill' ? ' selected' : '') + '>onKill（击杀时）</option>' +
@@ -6821,7 +6837,9 @@ Effect.fx.clearFx('myZone');</code></pre>
                   '<option value="turnStart"' + (p.trigger === 'turnStart' ? ' selected' : '') + '>turnStart（回合开始）</option>' +
                   '<option value="turnEnd"' + (p.trigger === 'turnEnd' ? ' selected' : '') + '>turnEnd（回合结束）</option>' +
                 '</select></td>' +
-            '<th>desc</th><td><input type="text" class="s-desc" value="' + escapeHtmlAttr(p.desc || '') + '" placeholder="技能描述（战报里会显示）" /></td>' +
+        '</tr>' +
+        '<tr class="s-new-fields">' +
+            '<th>desc</th><td colspan="3"><textarea class="s-desc" rows="2" placeholder="技能描述（战报里会显示）">' + escapeHtml(p.desc || '') + '</textarea></td>' +
         '</tr>' +
         '<tr class="s-new-fields s-active-only"><th>AI</th><td colspan="3">' +
             '<select class="s-ai-type" title="不填则由 SkillAnalyzer 自动分析技能源码推断">' +
