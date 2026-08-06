@@ -1437,21 +1437,98 @@
     border-radius: 0;
   }
 
-  /* 技能代码编辑器聚焦模式：隐藏主Tab/技能列表/属性表单，代码框撑满，保留 API 侧栏与代码子Tab */
-  #fs-editor.fs-code-focus #fs-editor-main-tabs { display: none; }
-  #fs-editor.fs-code-focus .fs-skills-sidebar { display: none; }
-  #fs-editor.fs-code-focus .fs-skill-attr-section { display: none; }
-  #fs-editor.fs-code-focus .fs-skills-editor-body {
-    padding: 10px;
-    overflow: hidden;
-    display: flex;
+  /* 技能代码框独立全屏层：代码占满全屏，API 侧栏改为悬浮球抽屉 */
+  .fs-code-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10010;
+    background: var(--dark-bg);
     flex-direction: column;
   }
-  #fs-editor.fs-code-focus .fs-skill-code-wrap {
-    height: auto;
+  .fs-code-modal.open { display: flex; }
+  .fs-code-modal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--dark-border);
+    background: rgba(0,0,0,0.25);
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .fs-code-modal-title {
+    font-size: var(--text-13);
+    color: var(--dark-fg);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .fs-code-modal-main {
     flex: 1;
     min-height: 0;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
   }
+  .fs-code-modal-editor {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+  }
+  .fs-code-modal-editor .code-editor {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-sm);
+  }
+  /* 悬浮球：点击弹出 API 抽屉 */
+  .fs-code-api-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: var(--white);
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 10013;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .fs-code-api-fab:hover { transform: scale(1.08); }
+  .fs-code-api-fab.active { background: var(--blue-dark, #2563eb); }
+  .fs-code-api-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 10011;
+  }
+  .fs-code-api-overlay.active { display: block; }
+  /* API 面板移入全屏层后改造成右侧抽屉 */
+  .fs-code-modal .fs-api-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 360px;
+    max-width: 90vw;
+    z-index: 10012;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    border-radius: 0;
+    border-left: 1px solid var(--dark-border);
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+  }
+  .fs-code-modal .fs-api-panel.open { transform: translateX(0); }
 
   /* 技能属性表单（深色主题） */
   .fs-skill-form {
@@ -3948,6 +4025,22 @@ Effect.fx.clearFx('myZone');</code></pre>
   <div id="fs-api-overlay-bg" onclick="window._fsApiClose()"></div>
 </div>
 
+<!-- 技能代码框独立全屏层：代码占满全屏，API 侧栏改为悬浮球抽屉 -->
+<div id="fs-code-modal" class="fs-code-modal" aria-hidden="true">
+  <div class="fs-code-modal-bar">
+    <span class="fs-code-modal-title" id="fs-code-modal-title">全屏写代码</span>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="fs-code-modal-format">⇥ 格式化</button>
+      <button class="btn primary" id="fs-code-modal-close">✕ 退出全屏</button>
+    </div>
+  </div>
+  <div class="fs-code-modal-main">
+    <div class="fs-code-modal-editor" id="fs-code-modal-editor"></div>
+  </div>
+  <button id="fs-code-api-fab" class="fs-code-api-fab" title="API 速查">📖</button>
+  <div id="fs-code-api-overlay" class="fs-code-api-overlay"></div>
+</div>
+
 <!-- ============================================================
      认证登录区（未登录时显示，内联非遮罩）
 ============================================================ -->
@@ -5569,50 +5662,197 @@ Effect.fx.clearFx('myZone');</code></pre>
       }
     });
 
-    // 全屏写代码按钮：切换聚焦模式（隐藏其他面板，代码框撑满，保留 API 侧栏与代码子Tab）
+    // 全屏写代码按钮：打开独立全屏代码层（代码占满全屏，API 变悬浮球）
     var fsBtn = editorEl.querySelector('.fullscreen-btn');
     if (fsBtn) {
-      // 已处于聚焦模式时（如切代码子Tab后重建按钮），同步文案
-      var mask = $('fs-editor');
-      if (mask && mask.classList.contains('fs-code-focus')) {
-        fsBtn.textContent = '⤡ 退出全屏';
-      }
       fsBtn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (typeof toggleSkillCodeFocus === 'function') toggleSkillCodeFocus();
+        if (typeof saveCurrentSkillCode === 'function') saveCurrentSkillCode();
+        openSkillCodeFullscreen(editorEl);
       });
     }
 
     sync();
   }
 
-  // 技能代码编辑器聚焦模式：ESC 退出聚焦（capture 阶段拦截，避免触发外层“ESC 保存关闭”）
-  function _skillCodeFocusEsc(e) {
-    var mask = $('fs-editor');
-    if (e.key === 'Escape' && mask && mask.classList.contains('fs-code-focus')) {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSkillCodeFocus(false);
+  // ============================================================
+  // 技能代码框独立全屏层
+  //   - 代码编辑器占满全屏
+  //   - API 侧栏移入本层，改造成右侧抽屉，由悬浮球控制开关
+  //   - 关闭时回写内容到原 textarea，并把 API 面板移回原位
+  // ============================================================
+  var fsCodeModalState = {
+    originalEditor: null,
+    originalTextarea: null,
+    cloneTextarea: null,
+    apiPanelParent: null,
+    apiPanelNextSibling: null,
+    onKeydown: null
+  };
+
+  function openSkillCodeFullscreen(editorEl) {
+    if (!editorEl) return;
+    var ta = editorEl.querySelector('textarea');
+    if (!ta) return;
+    var label = editorEl.querySelector('.code-label');
+    var labelText = label ? label.textContent.trim() : '代码';
+    var tabName = fsEditorState.activeCodeTab || 'filter';
+    var titleMap = { filter: '筛选条件 (filterCode)', content: '执行逻辑 (contentCode)', init: '初始化 (initCode)' };
+
+    fsCodeModalState.originalEditor = editorEl;
+    fsCodeModalState.originalTextarea = ta;
+
+    // 克隆代码编辑器到全屏层
+    var body = $('fs-code-modal-editor');
+    body.innerHTML = '';
+    var clone = document.createElement('div');
+    clone.className = 'code-editor';
+    clone.innerHTML =
+      '<span class="code-label">' + escapeHtml(labelText) + '</span>' +
+      '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+      '<textarea spellcheck="false">' + escapeHtml(ta.value) + '</textarea>';
+    body.appendChild(clone);
+
+    var cloneTa = clone.querySelector('textarea');
+    var clonePre = clone.querySelector('.hl-layer');
+    var cloneCode = clone.querySelector('.hl-layer code');
+    fsCodeModalState.cloneTextarea = cloneTa;
+    // 让 API 点击插入指向全屏层的 textarea
+    fsEditorState.cloneTextarea = cloneTa;
+
+    function cloneSync() {
+      var val = cloneTa.value;
+      var display = val;
+      if (display.charAt(display.length - 1) === '\n') display = display + ' ';
+      cloneCode.innerHTML = highlightText(display, 'javascript');
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
     }
+    var cloneTimer = null;
+    cloneTa.addEventListener('input', function () {
+      if (cloneTimer) clearTimeout(cloneTimer);
+      cloneTimer = setTimeout(function () {
+        cloneSync();
+        if (typeof validateSyntax === 'function') validateSyntax(cloneTa.value);
+      }, 40);
+    });
+    cloneTa.addEventListener('scroll', function () {
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
+    });
+    cloneTa.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var s = cloneTa.selectionStart, end = cloneTa.selectionEnd;
+        cloneTa.value = cloneTa.value.substring(0, s) + '  ' + cloneTa.value.substring(end);
+        cloneTa.selectionStart = cloneTa.selectionEnd = s + 2;
+        cloneSync();
+      }
+    });
+    cloneSync();
+
+    // 移动 API 面板到全屏层内（保留所有事件绑定），改为悬浮球抽屉
+    var apiPanel = $('fs-api-panel');
+    if (apiPanel) {
+      fsCodeModalState.apiPanelParent = apiPanel.parentElement;
+      fsCodeModalState.apiPanelNextSibling = apiPanel.nextElementSibling;
+      $('fs-code-modal').appendChild(apiPanel);
+      apiPanel.classList.remove('open');
+    }
+    var apiOverlay = $('fs-code-api-overlay');
+    if (apiOverlay) apiOverlay.classList.remove('active');
+    var fab = $('fs-code-api-fab');
+    if (fab) fab.classList.remove('active');
+
+    // 标题
+    var titleEl = $('fs-code-modal-title');
+    if (titleEl) titleEl.textContent = '全屏写代码 · ' + (titleMap[tabName] || labelText);
+
+    // 同步高亮方案下拉
+    if (typeof window.syncThemeSelect === 'function') window.syncThemeSelect();
+
+    var modal = $('fs-code-modal');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+
+    setTimeout(function () {
+      cloneTa.focus();
+      try { cloneTa.selectionStart = cloneTa.selectionEnd = cloneTa.value.length; } catch (e) {}
+    }, 50);
+
+    // ESC：先关 API 抽屉，再按一次退出全屏（capture 阶段拦截，避免触发外层 ESC 保存）
+    if (fsCodeModalState.onKeydown) document.removeEventListener('keydown', fsCodeModalState.onKeydown, true);
+    fsCodeModalState.onKeydown = function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (apiPanel && apiPanel.classList.contains('open')) {
+          closeCodeModalApi();
+          return;
+        }
+        closeSkillCodeFullscreen();
+      }
+    };
+    document.addEventListener('keydown', fsCodeModalState.onKeydown, true);
   }
 
-  // 切换技能代码编辑器聚焦模式；force 可传 true/false 显式开关
-  function toggleSkillCodeFocus(force) {
-    var mask = $('fs-editor');
-    if (!mask) return;
-    var focused = (typeof force === 'boolean') ? force : !mask.classList.contains('fs-code-focus');
-    mask.classList.toggle('fs-code-focus', focused);
-    var fsBtn = qs('#fs-skill-code-editor .fullscreen-btn');
-    if (fsBtn) fsBtn.textContent = focused ? '⤡ 退出全屏' : '⤢ 全屏写代码';
-    if (focused) {
-      document.addEventListener('keydown', _skillCodeFocusEsc, true);
-      // 聚焦代码框
-      var ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
-      if (ta) setTimeout(function () { ta.focus(); }, 50);
-    } else {
-      document.removeEventListener('keydown', _skillCodeFocusEsc, true);
+  function closeSkillCodeFullscreen() {
+    // 回写内容到原 textarea，并触发高亮同步
+    if (fsCodeModalState.originalTextarea && fsCodeModalState.cloneTextarea) {
+      fsCodeModalState.originalTextarea.value = fsCodeModalState.cloneTextarea.value;
+      var ev = document.createEvent('HTMLEvents');
+      ev.initEvent('input', true, true);
+      fsCodeModalState.originalTextarea.dispatchEvent(ev);
     }
+    // 移回 API 面板到原位
+    var apiPanel = $('fs-api-panel');
+    if (apiPanel && fsCodeModalState.apiPanelParent) {
+      fsCodeModalState.apiPanelParent.insertBefore(apiPanel, fsCodeModalState.apiPanelNextSibling);
+      apiPanel.classList.remove('open');
+    }
+    fsEditorState.cloneTextarea = null;
+
+    var modal = $('fs-code-modal');
+    if (modal) {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    var apiOverlay = $('fs-code-api-overlay');
+    if (apiOverlay) apiOverlay.classList.remove('active');
+    var fab = $('fs-code-api-fab');
+    if (fab) fab.classList.remove('active');
+    var body = $('fs-code-modal-editor');
+    if (body) body.innerHTML = '';
+
+    if (fsCodeModalState.onKeydown) {
+      document.removeEventListener('keydown', fsCodeModalState.onKeydown, true);
+      fsCodeModalState.onKeydown = null;
+    }
+    fsCodeModalState.originalEditor = null;
+    fsCodeModalState.originalTextarea = null;
+    fsCodeModalState.cloneTextarea = null;
+    fsCodeModalState.apiPanelParent = null;
+    fsCodeModalState.apiPanelNextSibling = null;
+  }
+
+  // 悬浮球：开关 API 抽屉
+  function toggleCodeModalApi() {
+    var apiPanel = $('fs-api-panel');
+    var apiOverlay = $('fs-code-api-overlay');
+    var fab = $('fs-code-api-fab');
+    if (!apiPanel) return;
+    var open = apiPanel.classList.toggle('open');
+    if (apiOverlay) apiOverlay.classList.toggle('active', open);
+    if (fab) fab.classList.toggle('active', open);
+  }
+  function closeCodeModalApi() {
+    var apiPanel = $('fs-api-panel');
+    var apiOverlay = $('fs-code-api-overlay');
+    var fab = $('fs-code-api-fab');
+    if (apiPanel) apiPanel.classList.remove('open');
+    if (apiOverlay) apiOverlay.classList.remove('active');
+    if (fab) fab.classList.remove('active');
   }
 
   function switchCodeTab(tabName) {
@@ -5787,13 +6027,16 @@ Effect.fx.clearFx('myZone');</code></pre>
   }
 
   function closeFsEditor() {
+    // 若技能代码全屏层还开着，先关闭它（回写内容、移回 API 面板）
+    var codeModal = $('fs-code-modal');
+    if (codeModal && codeModal.classList.contains('open')) {
+      closeSkillCodeFullscreen();
+    }
     var mask = $('fs-editor');
     if (mask) {
       mask.classList.remove('open');
-      mask.classList.remove('fs-code-focus');
       mask.setAttribute('aria-hidden', 'true');
     }
-    document.removeEventListener('keydown', _skillCodeFocusEsc, true);
     if (fsEditorState.onKeydown) {
       document.removeEventListener('keydown', fsEditorState.onKeydown);
       fsEditorState.onKeydown = null;
@@ -5813,7 +6056,11 @@ Effect.fx.clearFx('myZone');</code></pre>
   // 在当前光标位置插入文字（用于 API 点击插入）
   function insertAtCursor(text) {
     var ta;
-    if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
+    // 全屏代码层打开时，优先用全屏层内的 textarea
+    var codeModal = $('fs-code-modal');
+    if (codeModal && codeModal.classList.contains('open') && fsCodeModalState.cloneTextarea) {
+      ta = fsCodeModalState.cloneTextarea;
+    } else if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
       ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
     } else {
       ta = fsEditorState.cloneTextarea;
@@ -6617,7 +6864,11 @@ Effect.fx.clearFx('myZone');</code></pre>
     });
     if (formatBtn) formatBtn.addEventListener('click', function () {
       var ta;
-      if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
+      // 全屏代码层打开时，优先用全屏层内的 textarea
+      var codeModal = $('fs-code-modal');
+      if (codeModal && codeModal.classList.contains('open') && fsCodeModalState.cloneTextarea) {
+        ta = fsCodeModalState.cloneTextarea;
+      } else if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
         ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
       } else {
         ta = fsEditorState.cloneTextarea;
@@ -6648,6 +6899,34 @@ Effect.fx.clearFx('myZone');</code></pre>
         } else {
           saveAndCloseFullscreenEditor();
         }
+      }
+    });
+
+    // 全屏代码层按钮：退出 / 悬浮球开关 API / overlay 关 API / 格式化
+    var codeModalClose = $('fs-code-modal-close');
+    if (codeModalClose) codeModalClose.addEventListener('click', closeSkillCodeFullscreen);
+    var codeApiFab = $('fs-code-api-fab');
+    if (codeApiFab) codeApiFab.addEventListener('click', toggleCodeModalApi);
+    var codeApiOverlay = $('fs-code-api-overlay');
+    if (codeApiOverlay) codeApiOverlay.addEventListener('click', closeCodeModalApi);
+    var codeModalFormat = $('fs-code-modal-format');
+    if (codeModalFormat) codeModalFormat.addEventListener('click', function () {
+      var ta = fsCodeModalState.cloneTextarea;
+      if (!ta) return;
+      try {
+        ta.value = formatJsCode(ta.value);
+        var editorEl = ta.closest('.code-editor');
+        var pre = editorEl ? editorEl.querySelector('.hl-layer') : null;
+        var code = editorEl ? editorEl.querySelector('.hl-layer code') : null;
+        if (pre && code) {
+          var val = ta.value;
+          if (val.charAt(val.length - 1) === '\n') val = val + ' ';
+          code.innerHTML = highlightText(val, 'javascript');
+          pre.scrollTop = ta.scrollTop;
+          pre.scrollLeft = ta.scrollLeft;
+        }
+      } catch (err) {
+        console.warn('格式化失败:', err);
       }
     });
 
