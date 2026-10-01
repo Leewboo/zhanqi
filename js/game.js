@@ -270,6 +270,8 @@
       this.minionMaxHandSize = 3;      // 最大手牌数
       this.minionMaxPerType = 2;       // 每种小兵最多部署数量
       this._aiMinionDeployed = false;  // AI 本回合是否已完成小兵部署
+      this._aiStrategySet = false;     // AI 本回合是否已设置成略牌
+      this._aiTacticUsed = false;      // AI 本回合是否已尝试使用计谋牌
       this._pendingTacticCards = {};   // 正在执行的计谋牌：只有脚本明确 return true 才提交
       this.armedStrategies = { red: [], blue: [] }; // 已设置的成略牌
       this._strategyHandlers = [];      // 本局成略牌全局事件监听器
@@ -677,6 +679,8 @@
       this.highlighted = [];
       this._aiActing = false;
       this._aiMinionDeployed = false;
+      this._aiStrategySet = false;
+      this._aiTacticUsed = false;
 
       this.log('阵容已就位。战斗开始，红方先动。', 'turn');
       this.log('小兵系统已激活：每回合获得 1 点部署点并抽 1 张卡。', 'turn');
@@ -813,28 +817,37 @@
       return Promise.resolve(window.confirm(actionText || ('使用【' + card.name + '】？')));
     },
 
-    _useTacticCard(card) {
-      if (this.phase !== 'battle' || !card || this._cardType(card) !== 'tactic') return;
-      if (this._isAiControlledPhase()) return;
+    _useTacticCard(card, options) {
+      options = options || {};
+      if (this.phase !== 'battle' || !card || this._cardType(card) !== 'tactic') return Promise.resolve(false);
+      // AI 和联机回放跳过"玩家操作 AI 回合"的守卫
+      if (!options.skipAiGuard && this._isAiControlledPhase()) return Promise.resolve(false);
       const side = this.currentSide;
       const cost = Math.max(0, parseInt(card.cost) || 0);
       const pendingKey = card.instanceId || card.id;
-      if (this._pendingTacticCards[pendingKey]) return;
+      if (this._pendingTacticCards[pendingKey]) return Promise.resolve(false);
       if ((this.minionPoints[side] || 0) < cost) {
         this.log('部署点数不足，无法使用【' + card.name + '】。', 'turn');
-        return;
+        return Promise.resolve(false);
       }
-      this._confirmCardAction(card, '是否使用【' + card.name + '】？').then((confirmed) => {
-        if (!confirmed) return;
+      const doUse = () => {
         const hand = this.minionHand[side] || [];
         const idx = hand.findIndex(c => c.instanceId === card.instanceId);
-        if (idx < 0 || this.currentSide !== side) return;
-        if (this._pendingTacticCards[pendingKey]) return;
+        if (idx < 0 || this.currentSide !== side) return Promise.resolve(false);
+        if (this._pendingTacticCards[pendingKey]) return Promise.resolve(false);
         this._pendingTacticCards[pendingKey] = true;
+
+        // 联机计谋牌同步：本地使用时记录目标选择；回放时不记录
+        const isOnlineReplay = !!this._onlineAction;
+        if (this.onlineMode) {
+          if (!isOnlineReplay && side === this._onlineSide) {
+            Effect._onlineRecorded = [];
+          }
+        }
 
         // 先执行内容，只有结果严格等于 true 才提交手牌消耗和部署点扣除。
         // 这样取消选择、返回 false、未返回值或执行报错都不会消耗计谋牌。
-        this._runCardContent(card, side, { type: 'tacticUse' }, {
+        return this._runCardContent(card, side, { type: 'tacticUse' }, {
           requireExplicitTrue: true
         }).then((committed) => {
           delete this._pendingTacticCards[pendingKey];
@@ -842,12 +855,12 @@
           const currentIdx = currentHand.findIndex(c => c.instanceId === card.instanceId);
           if (this.currentSide !== side || currentIdx < 0) {
             this._renderMinionPanel();
-            return;
+            return false;
           }
           if (committed !== true) {
             this.log('【' + card.name + '】脚本未返回 true，计谋牌未使用，部署点未扣除。', 'turn');
             this._renderMinionPanel();
-            return;
+            return false;
           }
 
           currentHand.splice(currentIdx, 1);
@@ -855,13 +868,36 @@
           this.log(side === 'red' ? '红方使用了计谋牌【' + card.name + '】。'
             : '蓝方使用了计谋牌【' + card.name + '】。', 'turn');
           this._renderMinionPanel();
+
+          // 联机同步：本地玩家使用计谋牌时，把卡牌 instanceId + 目标选择序列发给对方
+          if (this.onlineMode && side === this._onlineSide && !isOnlineReplay) {
+            const recorded = Effect._onlineRecorded || [];
+            try {
+              Online.sendAction({
+                type: 'useTactic',
+                instanceId: card.instanceId,
+                targets: JSON.stringify(recorded)
+              });
+            } catch (e) { console.error('[online] 计谋牌同步发送失败:', e); }
+          }
+          return true;
         }).catch((e) => {
           delete this._pendingTacticCards[pendingKey];
           console.error('[计谋牌提交错误]', card.id, e);
           this.log('【' + card.name + '】未提交，部署点未扣除。', 'turn');
           this._renderMinionPanel();
+          return false;
         });
-      });
+      };
+
+      if (options.skipConfirm || this._onlineAction) {
+        return doUse();
+      } else {
+        return this._confirmCardAction(card, '是否使用【' + card.name + '】？').then((confirmed) => {
+          if (confirmed) return doUse();
+          return false;
+        });
+      }
     },
 
     _strategyEvents(card) {
@@ -871,17 +907,17 @@
       return events.filter(e => typeof e === 'string' && /^on[A-Z]/.test(e));
     },
 
-    _setStrategyCard(card) {
+    _setStrategyCard(card, options) {
+      options = options || {};
       if (this.phase !== 'battle' || !card || this._cardType(card) !== 'strategy') return;
-      if (this._isAiControlledPhase()) return;
+      if (!options.skipAiGuard && this._isAiControlledPhase()) return;
       const side = this.currentSide;
       const events = this._strategyEvents(card);
       if (!events.length) {
         this.log('【' + card.name + '】没有有效的 on___ 触发时机。', 'turn');
         return;
       }
-      this._confirmCardAction(card, '是否设置成略牌【' + card.name + '】？').then((confirmed) => {
-        if (!confirmed) return;
+      const doSet = () => {
         const hand = this.minionHand[side] || [];
         const idx = hand.findIndex(c => c.instanceId === card.instanceId);
         if (idx < 0 || this.currentSide !== side) return;
@@ -893,7 +929,20 @@
         this._registerStrategyCard(card, side, events);
         this.log(side === 'red' ? '红方设置了成略牌。' : '蓝方设置了成略牌。', 'turn');
         this._renderMinionPanel();
-      });
+
+        // 联机同步：本地玩家设置成略牌时通知对方
+        if (this.onlineMode && side === this._onlineSide && !this._onlineAction) {
+          Online.sendAction({ type: 'setStrategy', instanceId: card.instanceId });
+        }
+      };
+
+      if (options.skipConfirm || this._onlineAction) {
+        doSet();
+      } else {
+        this._confirmCardAction(card, '是否设置成略牌【' + card.name + '】？').then((confirmed) => {
+          if (confirmed) doSet();
+        });
+      }
     },
 
     _registerStrategyCard(card, side, events) {
@@ -2566,6 +2615,9 @@
       }
       // 重置 AI 本回合小兵部署标记
       this._aiMinionDeployed = false;
+      // 重置 AI 本回合成略牌/计谋牌使用标记
+      this._aiStrategySet = false;
+      this._aiTacticUsed = false;
       // 重置 AI 回合步数计数
       this._aiStepCount = 0;
 
@@ -3617,10 +3669,16 @@
       if (this.phase === 'draft') this._aiPickGeneral();
       else if (this.phase === 'deploy') this._aiPlaceOne();
       else if (this.phase === 'battle') {
-        // AI 回合开始：先部署小兵（若本回合尚未部署），再执行战斗行动
-        if (!this._aiMinionDeployed) {
+        // AI 回合开始：先设置成略牌 → 部署小兵 → 使用计谋牌 → 战斗行动
+        if (!this._aiStrategySet) {
+          this._aiStrategySet = true;
+          this._aiSetStrategyCard();
+        } else if (!this._aiMinionDeployed) {
           this._aiMinionDeployed = true;
           this._aiDeployMinion();
+        } else if (!this._aiTacticUsed) {
+          this._aiTacticUsed = true;
+          this._aiUseTacticCard();
         } else {
           this._aiBattleStep();
         }
@@ -3697,13 +3755,104 @@
 
       this._deployMinion(card, bestPos.x, bestPos.y);
 
-      // 继续部署剩余手牌，或进入战斗
+      // 继续部署剩余手牌，或进入下一调度步骤（计谋牌 → 战斗）
       const self = this;
       if (this.minionPoints[side] > 0 && this.minionHand[side].length > 0) {
         setTimeout(() => self._aiDeployMinion(), 600);
       } else {
-        setTimeout(() => self._aiBattleStep(), 600);
+        setTimeout(() => self._aiStep(), 600);
       }
+    },
+
+    // AI 设置成略牌：将手牌中的成略牌全部挂起（不消耗部署点，触发时才扣点）
+    _aiSetStrategyCard() {
+      const side = this.currentSide;
+      const hand = this.minionHand[side] || [];
+      const strategies = hand.filter(c => this._cardType(c) === 'strategy');
+      if (!strategies.length) {
+        // 无成略牌 → 进入下一步
+        const self = this;
+        setTimeout(() => self._aiStep(), 300);
+        return;
+      }
+      // 成略牌不消耗部署点（触发时才扣），AI 直接全部设置
+      let i = 0;
+      const setNext = () => {
+        if (i >= strategies.length) {
+          const self = this;
+          setTimeout(() => self._aiStep(), 400);
+          return;
+        }
+        const card = strategies[i++];
+        // 确保卡牌仍在手牌中
+        const curHand = this.minionHand[side] || [];
+        if (!curHand.find(c => c.instanceId === card.instanceId)) {
+          setNext();
+          return;
+        }
+        this._setStrategyCard(card, { skipConfirm: true, skipAiGuard: true });
+        setTimeout(setNext, 400);
+      };
+      setNext();
+    },
+
+    // AI 使用计谋牌：评估手牌中的计谋牌，选择最有利的时机使用
+    _aiUseTacticCard() {
+      const side = this.currentSide;
+      const hand = this.minionHand[side] || [];
+      const points = this.minionPoints[side] || 0;
+      const tactics = hand.filter(c =>
+        this._cardType(c) === 'tactic' &&
+        (Math.max(0, parseInt(c.cost) || 0) <= points)
+      );
+      if (!tactics.length) {
+        const self = this;
+        setTimeout(() => self._aiBattleStep(), 300);
+        return;
+      }
+
+      // 启发式评估：根据盘面形势为每张计谋牌打分
+      const enemies = this.pieces.filter(p => p.alive && p.side !== side);
+      const allies = this.pieces.filter(p => p.alive && p.side === side);
+      const lowHpAllies = allies.filter(a => a.hp < (a.maxHp || a.hp) * 0.5);
+      const totalEnemyThreat = enemies.reduce((s, e) => s + Effect._aiThreat(e), 0);
+
+      let bestCard = null;
+      let bestScore = -Infinity;
+      for (const card of tactics) {
+        let score = 0;
+        const cost = Math.max(0, parseInt(card.cost) || 0);
+        // 基础分：消耗越低越倾向使用（避免浪费点数）
+        score += (5 - cost) * 2;
+        // 敌人多 → 伤害/控制类计谋价值高
+        score += enemies.length * 3;
+        // 友军残血 → 治疗/保护类计谋价值高
+        score += lowHpAllies.length * 8;
+        // 敌方威胁大 → 解场类计谋价值高
+        score += Math.min(30, totalEnemyThreat * 0.1);
+        // 剩余点数多 → 更倾向使用（避免浪费）
+        score += (points - cost) * 1.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestCard = card;
+        }
+      }
+
+      // 阈值：只有评分足够高才使用，避免无意义消耗
+      if (!bestCard || bestScore < 8) {
+        const self = this;
+        setTimeout(() => self._aiBattleStep(), 300);
+        return;
+      }
+
+      // 设置 AI 上下文，使计谋牌内容中的 chooseCell/chooseOption 走 AI 自动选择
+      Effect._aiContext = { mode: true, actor: null, skill: null, hint: null };
+      const self = this;
+      this._useTacticCard(bestCard, { skipConfirm: true, skipAiGuard: true }).then(() => {
+        Effect._aiContext = null;
+        // 计谋牌执行完毕后进入战斗
+        setTimeout(() => self._aiBattleStep(), 600);
+      });
     },
 
     _aiPickGeneral() {
@@ -6192,6 +6341,50 @@
           }
         } else {
           console.warn('[online] deployMinion 回放：未找到 instanceId', data.instanceId);
+        }
+      } else if (data.type === 'useTactic') {
+        // 远端使用计谋牌回放：按 instanceId 从对方手牌找到对应卡牌并使用
+        // 解析目标/选项序列，供 chooseCell/chooseOption 依次取用（与技能回放同机制）
+        Effect._onlineTargetQueue = [];
+        Effect._onlineOptionQueue = [];
+        try {
+          const recorded = data.targets ? JSON.parse(data.targets) : [];
+          (recorded || []).forEach(function (r) {
+            if (r === null) {
+              Effect._onlineTargetQueue.push(null);
+            } else if (typeof r === 'object') {
+              if ('opt' in r) {
+                Effect._onlineOptionQueue.push(r.opt);
+              } else if ('x' in r) {
+                Effect._onlineTargetQueue.push({ x: r.x, y: r.y });
+              }
+            }
+          });
+        } catch (e) {
+          Effect._onlineTargetQueue = [];
+          Effect._onlineOptionQueue = [];
+        }
+        Game._onlineSkillReplay = true;
+        const side = Game.currentSide;
+        const hand = Game.minionHand[side] || [];
+        const card = hand.find(c => c.instanceId === data.instanceId);
+        const tacticPromise = card
+          ? Game._useTacticCard(card, { skipConfirm: true, skipAiGuard: true })
+          : Promise.resolve(false);
+        // 异步计谋牌：等其执行结束后再复位 _onlineAction，保证串行回放
+        return Promise.resolve(tacticPromise).then(function () {
+          Game._onlineSkillReplay = false;
+          if (Game._onlineAction) Game._onlineAction = false;
+        });
+      } else if (data.type === 'setStrategy') {
+        // 远端设置成略牌回放：按 instanceId 找到卡牌并挂起监听
+        const side = Game.currentSide;
+        const hand = Game.minionHand[side] || [];
+        const card = hand.find(c => c.instanceId === data.instanceId);
+        if (card) {
+          Game._setStrategyCard(card, { skipConfirm: true, skipAiGuard: true });
+        } else {
+          console.warn('[online] setStrategy 回放：未找到 instanceId', data.instanceId);
         }
       }
 

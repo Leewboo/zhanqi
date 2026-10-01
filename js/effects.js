@@ -908,6 +908,20 @@
     _aiChooseCell(actor, options) {
       if (!global.Game) return null;
       const g = global.Game;
+      // 兼容计谋牌脚本直接传入 side 字符串或不完整 actor 的情况：
+      // 归一化为带 side/x/y 的对象，避免后续 actor.x / actor.side 取值报错。
+      if (!actor || typeof actor !== 'object') {
+        const s = (typeof actor === 'string' && actor) || g.currentSide;
+        actor = { name: s === 'blue' ? '蓝方' : '红方', side: s, x: Math.floor(SIZE / 2), y: Math.floor(SIZE / 2), alive: true };
+      } else if (actor.side === undefined || actor.x === undefined) {
+        actor = Object.assign({
+          name: actor.name || (actor.side === 'blue' ? '蓝方' : '红方'),
+          side: actor.side || g.currentSide,
+          x: Math.floor(SIZE / 2),
+          y: Math.floor(SIZE / 2),
+          alive: true
+        }, actor);
+      }
       const cx = options.center ? options.center.x : actor.x;
       const cy = options.center ? options.center.y : actor.y;
       const range = options.range || { shape: 'square', n: 3 };
@@ -1129,6 +1143,11 @@
       // 联机回放但目标队列已空（脱同步兜底）：不进入交互等待，直接返回 null
       if (global.Game && global.Game.onlineMode && global.Game._onlineSkillReplay) {
         return Promise.resolve(null);
+      }
+      // 联机回放（成略牌触发等非技能场景）：无目标队列时用 AI 自动选择，避免阻塞
+      if (global.Game && global.Game.onlineMode && global.Game._onlineAction) {
+        const auto = Effect._aiChooseCell(actor, options);
+        return Promise.resolve(auto);
       }
       // AI 模式：自动选择最优格子，不进入交互
       if (Effect._aiContext && Effect._aiContext.mode) {
@@ -1502,6 +1521,19 @@
     _optionResolve: null,
 
     _aiChooseOption(actor, opts) {
+      const g = global.Game;
+      // 兼容计谋牌脚本直接传入 side 字符串或不完整 actor 的情况
+      if (!actor || typeof actor !== 'object') {
+        const s = (typeof actor === 'string' && actor) || (g && g.currentSide) || 'red';
+        actor = { name: s === 'blue' ? '蓝方' : '红方', side: s, x: Math.floor(SIZE / 2), y: Math.floor(SIZE / 2), alive: true, hp: 100, maxHp: 100, atk: 0, def: 0 };
+      } else if (actor.side === undefined) {
+        actor = Object.assign({
+          name: actor.name || '卡牌',
+          side: (g && g.currentSide) || 'red',
+          x: Math.floor(SIZE / 2), y: Math.floor(SIZE / 2),
+          alive: true, hp: 100, maxHp: 100, atk: 0, def: 0
+        }, actor);
+      }
       const list = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
       if (!list.length) return null;
 
@@ -1618,6 +1650,10 @@
       // 联机回放但选项队列已空（脱同步兜底）：不弹出模态框，直接返回 null
       if (global.Game && global.Game.onlineMode && global.Game._onlineSkillReplay) {
         return Promise.resolve(null);
+      }
+      // 联机回放（成略牌触发等非技能场景）：无选项队列时用 AI 自动选择，避免阻塞
+      if (global.Game && global.Game.onlineMode && global.Game._onlineAction) {
+        return Promise.resolve(Effect._aiChooseOption(actor, opts));
       }
       // AI 模式：自动选择
       if (Effect._aiContext && Effect._aiContext.mode) {

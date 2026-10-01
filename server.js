@@ -1887,7 +1887,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  const ALLOWED_ACTION_TYPES = new Set(['pick', 'place', 'move', 'attack', 'skill', 'endTurn', 'deployMinion']);
+  const ALLOWED_ACTION_TYPES = new Set(['pick', 'place', 'move', 'attack', 'skill', 'endTurn', 'deployMinion', 'useTactic', 'setStrategy']);
   const ALLOWED_ACTION_FIELDS = new Set(['type', 'generalId', 'x', 'y', 'fromX', 'fromY', 'toX', 'toY', 'actorX', 'actorY', 'targetX', 'targetY', 'skillId', 'targets', 'cardId', 'instanceId']);
   const MAX_ACTION_LOG = 5000; // 单局最多保留的操作条数，超出后停止追加（局面理论上不会真的到这个量级）
 
@@ -1914,7 +1914,7 @@ io.on('connection', (socket) => {
     return clean;
   }
 
-  const PHASE_FOR_TYPE = { pick: 'draft', place: 'deploy', move: 'battle', attack: 'battle', skill: 'battle', endTurn: 'battle', deployMinion: 'battle' };
+  const PHASE_FOR_TYPE = { pick: 'draft', place: 'deploy', move: 'battle', attack: 'battle', skill: 'battle', endTurn: 'battle', deployMinion: 'battle', useTactic: 'battle', setStrategy: 'battle' };
 
   // 服务端不复刻完整规则，只校验"当前阶段 + 该动作类型是否轮到发送者一方"，
   // 拒绝的操作直接丢弃（不广播/不记录），作为客户端 UI 拦截之外的纵深防御。
