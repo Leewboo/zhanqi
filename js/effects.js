@@ -1711,9 +1711,9 @@
         y: Math.max(0, Math.min(SIZE - 1, parseInt(center.y) || 0))
       };
       options.range = options.range || { shape: 'square', n: SIZE };
-      // 卡牌区域是棋盘范围筛选，不是视线/移动判定：默认穿透棋子和地形，
+      // 卡牌区域是棋盘范围筛选，不是视线/移动判定：始终穿透棋子和地形，
       // 这样 ownHalf / enemyHalf 始终覆盖完整的一整个半场，不会被中间障碍截断。
-      if (options.passThrough === undefined) options.passThrough = true;
+      options.passThrough = true;
       const zone = options.zone || 'all';
       const userFilter = options.filter;
       options.filter = (cell, piece) => {

@@ -928,6 +928,7 @@
         this.log((side === 'red' ? '红方' : '蓝方') + '部署点不足，成略牌暂未触发。', 'turn');
         return;
       }
+      // 先解除武装并移除监听器，避免内容执行期间重复触发
       card._strategyArmed = false;
       const list = this.armedStrategies[side] || [];
       const idx = list.indexOf(card);
@@ -935,9 +936,33 @@
       const cardEntries = this._strategyHandlers.filter(e => e.card === card);
       for (const entry of cardEntries) Effect.off(entry.event, entry.handler);
       this._strategyHandlers = this._strategyHandlers.filter(e => e.card !== card);
-      this.minionPoints[side] = Math.max(0, (this.minionPoints[side] || 0) - cost);
-      this.log((side === 'red' ? '红方' : '蓝方') + '成略牌【' + card.name + '】触发！', 'turn');
-      this._runCardContent(card, side, context);
+
+      // 先执行内容，只有脚本明确 return true 才扣除部署点并消耗成略牌。
+      // 返回 false、未返回值或执行出错时：不扣部署点、不消耗成略牌（重新挂回监听）。
+      this._runCardContent(card, side, context, { requireExplicitTrue: true }).then((committed) => {
+        if (committed !== true) {
+          // 未提交：恢复成略牌监听，不扣部署点
+          this._registerStrategyCard(card, side, this._strategyEvents(card));
+          card._strategyArmed = true;
+          const restored = this.armedStrategies[side] || (this.armedStrategies[side] = []);
+          if (restored.indexOf(card) < 0) restored.push(card);
+          this.log('【' + card.name + '】脚本未返回 true，成略牌未触发，部署点未扣除。', 'turn');
+          this._renderMinionPanel();
+          return;
+        }
+        this.minionPoints[side] = Math.max(0, (this.minionPoints[side] || 0) - cost);
+        this.log((side === 'red' ? '红方' : '蓝方') + '成略牌【' + card.name + '】触发！', 'turn');
+        this._renderMinionPanel();
+      }).catch((e) => {
+        console.error('[成略牌提交错误]', card.id, e);
+        // 出错时同样恢复监听、不扣点
+        this._registerStrategyCard(card, side, this._strategyEvents(card));
+        card._strategyArmed = true;
+        const restored = this.armedStrategies[side] || (this.armedStrategies[side] = []);
+        if (restored.indexOf(card) < 0) restored.push(card);
+        this.log('【' + card.name + '】执行出错，成略牌未消耗，部署点未扣除。', 'turn');
+        this._renderMinionPanel();
+      });
     },
 
     _deployMinion(card, x, y) {

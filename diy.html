@@ -1494,6 +1494,23 @@
     border-radius: 0;
   }
 
+  /* 卡牌脚本（contentCode / filterCode）内联编辑器 */
+  .fs-card-code-editor {
+    width: 100%;
+    min-height: 160px;
+  }
+  .fs-card-code-editor textarea {
+    min-height: 160px;
+    max-height: 360px;
+  }
+  .fs-card-filter-editor {
+    min-height: 110px;
+  }
+  .fs-card-filter-editor textarea {
+    min-height: 110px;
+    max-height: 240px;
+  }
+
   /* 技能代码框独立全屏层：代码占满全屏，API 侧栏改为悬浮球抽屉 */
   .fs-code-modal {
     display: none;
@@ -5192,13 +5209,25 @@ Effect.fx.clearFx('myZone');</code></pre>
 
       if (cardType === 'tactic' || cardType === 'strategy') {
         html += '<details class="fs-fold" open><summary>DIY 卡牌脚本</summary>';
-        html += '<div class="fs-card-script-help">脚本只接收 <code>card</code>、<code>side</code>、<code>context</code>，不传入 actor。计谋牌在确认后执行；成略牌在触发事件且部署点足够时执行。</div>';
-        html += '<div class="form-row" style="margin-top:12px;"><label>卡牌执行代码</label><textarea id="fs-attr-card-content" rows="8" placeholder="const target = await Effect.chooseCardEnemy(side, { center: {x: 6, y: 6}, range: {shape: &quot;square&quot;, n: 4} });&#10;if (target) Effect.damage(null, target, 20);">' + escapeHtml(d.contentCode || '') + '</textarea></div>';
+        html += '<div class="fs-card-script-help">脚本只接收 <code>card</code>、<code>side</code>、<code>context</code>，不传入 actor。计谋牌在确认后执行；成略牌在触发事件且部署点足够时执行。脚本需 <code>return true</code> 才会真正消耗并扣除部署点。</div>';
+        html += '<div class="form-row" style="margin-top:12px;"><label>卡牌执行代码</label>' +
+          '<div class="code-editor fs-card-code-editor" id="fs-attr-card-content-editor">' +
+            '<span class="code-label">contentCode</span>' +
+            '<button class="fullscreen-btn" type="button">⤢ 全屏写代码</button>' +
+            '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+            '<textarea spellcheck="false" id="fs-attr-card-content" rows="8" placeholder="const target = await Effect.chooseCardEnemy(side, { center: {x: 6, y: 6}, range: {shape: &quot;square&quot;, n: 4} });&#10;if (target) Effect.damage(null, target, 20);&#10;return true;">' + escapeHtml(d.contentCode || '') + '</textarea>' +
+          '</div></div>';
         if (cardType === 'strategy') {
-          html += '<div class="form-row" style="margin-top:12px;"><label>触发筛选代码（可选）</label><textarea id="fs-attr-card-filter" rows="4" placeholder="return context.actor && context.actor.side !== side;">' + escapeHtml(d.filterCode || '') + '</textarea></div>';
+          html += '<div class="form-row" style="margin-top:12px;"><label>触发筛选代码（可选）</label>' +
+            '<div class="code-editor fs-card-code-editor fs-card-filter-editor" id="fs-attr-card-filter-editor">' +
+              '<span class="code-label">filterCode</span>' +
+              '<button class="fullscreen-btn" type="button">⤢ 全屏写代码</button>' +
+              '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+              '<textarea spellcheck="false" id="fs-attr-card-filter" rows="4" placeholder="return context.actor &amp;&amp; context.actor.side !== side;">' + escapeHtml(d.filterCode || '') + '</textarea>' +
+            '</div></div>';
         }
         html += '<details class="fs-card-api-help"><summary>可用的受限选择 API（不传入 actor）</summary>';
-        html += '<pre>await Effect.chooseCardOption(side, { title, options: [{label, value}] })\nawait Effect.chooseCardCell(side, { zone: &quot;all&quot;, mustEmpty: true })\nawait Effect.chooseCardOwnHalf(side, { mustEmpty: true })\nawait Effect.chooseCardEnemyHalf(side, { mustEnemy: true })\nawait Effect.chooseCardEnemy(side, { zone: &quot;enemyHalf&quot; })\nawait Effect.chooseCardAlly(side, { zone: &quot;ownHalf&quot; })\n\n// zone: all / ownHalf / enemyHalf；也可叠加 center、range 和自定义 filter。\n// 选项最多 12 个，选择 API 不传入 actor。</pre>';
+        html += '<pre>await Effect.chooseCardOption(side, { title, options: [{label, value}] })\nawait Effect.chooseCardCell(side, { zone: &quot;all&quot;, mustEmpty: true })\nawait Effect.chooseCardOwnHalf(side, { mustEmpty: true })\nawait Effect.chooseCardEnemyHalf(side, { mustEnemy: true })\nawait Effect.chooseCardEnemy(side, { zone: &quot;enemyHalf&quot; })\nawait Effect.chooseCardAlly(side, { zone: &quot;ownHalf&quot; })\n\n// zone: all / ownHalf / enemyHalf；也可叠加 center、range 和自定义 filter。\n// 选项最多 12 个，选择 API 不传入 actor。\n// 注意：chooseCardOwnHalf / chooseCardEnemyHalf 始终穿透棋子和地形，覆盖完整半场。</pre>';
         html += '</details>';
         html += '</details>';
       }
@@ -5252,6 +5281,162 @@ Effect.fx.clearFx('myZone');</code></pre>
         renderAttrTab();
       });
     }
+
+    // 为卡牌脚本（contentCode / filterCode）接入内联高亮 + 全屏编辑器
+    setupFsCardCodeEditors();
+  }
+
+  // 卡牌脚本编辑器：内联高亮 + 全屏写代码（复用技能代码全屏层）
+  function setupFsCardCodeEditors() {
+    var editors = qsa('.fs-card-code-editor');
+    editors.forEach(function (editorEl) {
+      var ta = editorEl.querySelector('textarea');
+      var preLayer = editorEl.querySelector('.hl-layer');
+      var codeEl = editorEl.querySelector('.hl-layer code');
+      if (!ta || !preLayer || !codeEl) return;
+
+      function sync() {
+        var content = ta.value;
+        var displayText = content;
+        if (displayText.charAt(displayText.length - 1) === '\n') {
+          displayText = displayText + ' ';
+        }
+        codeEl.innerHTML = highlightText(displayText, 'javascript');
+        preLayer.scrollTop = ta.scrollTop;
+        preLayer.scrollLeft = ta.scrollLeft;
+        if (typeof validateSyntax === 'function') validateSyntax(ta.value);
+      }
+
+      var timer = null;
+      ta.addEventListener('input', function () {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(sync, 40);
+      });
+      ta.addEventListener('scroll', function () {
+        preLayer.scrollTop = ta.scrollTop;
+        preLayer.scrollLeft = ta.scrollLeft;
+      });
+      ta.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          var s = ta.selectionStart, end = ta.selectionEnd;
+          ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
+          ta.selectionStart = ta.selectionEnd = s + 2;
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(sync, 40);
+        }
+      });
+      sync();
+
+      var fsBtn = editorEl.querySelector('.fullscreen-btn');
+      if (fsBtn) {
+        fsBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openCardCodeFullscreen(editorEl);
+        });
+      }
+    });
+  }
+
+  // 打开卡牌脚本全屏编辑器（复用 fs-code-modal 全屏层）
+  function openCardCodeFullscreen(editorEl) {
+    if (!editorEl) return;
+    var ta = editorEl.querySelector('textarea');
+    if (!ta) return;
+    var label = editorEl.querySelector('.code-label');
+    var labelText = label ? label.textContent.trim() : '代码';
+
+    fsCodeModalState.originalEditor = editorEl;
+    fsCodeModalState.originalTextarea = ta;
+
+    var body = $('fs-code-modal-editor');
+    body.innerHTML = '';
+    var clone = document.createElement('div');
+    clone.className = 'code-editor';
+    clone.innerHTML =
+      '<span class="code-label">' + escapeHtml(labelText) + '</span>' +
+      '<pre class="hl-layer"><code class="language-javascript"></code></pre>' +
+      '<textarea spellcheck="false">' + escapeHtml(ta.value) + '</textarea>';
+    body.appendChild(clone);
+
+    var cloneTa = clone.querySelector('textarea');
+    var clonePre = clone.querySelector('.hl-layer');
+    var cloneCode = clone.querySelector('.hl-layer code');
+    fsCodeModalState.cloneTextarea = cloneTa;
+    fsEditorState.cloneTextarea = cloneTa;
+
+    function cloneSync() {
+      var val = cloneTa.value;
+      var display = val;
+      if (display.charAt(display.length - 1) === '\n') display = display + ' ';
+      cloneCode.innerHTML = highlightText(display, 'javascript');
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
+    }
+    var cloneTimer = null;
+    cloneTa.addEventListener('input', function () {
+      if (cloneTimer) clearTimeout(cloneTimer);
+      cloneTimer = setTimeout(function () {
+        cloneSync();
+        if (typeof validateSyntax === 'function') validateSyntax(cloneTa.value);
+      }, 40);
+    });
+    cloneTa.addEventListener('scroll', function () {
+      clonePre.scrollTop = cloneTa.scrollTop;
+      clonePre.scrollLeft = cloneTa.scrollLeft;
+    });
+    cloneTa.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var s = cloneTa.selectionStart, end = cloneTa.selectionEnd;
+        cloneTa.value = cloneTa.value.substring(0, s) + '  ' + cloneTa.value.substring(end);
+        cloneTa.selectionStart = cloneTa.selectionEnd = s + 2;
+        cloneSync();
+      }
+    });
+    cloneSync();
+
+    // 移动 API 面板到全屏层内（保留所有事件绑定），改为悬浮球抽屉
+    var apiPanel = $('fs-api-panel');
+    if (apiPanel) {
+      fsCodeModalState.apiPanelParent = apiPanel.parentElement;
+      fsCodeModalState.apiPanelNextSibling = apiPanel.nextElementSibling;
+      $('fs-code-modal').appendChild(apiPanel);
+      apiPanel.classList.remove('open');
+    }
+    var apiOverlay = $('fs-code-api-overlay');
+    if (apiOverlay) apiOverlay.classList.remove('active');
+    var fab = $('fs-code-api-fab');
+    if (fab) fab.classList.remove('active');
+
+    var titleEl = $('fs-code-modal-title');
+    if (titleEl) titleEl.textContent = '全屏写代码 · ' + labelText;
+
+    if (typeof window.syncThemeSelect === 'function') window.syncThemeSelect();
+
+    var modal = $('fs-code-modal');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+
+    setTimeout(function () {
+      cloneTa.focus();
+      try { cloneTa.selectionStart = cloneTa.selectionEnd = cloneTa.value.length; } catch (e) {}
+    }, 50);
+
+    if (fsCodeModalState.onKeydown) document.removeEventListener('keydown', fsCodeModalState.onKeydown, true);
+    fsCodeModalState.onKeydown = function (e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (apiPanel && apiPanel.classList.contains('open')) {
+          closeCodeModalApi();
+          return;
+        }
+        closeSkillCodeFullscreen();
+      }
+    };
+    document.addEventListener('keydown', fsCodeModalState.onKeydown, true);
   }
 
   function renderSkillsTab() {
@@ -6199,8 +6384,14 @@ Effect.fx.clearFx('myZone');</code></pre>
       ta = fsCodeModalState.cloneTextarea;
     } else if (fsEditorState.type && fsEditorState.activeMainTab === 'skills' && fsEditorState.activeSkillIdx >= 0) {
       ta = fsEditorState.codeEditors[fsEditorState.activeCodeTab];
-    } else {
+    } else if (fsEditorState.cloneTextarea) {
       ta = fsEditorState.cloneTextarea;
+    } else {
+      // 内联编辑卡牌脚本时：若当前焦点在代码编辑器 textarea 上，则直接插入
+      var active = document.activeElement;
+      if (active && active.tagName === 'TEXTAREA' && active.closest('.code-editor')) {
+        ta = active;
+      }
     }
     if (!ta) return;
     var start = ta.selectionStart;
