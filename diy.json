@@ -652,7 +652,7 @@
           "canAttack": true,
           "trigger": null,
           "filterCode": "",
-          "contentCode": "ally=await Effect.chooseCardAlly(side, { zone: \"ownHalf\" })\nEffect.heal(ally,30)",
+          "contentCode": "ally=await Effect.chooseCardAlly(side, { zone: \"ownHalf\" })\nif(!ally)return false;Effect.heal(ally,30);return true",
           "description": "回复己方半场一个单位30滴血",
           "portrait": null,
           "inDeck": true,
