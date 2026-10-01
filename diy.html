@@ -5178,16 +5178,19 @@ Effect.fx.clearFx('myZone');</code></pre>
         html += '<option value="' + o.v + '"' + (d.rarity === o.v ? ' selected' : '') + '>' + o.t + '</option>';
       });
       html += '</select></div>';
-      html += '<div class="form-row"><label>类型</label><select id="fs-attr-tag">';
-      [{ v: 'infantry', t: '步兵' }, { v: 'scout', t: '侦察' }, { v: 'siege', t: '攻城' }, { v: 'archer', t: '弓兵' }, { v: 'cavalry', t: '骑兵' }].forEach(function (o) {
-        html += '<option value="' + o.v + '"' + (d.tag === o.v ? ' selected' : '') + '>' + o.t + '</option>';
-      });
-      html += '</select></div>';
       html += '<div class="form-row"><label>消耗</label><input type="number" id="fs-attr-cost" value="' + (d.cost != null ? d.cost : 1) + '"></div>';
       html += '<div class="form-row"><label>入卡组</label><select id="fs-attr-in-deck">';
       html += '<option value="1"' + (d.inDeck !== false ? ' selected' : '') + '>是</option>';
       html += '<option value="0"' + (d.inDeck === false ? ' selected' : '') + '>否</option>';
       html += '</select></div>';
+      // 小兵类型(tag)仅对小兵牌/建筑牌显示，计谋牌/成略牌无小兵类型
+      if (cardType !== 'tactic' && cardType !== 'strategy') {
+        html += '<div class="form-row"><label>类型</label><select id="fs-attr-tag">';
+        [{ v: 'infantry', t: '步兵' }, { v: 'scout', t: '侦察' }, { v: 'siege', t: '攻城' }, { v: 'archer', t: '弓兵' }, { v: 'cavalry', t: '骑兵' }].forEach(function (o) {
+          html += '<option value="' + o.v + '"' + (d.tag === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+        });
+        html += '</select></div>';
+      }
       html += '<div class="form-row"><label>卡组数量</label><input type="number" id="fs-attr-card-count" value="' + (d.cardCount != null ? d.cardCount : '') + '" placeholder="按稀有度默认"></div>';
       html += '</div>';
       if (cardType === 'building') {
