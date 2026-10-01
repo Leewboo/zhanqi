@@ -171,6 +171,42 @@
       this._events[eventName] = this._events[eventName].filter(f => f !== cb);
     },
 
+    // 清理所有只属于当前对局的效果状态。
+    // 武将对象会在 Game.init 中整体重建，因此旧标记、陷阱、临时技能和事件
+    // 也必须同时清理，不能依赖旧棋子逐个移除。
+    resetForNewGame() {
+      this._marks = {};
+      this._events = {};
+      this._tmpSkills = [];
+      this._traps = [];
+      this._trapLogSilence = 0;
+      this._aiContext = null;
+      this._onlineTargetQueue = null;
+      this._onlineOptionQueue = null;
+      this._onlineRecorded = null;
+
+      if (this._optionModal) {
+        this._optionModal.classList.add('hidden');
+      }
+      if (this._optionResolve) {
+        try { this._optionResolve(null); } catch (_) {}
+      }
+      this._optionModal = null;
+      this._optionResolve = null;
+
+      if (global.Range && typeof global.Range.resetBlockOverride === 'function') {
+        global.Range.resetBlockOverride();
+      }
+
+      // 清掉上一局尚未结束的临时视觉效果，避免新局继承旧棋盘动画。
+      if (global.Game && global.Game.boardEl) {
+        this.fx.clearFx();
+        global.Game.boardEl.classList.remove('fx-screen-shake');
+        global.Game.boardEl.style.removeProperty('--fx-intensity');
+        global.Game.boardEl.style.removeProperty('--fx-duration');
+      }
+    },
+
     trigger(eventName, context) {
       const handlers = this._events[eventName] || [];
       for (const cb of handlers) {
@@ -1650,6 +1686,82 @@
       });
     },
 
+    // 卡牌专用选择 API：DIY 卡牌脚本不接收 actor。
+    // 选择范围必须通过 options.center / options.range 明确限制；
+    // 未提供 center 时使用棋盘中心，最大范围仍受 Range 限制。
+    chooseCardOption(side, opts) {
+      opts = opts || {};
+      const options = Array.isArray(opts.options) ? opts.options.slice(0, 12) : [];
+      const cardOpts = Object.assign({}, opts, { options: options });
+      delete cardOpts.aiPicker;
+      return this.chooseOption(
+        { name: side === 'blue' ? '蓝方' : '红方', side: side },
+        cardOpts
+      );
+    },
+
+    chooseCardCell(side, options) {
+      options = Object.assign({}, options || {});
+      const center = options.center || {
+        x: Math.floor(SIZE / 2),
+        y: Math.floor(SIZE / 2)
+      };
+      options.center = {
+        x: Math.max(0, Math.min(SIZE - 1, parseInt(center.x) || 0)),
+        y: Math.max(0, Math.min(SIZE - 1, parseInt(center.y) || 0))
+      };
+      options.range = options.range || { shape: 'square', n: SIZE };
+      // 卡牌区域是棋盘范围筛选，不是视线/移动判定：默认穿透棋子和地形，
+      // 这样 ownHalf / enemyHalf 始终覆盖完整的一整个半场，不会被中间障碍截断。
+      if (options.passThrough === undefined) options.passThrough = true;
+      const zone = options.zone || 'all';
+      const userFilter = options.filter;
+      options.filter = (cell, piece) => {
+        const isBlueHalf = cell.y < SIZE / 2;
+        const inZone = zone === 'ownHalf'
+          ? (side === 'blue' ? isBlueHalf : !isBlueHalf)
+          : zone === 'enemyHalf'
+            ? (side === 'blue' ? !isBlueHalf : isBlueHalf)
+            : true;
+        if (!inZone) return false;
+        return typeof userFilter === 'function' ? userFilter(cell, piece) : true;
+      };
+      return this.chooseCell({
+        name: side === 'blue' ? '蓝方' : '红方',
+        side: side,
+        x: options.center.x,
+        y: options.center.y,
+        alive: true
+      }, options);
+    },
+
+    // 卡牌区域选择：返回格子；zone 为 all / ownHalf / enemyHalf。
+    chooseCardZone(side, zone, options) {
+      return this.chooseCardCell(side, Object.assign({}, options || {}, { zone: zone || 'all' }));
+    },
+
+    chooseCardFullField(side, options) {
+      return this.chooseCardZone(side, 'all', options);
+    },
+
+    chooseCardOwnHalf(side, options) {
+      return this.chooseCardZone(side, 'ownHalf', options);
+    },
+
+    chooseCardEnemyHalf(side, options) {
+      return this.chooseCardZone(side, 'enemyHalf', options);
+    },
+
+    chooseCardEnemy(side, options) {
+      return this.chooseCardCell(side, Object.assign({}, options || {}, { mustEnemy: true }))
+        .then(cell => cell && global.Game ? global.Game.pieceAt(cell.x, cell.y) : null);
+    },
+
+    chooseCardAlly(side, options) {
+      return this.chooseCardCell(side, Object.assign({}, options || {}, { mustAlly: true }))
+        .then(cell => cell && global.Game ? global.Game.pieceAt(cell.x, cell.y) : null);
+    },
+
     _closeOptionModal() {
       if (Effect._optionModal) {
         Effect._optionModal.classList.add('hidden');
@@ -2317,37 +2429,59 @@
     },
 
     // 陷阱系统
-    // _traps: [{ x, y, side, type, damage, owner, data }]
+    // _traps: [{ x, y, side, type, damage, owner, turns, mode, callback, data }]
     _traps: [],
+    _trapLogSilence: 0,
 
     // 放置陷阱
-    // opts: { side: 敌方/友方触发, type: 'damage'|'stun'|'teleport', damage, turns, owner }
+    // opts:
+    //   side: 'enemy'|'ally'，默认敌方触发
+    //   type: 'damage'|'stun'|'teleport'|'poison'，没有 callback 时使用内置效果
+    //   damage, turns, owner, data
+    //   mode: 'step'（仅踩上触发）|'pass'（经过触发，包含踩上），默认 'step'
+    //   color: 棋盘显示色块的 CSS 颜色
+    //   callback(piece, trap, context)：自定义触发效果；返回值不影响陷阱消耗
     placeTrap(x, y, opts) {
       opts = opts || {};
       if (!global.Game) return false;
       if (x < 0 || y < 0 || x >= Range.BOARD_SIZE || y >= Range.BOARD_SIZE) return false;
       // 同一格不能重复放
       if (this._traps.some(t => t.x === x && t.y === y)) return false;
+      const rawMode = String(opts.mode || 'step').toLowerCase();
+      const mode = (rawMode === 'pass' || rawMode === 'through' || rawMode === 'onpass')
+        ? 'pass' : 'step';
       const trap = {
         x, y,
         side: opts.side || 'enemy',
         type: opts.type || 'damage',
-        damage: opts.damage || 30,
+        damage: opts.damage !== undefined ? Number(opts.damage) || 0 : 30,
         owner: opts.owner || null,
+        ownerSide: opts.owner && opts.owner.side ? opts.owner.side : null,
+        ownerName: opts.sourceName || (opts.owner && opts.owner.name) || '',
         turns: opts.turns || 3,
+        mode,
+        color: typeof opts.color === 'string' && opts.color.trim() ? opts.color.trim() : 'rgba(120, 40, 160, 0.72)',
+        callback: typeof opts.callback === 'function' ? opts.callback : null,
         data: opts.data || {}
       };
       this._traps.push(trap);
-      if (global.Game) global.Game.log((opts.owner ? opts.owner.name + ' ' : '') + '在 (' + x + ',' + y + ') 布下陷阱！');
+      if (global.Game && typeof global.Game._render === 'function') global.Game._render();
       return true;
     },
 
-    // 检查并触发某格子的陷阱（棋子移动到该格时调用）
-    _checkTraps(piece) {
+    // 检查并触发某格子的陷阱。
+    // opts.mode='pass' 只检查经过型陷阱；opts.mode='step' 只检查踩上型陷阱。
+    // opts.from/to/pathIndex/pathLength 会传给自定义 callback，便于按移动路径处理。
+    _checkTraps(piece, opts) {
+      opts = opts || {};
       if (!piece || !piece.alive || !global.Game) return;
+      const mode = opts.mode === 'pass' ? 'pass' : 'step';
+      const x = Number.isInteger(opts.x) ? opts.x : piece.x;
+      const y = Number.isInteger(opts.y) ? opts.y : piece.y;
       for (let i = this._traps.length - 1; i >= 0; i--) {
         const t = this._traps[i];
-        if (t.x !== piece.x || t.y !== piece.y) continue;
+        // 兼容旧代码直接写入的陷阱对象：未声明 mode 时按旧行为视为 step。
+        if (t.x !== x || t.y !== y || (t.mode || 'step') !== mode) continue;
         // side='enemy' 表示敌方陷阱触发（放置者=owner，触发者应≠owner.side）
         // side='ally' 表示友方陷阱触发（触发者=owner同阵营）
         const shouldTrigger = (t.side === 'enemy')
@@ -2355,24 +2489,48 @@
           : (!t.owner || t.owner.side === piece.side);
         if (!shouldTrigger) continue;
 
-        // 触发陷阱
-        if (global.Game) global.Game.log(piece.name + ' 踩中了陷阱！', 'turn');
-        // owner 已死亡则用 null 作为伤害来源
-        const trapOwner = (t.owner && t.owner.alive) ? t.owner : null;
-        if (t.type === 'damage') {
-          Effect.damage(trapOwner, piece, t.damage, { ignoreDef: false });
-        } else if (t.type === 'stun') {
-          Effect.stun(piece, t.data.turns || 1);
-        } else if (t.type === 'teleport') {
-          Effect.randomTeleport(piece, t.data.range || 3);
-        } else if (t.type === 'poison') {
-          Effect.poison(piece, t.damage, t.data.turns || 2);
+        // 触发陷阱。陷阱本身及其连带效果不写入战报，避免泄露给对手。
+        const context = {
+          piece,
+          trap: t,
+          x,
+          y,
+          mode,
+          from: opts.from || null,
+          to: opts.to || { x, y },
+          pathIndex: opts.pathIndex,
+          pathLength: opts.pathLength
+        };
+        this._trapLogSilence += 1;
+        try {
+          if (typeof t.callback === 'function') {
+            try {
+              t.callback(piece, t, context);
+            } catch (e) {
+              console.error('[陷阱回调错误]', e);
+            }
+          } else {
+            // owner 已死亡则用 null 作为伤害来源
+            const trapOwner = (t.owner && t.owner.alive) ? t.owner : null;
+            if (t.type === 'damage') {
+              Effect.damage(trapOwner, piece, t.damage, { ignoreDef: false });
+            } else if (t.type === 'stun') {
+              Effect.stun(piece, t.data.turns || 1);
+            } else if (t.type === 'teleport') {
+              Effect.randomTeleport(piece, t.data.range || 3);
+            } else if (t.type === 'poison') {
+              Effect.poison(piece, t.damage, t.data.turns || 2);
+            }
+          }
+        } finally {
+          this._trapLogSilence = Math.max(0, this._trapLogSilence - 1);
         }
         // 消耗陷阱
         this._traps.splice(i, 1);
         if (global.Game) global.Game._render();
-        break; // 一次只触发一个
+        return { triggered: true, trap: t, mode, x, y };
       }
+      return { triggered: false, mode, x, y };
     },
 
     // 清除指定格子或指定 owner 的陷阱
@@ -2543,6 +2701,12 @@
           for (let x = 0; x < SIZE; x++) cells.push({ x: x, y: y });
         }
       }
+
+      const cardType = cardObj.cardType === 'building' ? 'building'
+        : (cardObj.cardType === 'tactic' || cardObj.cardType === 'tactics' ? 'tactic'
+          : cardObj.cardType === 'strategy' ? 'strategy' : 'minion');
+      if (cardType === 'tactic' || cardType === 'strategy') return false;
+      const cardCost = Math.max(0, parseInt(cardObj.cost) || 0);
 
       const half = SIZE / 2;
       return cells.filter(function (c) {
@@ -2980,7 +3144,7 @@
         return false;
       }
       // 校验部署点
-      if (!opts.ignoreCost && (g.minionPoints[side] || 0) < (cardObj.cost || 0)) {
+      if (!opts.ignoreCost && (g.minionPoints[side] || 0) < cardCost) {
         if (g.log) g.log('部署点数不足！', 'turn');
         return false;
       }
@@ -3007,15 +3171,19 @@
         skilled: true,
         skills: minionSkills,
         cdMap: {},
-        moveRange: cardObj.moveRange,
-        attackRange: cardObj.attackRange,
+        moveRange: cardObj.moveRange || { shape: '+', n: 0 },
+        attackRange: cardObj.attackRange || { shape: '+', n: 0 },
         isMinion: true,
+        isBuilding: cardType === 'building',
+        cardType: cardType,
+        canMove: cardType === 'building' ? cardObj.canMove !== false : true,
+        canAttack: cardType === 'building' ? cardObj.canAttack !== false : true,
         minionId: cardObj.id,
         rarity: cardObj.rarity
       };
 
       g.pieces.push(minion);
-      if (!opts.ignoreCost) g.minionPoints[side] = Math.max(0, (g.minionPoints[side] || 0) - (cardObj.cost || 0));
+      if (!opts.ignoreCost) g.minionPoints[side] = Math.max(0, (g.minionPoints[side] || 0) - cardCost);
 
       // 小兵部署音效
       if (cardObj.sound && cardObj.sound.deploy && global.AudioManager) {

@@ -94,6 +94,34 @@
     return defs.map(d => registerSkill(d));
   }
 
+  // 卡牌内容与棋子技能使用不同的执行上下文：
+  // 卡牌脚本接收 (card, side, context)，不伪造 actor。
+  function compileCard(def) {
+    if (!def || !def.id) return null;
+    const code = typeof def.contentCode === 'string'
+      ? def.contentCode
+      : (typeof def.content === 'string' ? def.content : '');
+    const contentFn = new Function(
+      'card',
+      'side',
+      'context',
+      'return (async () => { ' + code + ' \n})();'
+    );
+    return {
+      id: def.id,
+      name: def.name || def.id,
+      content: function (card, side, context) {
+        try {
+          return contentFn(card, side, context || {});
+        } catch (e) {
+          console.error('[DIY 卡牌执行错误] ' + def.id, e);
+          if (global.Game) global.Game.log('【' + (def.name || def.id) + '】脚本执行错误：' + e.message);
+          return false;
+        }
+      }
+    };
+  }
+
   function getSkill(idOrRef) {
     // 兼容：如果传入的已经是对象（含 content/filter），直接返回
     if (idOrRef && typeof idOrRef === 'object') return idOrRef;
@@ -101,5 +129,5 @@
   }
 
   global.Skills = Skills;
-  global.SkillsAPI = { registerSkill, registerSkills, compileSkill, getSkill };
+  global.SkillsAPI = { registerSkill, registerSkills, compileSkill, compileCard, getSkill };
 })(window);

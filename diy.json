@@ -1,156 +1,767 @@
 {
   "extensions": [
     {
-      "id": "ext_test",
-      "name": "测试武将",
-      "desc": "用于测试斗蛐蛐模式",
+      "id": "ext_mrrqjhzc9i4",
+      "name": "官方武将",
+      "desc": "定稿",
       "enabled": true,
-      "soundBank": [],
       "generals": [
+        {
+          "id": "diy_liubei",
+          "name": "刘备",
+          "hp": 200,
+          "atk": 40,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_liubei_rende"
+          ],
+          "portrait": "pt_ms22kzp80xvs69.jpg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "sd_rerende1",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_caocao",
+          "name": "曹操",
+          "hp": 220,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_caocao_jianxiong"
+          ],
+          "portrait": "pt_ms22kzpigp73fy.jpg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_sunquan",
+          "name": "孙权",
+          "hp": 220,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_sunquan_zhiheng"
+          ],
+          "portrait": "pt_ms22kzpl3gpzsi.jpg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "sd_rezhiheng1",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_zhouyu",
+          "name": "周瑜",
+          "hp": 220,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhouyu_yingzi"
+          ],
+          "portrait": "pt_ms22kzprklmcuf.png",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
         {
           "id": "diy_zhaoyun",
           "name": "赵云",
-          "hp": 180,
+          "hp": 220,
           "atk": 65,
-          "def": 20,
-          "moveRange": { "shape": "+", "n": 4 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["sk_zhaoyun_longdan"],
-          "_extId": "ext_test"
-        },
-        {
-          "id": "diy_lvbu",
-          "name": "吕布",
-          "hp": 260,
-          "atk": 90,
           "def": 25,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["sk_lvbu_wushuang"],
-          "_extId": "ext_test"
-        },
-        {
-          "id": "diy_zhugeliang",
-          "name": "诸葛亮",
-          "hp": 150,
-          "atk": 55,
-          "def": 15,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 2 },
-          "skillIds": ["sk_zhugeliang_bagua"],
-          "_extId": "ext_test"
-        },
-        {
-          "id": "diy_zhangfei",
-          "name": "张飞",
-          "hp": 240,
-          "atk": 75,
-          "def": 30,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["sk_zhangfei_paoxiao"],
-          "_extId": "ext_test"
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhaoyun_chongzhen",
+            "diy_zhaoyun_tuwei"
+          ],
+          "portrait": "pt_ms22kzpxv1vp10.jpeg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
         },
         {
           "id": "diy_guanyu",
           "name": "关羽",
-          "hp": 220,
-          "atk": 80,
-          "def": 22,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "skillIds": ["sk_guanyu_wusheng"],
-          "_extId": "ext_test"
+          "hp": 230,
+          "atk": 65,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_guanyu_qinglong",
+            "diy_guanyu_wusheng"
+          ],
+          "portrait": "pt_ms22kzpug42jju.jpg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
         },
         {
-          "id": "diy_huatuo",
-          "name": "华佗",
-          "hp": 160,
-          "atk": 40,
-          "def": 15,
-          "moveRange": { "shape": "+", "n": 3 },
-          "attackRange": { "shape": "+", "n": 2 },
-          "skillIds": ["sk_huatuo_qingnang"],
-          "_extId": "ext_test"
+          "id": "diy_gongsunzan",
+          "name": "公孙瓒",
+          "hp": 220,
+          "atk": 60,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_gongsunzan_baima",
+            "diy_gongsunzan_yicong"
+          ],
+          "portrait": "pt_ms22kzq32aeae1.jpeg",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_xiahouyuan",
+          "name": "夏侯渊",
+          "hp": 210,
+          "atk": 60,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 4
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_xiahouyuan_shensu",
+            "diy_xiahouyuan_bianyi"
+          ],
+          "portrait": "pt_ms22kzq5ja7y7s.webp",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_guohuai",
+          "name": "郭淮",
+          "hp": 220,
+          "atk": 60,
+          "def": 25,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_guohuai_jingce"
+          ],
+          "portrait": "pt_muihiqjkmjrvtw.webp",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
         }
       ],
       "skills": [
         {
-          "id": "sk_zhaoyun_longdan",
-          "name": "龙胆",
-          "type": "被动",
-          "trigger": "onAttack",
-          "desc": "攻击后20%概率追加一次伤害",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "if (Effect.chance(0.2)) { var enemies = Effect.getEnemiesInRange(actor, {shape:'+', n:1}); if (enemies.length) { Effect.damage(actor, enemies[0], Math.floor(Effect.getEffectiveAttack(actor)*0.5)); Game.log(actor.name + '龙胆追击！'); } }",
-          "_extId": "ext_test"
+          "id": "diy_sunquan_skill_qinling",
+          "name": "亲临",
+          "type": "主动",
+          "limited": true,
+          "cooldown": 0,
+          "trigger": null,
+          "desc": "恢复100点血量，获得2移动，20攻击，持续5回合",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "Effect.heal(actor, 100);\nEffect.modifyAttack(actor, 20, 5);\nEffect.modifyMoveRange(actor, 2, 5);\n",
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "buff",
+            "target": "enemy",
+            "power": 50,
+            "priority": 5,
+            "condition": "self_low_hp",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0,
+            "notes": ""
+          }
         },
         {
-          "id": "sk_lvbu_wushuang",
-          "name": "无双",
-          "type": "被动",
-          "trigger": "turnStart",
-          "desc": "回合开始时获得攻击加成",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "Effect.modifyAttack(actor, 15, 1); Game.log(actor.name + '无双：攻击+15');",
-          "_extId": "ext_test"
+          "id": "diy_liubei_rende",
+          "name": "仁德",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 4,
+          "trigger": null,
+          "desc": "圆形4范围恢复我军一个单位50点体力",
+          "preview": {
+            "shape": "r",
+            "n": 4,
+            "passThrough": true
+          },
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "// 在十字3格范围内选择一名敌人，造成 1.5 倍攻击力伤害\nconst ally = await Effect.chooseAlly(actor, {\n  range: { shape: 'r', n: 4 },\n  passThrough: true,\n  hintText: '请选择友方'\n});\nif (!ally) return false;\nEffect.heal(ally, 50);\nactor.skilled = true;\n",
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "heal",
+            "target": "ally",
+            "power": 50,
+            "priority": 5,
+            "condition": "always",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0,
+            "notes": ""
+          }
         },
         {
-          "id": "sk_zhugeliang_bagua",
-          "name": "八阵",
+          "id": "diy_caocao_jianxiong",
+          "name": "奸雄",
           "type": "被动",
-          "trigger": "turnStart",
-          "desc": "回合开始时恢复生命",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "Effect.heal(actor, 25);",
-          "_extId": "ext_test"
-        },
-        {
-          "id": "sk_zhangfei_paoxiao",
-          "name": "咆哮",
-          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
           "trigger": "onAttacked",
-          "desc": "被攻击时反弹伤害",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "if (context.attacker && context.attacker.alive) { Effect.damage(actor, context.attacker, 15, {ignoreDef:true}); Game.log(actor.name + '咆哮反伤！'); }",
-          "_extId": "ext_test"
+          "desc": "被攻击后偷取攻击者的10点攻击力",
+          "preview": null,
+          "filterCode": "return actor",
+          "contentCode": "Effect.stealStat(actor, context.attacker, 'atk', 5);\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_jianxiong1",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
         },
         {
-          "id": "sk_guanyu_wusheng",
+          "id": "diy_sunquan_zhiheng",
+          "name": "制衡",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "交换方形三范围内两个友方的位置",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const ally1 = await Effect.chooseAlly(actor, {\n    range: { shape: 'r', n: 3 },\n    passThrough: false,\n    hintText: '请选择友方1'\n  });\nif (!ally1) return false;\nconst ally2 = await Effect.chooseAlly(actor, {\n    range: { shape: 'r', n: 3 },\n    passThrough: false,\n    hintText: '请选择友方2',\n    filter:function (cell,piece){\n      return piece!=ally1\n    }\n  });\nif (!ally2) return false;\nEffect.swap(ally1, ally2);\nactor.skilled = true;\n\n\n",
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhouyu_yingzi",
+          "name": "英姿",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnStart",
+          "desc": "回合开始时，恢复我军所有冷却值不为2的技能一点冷却。",
+          "preview": null,
+          "filterCode": "return actor && actor.alive;\n",
+          "contentCode": "if (!Game) return;\nconst allies = Game.pieces.filter(p => p.alive && p.side === actor.side);\nlet restored = 0;\nfor (const ally of allies) {\n  if (!ally.cdMap) continue;\n  for (const sk of (ally.skills || [])) {\n    const cd = ally.cdMap[sk.id] || 0;\n    if (cd > 0 && cd !== 2) {\n      ally.cdMap[sk.id] = cd - 1;\n      restored++;\n    }\n  }\n}\nif (restored > 0) {\n  Game.log('【英姿】' + actor.name + ' 激励全军，恢复 ' + restored + ' 个技能冷却！', 'turn');\n}\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_sbyingzi2",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diyminion_xianzhenying_xianzhen",
+          "name": "陷阵",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onMove",
+          "desc": "移动后，击退方形1范围内所有敌人一格",
+          "preview": null,
+          "filterCode": "return actor && actor.alive && !actor.skilled;",
+          "contentCode": "const cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nfor (const c of cells) {\n  const t = Game.pieceAt(c.x, c.y);\n  if (t && t.alive && t.side !== actor.side){\n    var dir = [Math.sign(t.x-actor.x)||0, Math.sign(t.y-actor.y)||0];\n    Effect.push(actor, t, dir, 1);\n  }\n}\nreturn true;\n",
+          "initCode": "",
+          "sound": null,
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhaoyun_chongzhen",
+          "name": "冲阵",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onMove",
+          "desc": "用后立即对周围方形一格敌人造成30点无视防御伤害",
+          "preview": null,
+          "filterCode": "return actor && actor.alive; ",
+          "contentCode": "// contentCode\nvar data = Effect.getMarkData(actor, \"charge_form\");\nvar form = data ? data.form : 1;\n\nvar cells = Range.cellsInRange(\"square\", 1, actor.x, actor.y, { includeSelf: false });\nvar enemies = [];\nfor (var i = 0; i < cells.length; i++) {\n  var p = Game.pieceAt(cells[i].x, cells[i].y);\n  if (p && p.alive && p.side !== actor.side) enemies.push(p);\n}\n\nif (form === 1) {\n  // 形态1：30点无视防御伤害\n  for (var i = 0; i < enemies.length; i++) {\n    Effect.damage(actor, enemies[i], 30, { ignoreDef: true });\n    Effect.fx.shake(enemies[i], { intensity: 5, duration: 350 });\n  }\n  Effect.fx.ring(actor.x, actor.y, { color: \"#f80\", duration: 500 });\n  Game.log(actor.name + \" 发动【冲阵·形态1】，对周围敌人造成30点伤害！\");\n  form = 2;\n} else {\n  // 形态2：推开敌人 + 回血20\n  for (var i = 0; i < enemies.length; i++) {\n    var t = enemies[i];\n    var dx = Math.sign(t.x - actor.x);\n    var dy = Math.sign(t.y - actor.y);\n    if (dx === 0 && dy === 0) continue;\n    Effect.push(actor, t, [dx, dy], 1);\n  }\n  Effect.heal(actor, 15);\n  Effect.fx.pulse(actor, { color: \"#4f4\", duration: 500 });\n  Game.log(actor.name + \" 发动【冲阵·形态2】，推开敌人并恢复20点生命！\");\n  form = 1;\n}\nEffect.unmark(actor, 'charge_form');\nEffect.mark(actor, 'charge_form', { display: '形态'+form, modifiers: {}, data: {form:form} });\n\n",
+          "initCode": "// initCode\nEffect.mark(actor, \"charge_form\", { display: \"形态1\", data: { form: 1 } });\n",
+          "sound": {
+            "cast": "sd_chongzhen12",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_zhaoyun_tuwei",
+          "name": "突围",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnEnd",
+          "desc": "回合结束时，若你本回合没有移动，则你立即触发一次自己的“移动后”时机",
+          "preview": null,
+          "filterCode": "// filterCode\nreturn actor && actor.alive;\n",
+          "contentCode": "// contentCode\nif (actor.moved) return;\nGame.log(actor.name + \" 发动【突围】，触发移动后时机！\");\nEffect.triggerPassive(actor, \"onMove\", {\n  from: { x: actor.x, y: actor.y },\n  to: { x: actor.x, y: actor.y }\n});\n",
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_guanyu_qinglong",
+          "name": "青龙",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 1,
+          "trigger": null,
+          "desc": "若本回合你没有攻击，标记自己为已攻击并获得一个“青龙”标记(最多3个)",
+          "preview": null,
+          "filterCode": "// filterCode\nreturn actor && actor.alive && !actor.attacked;\n",
+          "contentCode": "// contentCode\nvar data = Effect.getMarkData(actor, \"qinglong\");\nvar stacks = data ? (data.stacks || 0) : 0;\nif (stacks >= 3) {\n  Game.log(actor.name + \" 青龙标记已满（3/3）。\");\n  return false;\n}\nactor.skilled = true;\nactor.attacked = true;\nEffect.unmark(actor, \"qinglong\");\nEffect.mark(actor, \"qinglong\", {\n  display: \"青\"+(stacks+1),\n  data: { stacks: stacks + 1 }\n});\nEffect.fx.glow(actor, { color: \"#4af\", duration: 600 });\nGame.log(actor.name + \" 发动【青龙】，获得青龙标记（\" + (stacks + 1) + \"/3）。\");\nreturn true;\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_wusheng2",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_guanyu_wusheng",
           "name": "武圣",
           "type": "被动",
-          "trigger": "onKill",
-          "desc": "击杀后恢复生命",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "Effect.heal(actor, 40); Game.log(actor.name + '武圣：恢复40生命');",
-          "_extId": "ext_test"
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onAttack",
+          "desc": "攻击敌人后依次执行: 1.有25%概率眩晕(下回合不能被操作)该敌人，如若成功眩晕则你立即恢复自身20*青龙标记数点血量并失去所有青龙标记 2.若你有“青龙”标记则你立即恢复攻击并减一个“青龙”标记；",
+          "preview": null,
+          "filterCode": "// filterCode\nreturn actor && actor.alive;\n",
+          "contentCode": "// contentCode\nif (!context || !context.target) return;\nvar t = context.target;\nif (!t.alive) return;\nvar data = Effect.getMarkData(actor, \"qinglong\");\nvar stacks = data ? (data.stacks || 0) : 0;\n\n// 1. 25%概率眩晕敌人，成功则回血并清空所有青龙标记\nif (Effect.chance(0.25)) {\n  Effect.stun(t, 1);\n  Effect.fx.shake(t, { axis: \"r\", intensity: 6, duration: 400 });\n  Effect.fx.beam(actor.x, actor.y, t.x, t.y, { color: \"#f44\", width: 10, duration: 350 });\n  Game.log(actor.name + \" 发动【武圣】，眩晕 \" + t.name + \"！\");\n  if (stacks > 0) {\n    var healAmt = 20 * stacks;\n    Effect.heal(actor, healAmt);\n    Effect.fx.pulse(actor, { color: \"#4f4\", duration: 500 });\n    Game.log(actor.name + \" 恢复 \" + healAmt + \" 点生命，失去所有青龙标记。\");\n    Effect.unmark(actor, \"qinglong\");\n    stacks = 0;\n  }\n}\n\n// 2. 若仍有青龙标记，恢复攻击并减一个标记\nif (stacks > 0) {\n  Effect.resetAttack(actor);\n  var remain = stacks - 1;\n  Effect.unmark(actor, \"qinglong\");\n  if (remain > 0) {\n    Effect.mark(actor, \"qinglong\", {\n      display: \"青\"+remain,\n      data: { stacks: remain }\n    });\n  }\n  Effect.fx.glow(actor, { color: \"#ffcc00\", duration: 500 });\n  Game.log(actor.name + \" 发动【武圣】，消耗一个青龙标记，恢复攻击（剩余 \" + remain + \" 个）。\");\n}\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_wushen1",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
         },
         {
-          "id": "sk_huatuo_qingnang",
-          "name": "青囊",
+          "id": "diy_gongsunzan_baima",
+          "name": "白马",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "desc": "传送到方形三范围内的一格，对方形一范围内的所有敌人造成百分之百的伤害，然后根据命中敌人的数量(设为X),获得移动范围加X的增益(持续两回合),并恢复一次移动",
+          "preview": null,
+          "filterCode": "// filterCode\nreturn actor && actor.alive && !actor.skilled;\n",
+          "contentCode": "// contentCode\n// 选择方形三格内的空格传送\ncell=await Effect.chooseCell(actor, {\n    range: { shape: 'square', n: 3 },\n    mustEmpty: true,\n    hintText: '请选择传送目标格（方形3格内空地）'\n  })\nif (!cell) {\n  Game.log(actor.name + ' 取消传送。');\n  return false;\n}\n// 传送\nvar fromX = actor.x, fromY = actor.y;\nEffect.teleport(actor, cell.x, cell.y);\nGame._render();\nEffect.fx.particles(fromX, fromY, { color: '#fff', count: 14, spread: 50, duration: 500 });\nEffect.fx.particles(cell.x, cell.y, { color: '#fff', count: 14, spread: 50, duration: 500 });\nGame.log(actor.name + ' 发动【白马】，传送到 (' + cell.x + ',' + cell.y + ')。');\n\n// 对以自己为中心的□形1格内所有敌人造成100%伤害\nvar cells = Range.cellsInRange('square', 1, actor.x, actor.y, { includeSelf: false });\nvar enemies = [];\nfor (var i = 0; i < cells.length; i++) {\n  var p = Game.pieceAt(cells[i].x, cells[i].y);\n  if (p && p.alive && p.side !== actor.side) enemies.push(p);\n}\nvar dmg = Effect.getEffectiveAttack(actor);  // 100%攻击力\nfor (var j = 0; j < enemies.length; j++) {\n  Effect.damage(actor, enemies[j], dmg);\n  Effect.fx.shake(enemies[j], { intensity: 5, duration: 350 });\n}\nEffect.fx.ring(actor.x, actor.y, { color: '#ffeebb', maxRadius: 90, duration: 500 });\nGame.log(actor.name + ' 白马冲击命中 ' + enemies.length + ' 名敌人！');\n\n// 根据命中数量 X，获得移动范围 +X 增益，持续2回合\nvar X = enemies.length;\nif (X > 0) {\n  Effect.addMark(actor, 'baima_buff', 2, {\n      display: '移动+'+X,\n      modifiers: { moveRangeDelta: X }\n    });\n  Effect.fx.glow(actor, { color: '#ffeebb', duration: 600 });\n  Game.log(actor.name + ' 获得「白马」增益：移动范围 +' + X + '（持续2回合）。');\n}\nactor.skilled = true;\nactor.moved=false;\nreturn true;",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_dcqiaomeng1",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_gongsunzan_yicong",
+          "name": "义从",
           "type": "被动",
-          "trigger": "turnStart",
-          "desc": "回合开始时治疗周围友军",
-          "filterCode": "return actor && actor.alive;",
-          "contentCode": "var allies = Effect.getAlliesInRange(actor, {shape:'r', n:2}); allies.forEach(function(a){ if (a !== actor) Effect.heal(a, 15); });",
-          "_extId": "ext_test"
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onAttacked",
+          "desc": "受伤时，如果你血量低于50%将一张 消耗为1的 白马义从 加入手牌",
+          "preview": null,
+          "filterCode": "// filterCode\nvar hpRatio = actor.hp / (actor.maxHp || 200);\nif (hpRatio >= 0.5) return;\nreturn actor && actor.alive;\n",
+          "contentCode": "// contentCode\nif (!context || !context.attacker) return;\n// 血量低于50%才触发\nvar hpRatio = actor.hp / (actor.maxHp || 200);\nif (hpRatio >= 0.5) return;\n\n// 把 diyminion_baimayicong 加入手牌，消耗设为0\nvar card = Effect.addCard('diyminion_baimayicong',actor.side);\nif (card) {\n  card.cost = 1;  // 强制消耗为0\n  Effect.fx.glow(actor, { color: '#fff', duration: 500 });\n  Game.log(actor.name + ' 发动【义从】，获得一张消耗为0的「白马义从」！');\n}\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_dcyicong2",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_xiahouyuan_shensu",
+          "name": "神速",
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onMove",
+          "desc": "移动后，本回合若没有攻击，标记为已攻击状态并获得一个神速标记。",
+          "preview": null,
+          "filterCode": "// filterCode\nreturn actor && actor.alive&&!actor.attacked;\n",
+          "contentCode": "actor.attacked = true;\nvar d = Effect.getMarkData(actor, 'shensu');\nvar x=d.num+1\nEffect.unmark(actor, 'shensu');\nEffect.mark(actor, 'shensu', { display: '神速'+x, modifiers: {}, data: {num:x} });\n",
+          "initCode": "Effect.mark(actor, 'shensu', { display: '神速', modifiers: {}, data: {num:0} });\n",
+          "sound": {
+            "cast": "sd_shensu1_ol_xiahouyuan1",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_xiahouyuan_bianyi",
+          "name": "变易",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": null,
+          "desc": "有神速标记即可执行该技能选择执行：1.恢复一次移动；2.恢复30血量；立即对+1范围内一个敌人造成100%伤害;然后你减一个神速标记",
+          "preview": null,
+          "filterCode": "\nvar d = Effect.getMarkData(actor, 'shensu');\nreturn actor && actor.alive&&d.num>0;",
+          "contentCode": "\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '变易', desc: '恢复移动', value: 'chng', aiScore: 70 },\n    { label: '强攻', desc: '立即攻击', value: 'atk', aiScore: 70 },\n    { label: '治疗', desc: '回 30 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.6; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') {\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: '+', n: 1 },\n  passThrough: true,\n  hintText: '请选择敌人'\n});\nif (!target) return false;\nEffect.basicAttack(actor, target);\n}\nelse if (choice.value === 'heal') Effect.heal(actor, 30);\nelse if (choice.value === 'chng') Effect.resetMove(actor);\nEffect.playSkillCastSound(actor,actor.skills[1])\nvar d = Effect.getMarkData(actor, 'shensu');\nvar x=d.num-1\nEffect.unmark(actor, 'shensu');\nEffect.mark(actor, 'shensu', { display: '神速'+x, modifiers: {}, data: {num:x} });\n\nreturn true;",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_shensu1_re_xiahouyuan2",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null
+        },
+        {
+          "id": "diy_guohuai_jingce",
+          "name": "精测",
+          "type": "主动",
+          "limited": false,
+          "cooldown": 2,
+          "trigger": null,
+          "desc": "在周身方形两格范围内，选择一个空位置放置陷阱（持续三回合）：敌方经过时，受到30点真实伤害并眩晕一回合。",
+          "preview": null,
+          "filterCode": "return actor.alive&& !actor.skilled",
+          "contentCode": "const cell = await Effect.chooseCell(actor, {\n    range: { shape: 'square', n: 2 },\n    mustEmpty: true,\n    passThrough: false,\n    //filter: function(cell, piece) { return cell.x >= 3; },\n    hintText: '请选择目标格'\n  });\nif (!cell) return false;\nEffect.placeTrap(cell.x,cell.y, {\n    owner: actor,\n    side: 'enemy',\n    // step：只有踩到终点时触发\n    // pass：经过路径上的格子时触发，包含最终落脚格\n    mode: 'pass',\n    data: {\n      amount: 30\n    },\n    turns:3,\n    callback: function (piece, trap, context) {\n      const source = trap.owner && trap.owner.alive ? trap.owner : null;\n      Effect.damage(null, piece, trap.data.amount, {\n          ignoreDef: true\n        });\n      Effect.stun(piece, 1);\n      Effect.playSkillHitSound(trap.owner.skills[0])\n      Game.log(piece.name + ' 触发了自定义陷阱！');\n    }\n  });\nactor.skilled = true;\n",
+          "initCode": "",
+          "sound": {
+            "cast": "sd_jingce1",
+            "hit": "sd_jingce2",
+            "voice": ""
+          },
+          "aiHint": null
         }
       ],
       "minions": [
         {
-          "id": "diyminion_infantry",
-          "name": "步兵",
-          "hp": 80,
-          "atk": 30,
+          "id": "diyminion_baimayicong",
+          "name": "白马义从",
+          "hp": 150,
+          "atk": 50,
           "def": 10,
-          "cost": 1,
-          "cardCount": 4,
-          "inDeck": true,
+          "moveRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [],
+          "rarity": "rare",
+          "tag": "siege",
+          "cost": 2,
+          "description": "",
+          "portrait": "pt_ms22kzqb9yj7xh.jpg",
+          "inDeck": false,
+          "cardCount": null,
+          "sound": {
+            "deploy": "sd_the_sound_a_horse_makes_when_it_rears",
+            "attack": "",
+            "death": ""
+          }
+        },
+        {
+          "id": "diyminion_xianzhenying",
+          "name": "陷阵营",
+          "hp": 120,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diyminion_xianzhenying_xianzhen"
+          ],
+          "rarity": "epic",
+          "tag": "siege",
+          "cost": 3,
+          "description": "超级骑兵团",
+          "portrait": "pt_ms22kzq8k2f071.jpg",
+          "inDeck": false,
+          "cardCount": null,
+          "sound": {
+            "deploy": "sd_the_sound_a_horse_makes_when_it_rears",
+            "attack": "",
+            "death": ""
+          }
+        },
+        {
+          "id": "diyminion_mafeisan",
+          "name": "麻沸散",
+          "skillIds": [],
           "rarity": "common",
           "tag": "infantry",
-          "moveRange": { "shape": "+", "n": 2 },
-          "attackRange": { "shape": "+", "n": 1 },
-          "_extId": "ext_test"
+          "cost": 1,
+          "cardType": "tactic",
+          "canMove": true,
+          "canAttack": true,
+          "trigger": null,
+          "filterCode": "",
+          "contentCode": "ally=await Effect.chooseCardAlly(side, { zone: \"ownHalf\" })\nEffect.heal(ally,30)",
+          "description": "回复己方半场一个单位30滴血",
+          "portrait": null,
+          "inDeck": true,
+          "cardCount": null,
+          "sound": {
+            "deploy": "",
+            "attack": "",
+            "death": ""
+          }
+        }
+      ],
+      "soundBank": [
+        {
+          "id": "sd_rerende1",
+          "type": "voice",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_jianxiong1",
+          "type": "voice",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_rezhiheng1",
+          "type": "voice",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_the_sound_a_horse_makes_when_it_rears",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_chongzhen12",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_wusheng2",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_sbyingzi2",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_wushen1",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_dcyicong2",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_dcqiaomeng1",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_shensu1_ol_xiahouyuan1",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_shensu1_re_xiahouyuan2",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_jingce1",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
+        },
+        {
+          "id": "sd_jingce2",
+          "type": "sfx",
+          "volume": 0.7,
+          "subtitle": "",
+          "loop": false
         }
       ]
     }

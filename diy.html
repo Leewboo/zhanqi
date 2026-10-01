@@ -1055,6 +1055,63 @@
   .fs-attr-form .form-row {
     margin-bottom: 16px;
   }
+  .fs-fold {
+    margin-top: 14px;
+    border: 1px solid var(--dark-border);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.02);
+    padding: 0 12px 10px;
+  }
+  .fs-fold > summary,
+  .fs-card-api-help > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 2px;
+    color: #58a6ff;
+    font-size: 12px;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  .fs-fold > summary::-webkit-details-marker,
+  .fs-card-api-help > summary::-webkit-details-marker {
+    display: none;
+  }
+  .fs-fold > summary::before,
+  .fs-card-api-help > summary::before {
+    content: '▸';
+    display: inline-block;
+    width: 18px;
+    color: #8b949e;
+  }
+  .fs-fold[open] > summary::before,
+  .fs-card-api-help[open] > summary::before {
+    content: '▾';
+  }
+  .fs-card-script-help {
+    padding: 10px;
+    color: #8b949e;
+    background: rgba(88,166,255,0.08);
+    border-left: 3px solid #58a6ff;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .fs-card-script-help code,
+  .fs-card-api-help code {
+    color: #f2cc60;
+  }
+  .fs-card-api-help {
+    margin: 12px 0 4px;
+    border-top: 1px solid var(--dark-border);
+  }
+  .fs-card-api-help pre {
+    white-space: pre-wrap;
+    overflow-x: auto;
+    margin: 0 0 8px;
+    padding: 10px;
+    background: #0d1117;
+    color: #c9d1d9;
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
   .fs-attr-form label {
     display: block;
     font-size: var(--text-sm);
@@ -4955,6 +5012,12 @@ Effect.fx.clearFx('myZone');</code></pre>
       var inDeckEl = $('fs-attr-in-deck');
       var cardCountEl = $('fs-attr-card-count');
       var descEl = $('fs-attr-desc');
+      var cardTypeEl = $('fs-attr-card-type');
+      var canMoveEl = $('fs-attr-can-move');
+      var canAttackEl = $('fs-attr-can-attack');
+      var triggerEl = $('fs-attr-card-trigger');
+      var filterCodeEl = $('fs-attr-card-filter');
+      var contentCodeEl = $('fs-attr-card-content');
       if (rarityEl) d.rarity = rarityEl.value;
       if (tagEl) d.tag = tagEl.value;
       if (costEl) d.cost = parseInt(costEl.value, 10) || 1;
@@ -4964,6 +5027,27 @@ Effect.fx.clearFx('myZone');</code></pre>
         d.cardCount = isNaN(cv) ? null : cv;
       }
       if (descEl) d.description = descEl.value.trim();
+      if (cardTypeEl) {
+        d.cardType = cardTypeEl.value || 'minion';
+        if (d.cardType === 'tactic' || d.cardType === 'strategy') {
+          delete d.hp;
+          delete d.atk;
+          delete d.def;
+          delete d.moveRange;
+          delete d.attackRange;
+        } else {
+          if (d.hp == null) d.hp = 80;
+          if (d.atk == null) d.atk = 25;
+          if (d.def == null) d.def = 10;
+          if (!d.moveRange) d.moveRange = { shape: '+', n: 2 };
+          if (!d.attackRange) d.attackRange = { shape: '+', n: 1 };
+        }
+      }
+      if (canMoveEl) d.canMove = canMoveEl.value === '1';
+      if (canAttackEl) d.canAttack = canAttackEl.value === '1';
+      if (triggerEl) d.trigger = triggerEl.value.trim() || null;
+      if (filterCodeEl) d.filterCode = filterCodeEl.value;
+      if (contentCodeEl) d.contentCode = contentCodeEl.value;
     }
 
     if (type === 'skill') {
@@ -4998,6 +5082,7 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (!panel) return;
     var d = fsEditorState.data;
     var type = fsEditorState.type;
+    var cardType = d.cardType || 'minion';
     var html = '<div class="fs-attr-form">';
 
     html += '<div class="fs-attr-grid">';
@@ -5032,7 +5117,8 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '</div>';
     }
 
-    if (type === 'general' || type === 'minion') {
+    if (type === 'general' || (type === 'minion' && cardType !== 'tactic' && cardType !== 'strategy')) {
+      html += '<details class="fs-fold" open><summary>数值与行动范围</summary>';
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">基础属性</label></div>';
       html += '<div class="fs-attr-grid">';
       html += '<div class="form-row"><label>HP</label><input type="number" id="fs-attr-hp" value="' + (d.hp || 0) + '"></div>';
@@ -5059,11 +5145,17 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '</select>';
       html += '<input type="number" id="fs-attr-atk-n" value="' + ((d.attackRange && d.attackRange.n) || 0) + '">';
       html += '</div>';
+      html += '</details>';
     }
 
     if (type === 'minion') {
-      html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">小兵属性</label></div>';
+      html += '<details class="fs-fold" open><summary>卡牌类型与基础信息</summary>';
       html += '<div class="fs-attr-grid">';
+      html += '<div class="form-row"><label>卡牌类型</label><select id="fs-attr-card-type">';
+      [['minion','小兵牌'],['tactic','计谋牌'],['strategy','成略牌'],['building','建筑牌']].forEach(function (o) {
+        html += '<option value="' + o[0] + '"' + (cardType === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      });
+      html += '</select></div>';
       html += '<div class="form-row"><label>品质</label><select id="fs-attr-rarity">';
       [{ v: 'common', t: '普通' }, { v: 'rare', t: '稀有' }, { v: 'epic', t: '史诗' }].forEach(function (o) {
         html += '<option value="' + o.v + '"' + (d.rarity === o.v ? ' selected' : '') + '>' + o.t + '</option>';
@@ -5081,7 +5173,35 @@ Effect.fx.clearFx('myZone');</code></pre>
       html += '</select></div>';
       html += '<div class="form-row"><label>卡组数量</label><input type="number" id="fs-attr-card-count" value="' + (d.cardCount != null ? d.cardCount : '') + '" placeholder="按稀有度默认"></div>';
       html += '</div>';
+      if (cardType === 'building') {
+        html += '<div class="form-row" style="margin-top:12px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">建筑行动限制</label></div>';
+        html += '<div class="fs-attr-grid">';
+        html += '<div class="form-row"><label>可移动</label><select id="fs-attr-can-move"><option value="1"' + (d.canMove !== false ? ' selected' : '') + '>是</option><option value="0"' + (d.canMove === false ? ' selected' : '') + '>否</option></select></div>';
+        html += '<div class="form-row"><label>可攻击</label><select id="fs-attr-can-attack"><option value="1"' + (d.canAttack !== false ? ' selected' : '') + '>是</option><option value="0"' + (d.canAttack === false ? ' selected' : '') + '>否</option></select></div>';
+        html += '</div>';
+      }
+      if (cardType === 'strategy') {
+        html += '<div class="form-row" style="margin-top:12px;"><label>触发时机（on___）</label><select id="fs-attr-card-trigger">';
+        [['onMove','移动后'],['onAttacked','被攻击后'],['onKilled','被击杀后'],['onSkillCast','技能发动后'],['onHeal','被治疗时'],['turnStart','回合开始'],['turnEnd','回合结束']].forEach(function (o) {
+          html += '<option value="' + o[0] + '"' + (d.trigger === o[0] ? ' selected' : '') + '>' + o[0] + ' · ' + o[1] + '</option>';
+        });
+        html += '</select></div>';
+      }
       html += '<div class="form-row" style="margin-top:12px;"><label>描述</label><textarea id="fs-attr-desc" rows="3" placeholder="武将介绍">' + escapeHtml(d.description || '') + '</textarea></div>';
+      html += '</details>';
+
+      if (cardType === 'tactic' || cardType === 'strategy') {
+        html += '<details class="fs-fold" open><summary>DIY 卡牌脚本</summary>';
+        html += '<div class="fs-card-script-help">脚本只接收 <code>card</code>、<code>side</code>、<code>context</code>，不传入 actor。计谋牌在确认后执行；成略牌在触发事件且部署点足够时执行。</div>';
+        html += '<div class="form-row" style="margin-top:12px;"><label>卡牌执行代码</label><textarea id="fs-attr-card-content" rows="8" placeholder="const target = await Effect.chooseCardEnemy(side, { center: {x: 6, y: 6}, range: {shape: &quot;square&quot;, n: 4} });&#10;if (target) Effect.damage(null, target, 20);">' + escapeHtml(d.contentCode || '') + '</textarea></div>';
+        if (cardType === 'strategy') {
+          html += '<div class="form-row" style="margin-top:12px;"><label>触发筛选代码（可选）</label><textarea id="fs-attr-card-filter" rows="4" placeholder="return context.actor && context.actor.side !== side;">' + escapeHtml(d.filterCode || '') + '</textarea></div>';
+        }
+        html += '<details class="fs-card-api-help"><summary>可用的受限选择 API（不传入 actor）</summary>';
+        html += '<pre>await Effect.chooseCardOption(side, { title, options: [{label, value}] })\nawait Effect.chooseCardCell(side, { zone: &quot;all&quot;, mustEmpty: true })\nawait Effect.chooseCardOwnHalf(side, { mustEmpty: true })\nawait Effect.chooseCardEnemyHalf(side, { mustEnemy: true })\nawait Effect.chooseCardEnemy(side, { zone: &quot;enemyHalf&quot; })\nawait Effect.chooseCardAlly(side, { zone: &quot;ownHalf&quot; })\n\n// zone: all / ownHalf / enemyHalf；也可叠加 center、range 和自定义 filter。\n// 选项最多 12 个，选择 API 不传入 actor。</pre>';
+        html += '</details>';
+        html += '</details>';
+      }
     }
 
     if (type === 'skill') {
@@ -5124,6 +5244,14 @@ Effect.fx.clearFx('myZone');</code></pre>
 
     html += '</div>';
     panel.innerHTML = html;
+
+    var cardTypeSelect = $('fs-attr-card-type');
+    if (cardTypeSelect) {
+      cardTypeSelect.addEventListener('change', function () {
+        collectAttrForm();
+        renderAttrTab();
+      });
+    }
   }
 
   function renderSkillsTab() {

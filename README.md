@@ -435,7 +435,7 @@ init(actor) {
 | `Effect.pull(actor, target, n)` | 拉拽 |
 | `Effect.swap(actor, target)` | 换位 |
 | `Effect.summonUnit(actor, x, y, opts)` | 召唤自定义单位 |
-| `Effect.placeTrap(x, y, opts)` | 布置陷阱 |
+| `Effect.placeTrap(x, y, opts)` | 布置陷阱；`opts.mode` 为 `step`（仅踩上触发）或 `pass`（经过触发，包含踩上），`opts.color` 自定义色块颜色，`opts.callback(piece, trap, context)` 自定义触发效果；陷阱只对布置者所属阵营可见且不写入战报 |
 | `Effect.clearTraps(opts)` | 清除陷阱 |
 
 ### 目标选择（异步，需 await）

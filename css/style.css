@@ -639,6 +639,40 @@ html, body {
 .cell.terrain-mt.zone-blue,
 .cell.terrain-mt.zone-blue.alt { background-color: rgba(196, 184, 168, 0.9); }
 
+/* 陷阱标记：只由布置者所属阵营的视角渲染，颜色来自 Effect.placeTrap({ color }) */
+.cell .trap-indicator {
+  position: absolute;
+  inset: 3px;
+  z-index: 1;
+  pointer-events: none;
+  border: 2px solid var(--trap-color);
+  border-radius: 5px;
+  background: var(--trap-color);
+  box-shadow: 0 0 8px var(--trap-color), inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+}
+.cell .trap-source {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  max-width: calc(var(--cell-size) - 2px);
+  padding: 1px 3px;
+  border: 1px solid var(--trap-color);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #302036;
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 3;
+}
+
 .cell.move {
   background: var(--cell-move);
   box-shadow: inset 0 0 0 2px rgba(58,107,178,0.5);
@@ -2712,6 +2746,18 @@ html, body {
 .gc-tag.tag-scout    { background: #d35400; }
 .gc-tag.tag-siege    { background: #c0392b; }
 
+.gc-card-type {
+  top: 21px;
+  left: 18px;
+  padding: 1px 5px;
+  color: #fff;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.gc-card-type-tactic { background: #8e44ad; }
+.gc-card-type-strategy { background: #2c3e50; }
+.gc-card-type-building { background: #795548; }
+
 /* 左上：移动范围（品质点/tag 下方） */
 .gc-move {
   top: 20px;
@@ -3255,5 +3301,10 @@ html, body {
 
 .piece.minion.epic .piece-inner {
   background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.piece.building {
+  border: 2px solid #795548;
+  box-shadow: 0 0 0 2px rgba(121, 85, 72, 0.22);
 }
 

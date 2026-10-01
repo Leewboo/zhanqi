@@ -232,6 +232,8 @@
     castleOwner: {},       // 城池占领状态：'x,y' -> 'red'/'blue'/null
 
     log(text, cls) {
+      // 陷阱及其连带效果不进入战报，避免对手从日志推断隐藏陷阱。
+      if (Effect && Effect._trapLogSilence > 0) return;
       const box = document.getElementById('log');
       const p = document.createElement('p');
       if (cls) p.className = cls;
@@ -243,10 +245,14 @@
 
     init(mode, opts) {
       opts = opts || {};
+      if (Effect && typeof Effect.resetForNewGame === 'function') {
+        Effect.resetForNewGame();
+      }
       this.boardEl = document.getElementById('board');
+      const logEl = document.getElementById('log');
+      if (logEl) logEl.innerHTML = '';
       this.terrain = buildTerrain();
       this.pieces = [];
-      Effect._tmpSkills = [];
       this._limitedUsed = {};  // 限定技使用记录：{ skillId: true }
       this.turn = 1;
       this.currentSide = 'red';
@@ -264,11 +270,17 @@
       this.minionMaxHandSize = 3;      // 最大手牌数
       this.minionMaxPerType = 2;       // 每种小兵最多部署数量
       this._aiMinionDeployed = false;  // AI 本回合是否已完成小兵部署
+      this._pendingTacticCards = {};   // 正在执行的计谋牌：只有脚本明确 return true 才提交
+      this.armedStrategies = { red: [], blue: [] }; // 已设置的成略牌
+      this._strategyHandlers = [];      // 本局成略牌全局事件监听器
       this.selected = null;
       this.mode = null;
       this.pendingSkillId = null;
       this.highlighted = [];
+      this.awaitingCell = null;
       this.over = false;
+      this._turnEnding = false;
+      this._aiActing = false;
       this.aiMode = (mode === 'ai' || mode === 'spectate');
       this.bothAi = (mode === 'spectate');  // 斗蛐蛐模式：双方都由 AI 控制
       this._spectatePaused = false;  // 观战暂停标志
@@ -642,6 +654,8 @@
       this.minionHand = { red: [], blue: [] };
       this.minionPoints = { red: 2, blue: 2 };
       this.minionSelected = null;
+      this.armedStrategies = { red: [], blue: [] };
+      this._strategyHandlers = [];
 
       // 初始化城池占领状态：己方半场城池默认归属己方，再根据棋子站位刷新
       this.castleOwner = {};
@@ -721,10 +735,218 @@
       return resolved;
     },
 
+    _cardType(card) {
+      const type = card && card.cardType;
+      return type === 'tactic' || type === 'tactics' ? 'tactic'
+        : type === 'strategy' ? 'strategy'
+          : type === 'building' ? 'building' : 'minion';
+    },
+
+    _cardTypeName(card) {
+      const type = this._cardType(card);
+      return type === 'tactic' ? '计谋牌'
+        : type === 'strategy' ? '成略牌'
+          : type === 'building' ? '建筑牌' : '小兵';
+    },
+
+    _resolveCardContent(card) {
+      if (!card) return null;
+      if (typeof card.content === 'function') return card.content;
+      if (typeof card.contentCode !== 'string' && typeof card.content !== 'string') return null;
+      if (!global.SkillsAPI || typeof global.SkillsAPI.compileCard !== 'function') return null;
+      const compiled = global.SkillsAPI.compileCard(card);
+      if (compiled) {
+        card._compiledContent = compiled.content;
+        return card._compiledContent;
+      }
+      return null;
+    },
+
+    _runCardContent(card, side, eventContext, options) {
+      options = options || {};
+      const content = this._resolveCardContent(card);
+      if (!content) {
+        this.log('【' + (card.name || card.id) + '】没有可执行的 DIY 内容。', 'turn');
+        return Promise.resolve(false);
+      }
+      const context = Object.assign({}, eventContext || {}, { card: card, side: side });
+      try {
+        return Promise.resolve(content(card, side, context)).catch((e) => {
+          console.error('[卡牌内容执行错误]', card.id, e);
+          this.log('【' + (card.name || card.id) + '】执行出错：' + (e.message || e), 'turn');
+          return false;
+        }).then((result) => {
+          this._render();
+          this._renderMinionPanel();
+          return options.requireExplicitTrue ? result === true : result !== false;
+        });
+      } catch (e) {
+        console.error('[卡牌内容编译/执行错误]', card.id, e);
+        this.log('【' + (card.name || card.id) + '】执行出错：' + (e.message || e), 'turn');
+        return Promise.resolve(false);
+      }
+    },
+
+    _confirmCardAction(card, actionText) {
+      const sideName = this.currentSide === 'red' ? '红方' : '蓝方';
+      if (global.Effect && typeof global.Effect.chooseOption === 'function') {
+        const choose = typeof global.Effect.chooseCardOption === 'function'
+          ? global.Effect.chooseCardOption(this.currentSide, {
+            title: actionText || ('使用【' + card.name + '】？'),
+            options: [
+              { label: '确认' },
+              { label: '取消' }
+            ]
+          })
+          : global.Effect.chooseOption(
+            { name: sideName },
+          {
+            title: actionText || ('使用【' + card.name + '】？'),
+            options: [
+              { label: '确认' },
+              { label: '取消' }
+            ]
+          }
+          );
+        return choose.then((picked) => !!picked && picked._index === 0);
+      }
+      return Promise.resolve(window.confirm(actionText || ('使用【' + card.name + '】？')));
+    },
+
+    _useTacticCard(card) {
+      if (this.phase !== 'battle' || !card || this._cardType(card) !== 'tactic') return;
+      if (this._isAiControlledPhase()) return;
+      const side = this.currentSide;
+      const cost = Math.max(0, parseInt(card.cost) || 0);
+      const pendingKey = card.instanceId || card.id;
+      if (this._pendingTacticCards[pendingKey]) return;
+      if ((this.minionPoints[side] || 0) < cost) {
+        this.log('部署点数不足，无法使用【' + card.name + '】。', 'turn');
+        return;
+      }
+      this._confirmCardAction(card, '是否使用【' + card.name + '】？').then((confirmed) => {
+        if (!confirmed) return;
+        const hand = this.minionHand[side] || [];
+        const idx = hand.findIndex(c => c.instanceId === card.instanceId);
+        if (idx < 0 || this.currentSide !== side) return;
+        if (this._pendingTacticCards[pendingKey]) return;
+        this._pendingTacticCards[pendingKey] = true;
+
+        // 先执行内容，只有结果严格等于 true 才提交手牌消耗和部署点扣除。
+        // 这样取消选择、返回 false、未返回值或执行报错都不会消耗计谋牌。
+        this._runCardContent(card, side, { type: 'tacticUse' }, {
+          requireExplicitTrue: true
+        }).then((committed) => {
+          delete this._pendingTacticCards[pendingKey];
+          const currentHand = this.minionHand[side] || [];
+          const currentIdx = currentHand.findIndex(c => c.instanceId === card.instanceId);
+          if (this.currentSide !== side || currentIdx < 0) {
+            this._renderMinionPanel();
+            return;
+          }
+          if (committed !== true) {
+            this.log('【' + card.name + '】脚本未返回 true，计谋牌未使用，部署点未扣除。', 'turn');
+            this._renderMinionPanel();
+            return;
+          }
+
+          currentHand.splice(currentIdx, 1);
+          this.minionPoints[side] = Math.max(0, (this.minionPoints[side] || 0) - cost);
+          this.log(side === 'red' ? '红方使用了计谋牌【' + card.name + '】。'
+            : '蓝方使用了计谋牌【' + card.name + '】。', 'turn');
+          this._renderMinionPanel();
+        }).catch((e) => {
+          delete this._pendingTacticCards[pendingKey];
+          console.error('[计谋牌提交错误]', card.id, e);
+          this.log('【' + card.name + '】未提交，部署点未扣除。', 'turn');
+          this._renderMinionPanel();
+        });
+      });
+    },
+
+    _strategyEvents(card) {
+      let events = card && (card.triggers || card.trigger || card.event);
+      if (typeof events === 'string') events = [events];
+      if (!Array.isArray(events)) return [];
+      return events.filter(e => typeof e === 'string' && /^on[A-Z]/.test(e));
+    },
+
+    _setStrategyCard(card) {
+      if (this.phase !== 'battle' || !card || this._cardType(card) !== 'strategy') return;
+      if (this._isAiControlledPhase()) return;
+      const side = this.currentSide;
+      const events = this._strategyEvents(card);
+      if (!events.length) {
+        this.log('【' + card.name + '】没有有效的 on___ 触发时机。', 'turn');
+        return;
+      }
+      this._confirmCardAction(card, '是否设置成略牌【' + card.name + '】？').then((confirmed) => {
+        if (!confirmed) return;
+        const hand = this.minionHand[side] || [];
+        const idx = hand.findIndex(c => c.instanceId === card.instanceId);
+        if (idx < 0 || this.currentSide !== side) return;
+        hand.splice(idx, 1);
+        card._strategySide = side;
+        card._strategyArmed = true;
+        this.armedStrategies[side] = this.armedStrategies[side] || [];
+        this.armedStrategies[side].push(card);
+        this._registerStrategyCard(card, side, events);
+        this.log(side === 'red' ? '红方设置了成略牌。' : '蓝方设置了成略牌。', 'turn');
+        this._renderMinionPanel();
+      });
+    },
+
+    _registerStrategyCard(card, side, events) {
+      const handler = (eventContext) => {
+        if (!card._strategyArmed || this.over) return;
+        const ctx = Object.assign({}, eventContext || {}, {
+          card: card,
+          side: side
+        });
+        const filterCode = card.filterCode || card.triggerFilterCode;
+        if (filterCode && global.SkillsAPI) {
+          try {
+            const filter = new Function('card', 'side', 'context', filterCode);
+            if (!filter(card, side, ctx)) return;
+          } catch (e) {
+            console.error('[成略牌过滤条件错误]', card.id, e);
+            return;
+          }
+        }
+        this._triggerStrategyCard(card, side, ctx);
+      };
+      for (const event of events) {
+        Effect.on(event, handler);
+        this._strategyHandlers.push({ event: event, handler: handler, card: card });
+      }
+    },
+
+    _triggerStrategyCard(card, side, context) {
+      if (!card || !card._strategyArmed) return;
+      const cost = Math.max(0, parseInt(card.cost) || 0);
+      if ((this.minionPoints[side] || 0) < cost) {
+        this.log((side === 'red' ? '红方' : '蓝方') + '部署点不足，成略牌暂未触发。', 'turn');
+        return;
+      }
+      card._strategyArmed = false;
+      const list = this.armedStrategies[side] || [];
+      const idx = list.indexOf(card);
+      if (idx >= 0) list.splice(idx, 1);
+      const cardEntries = this._strategyHandlers.filter(e => e.card === card);
+      for (const entry of cardEntries) Effect.off(entry.event, entry.handler);
+      this._strategyHandlers = this._strategyHandlers.filter(e => e.card !== card);
+      this.minionPoints[side] = Math.max(0, (this.minionPoints[side] || 0) - cost);
+      this.log((side === 'red' ? '红方' : '蓝方') + '成略牌【' + card.name + '】触发！', 'turn');
+      this._runCardContent(card, side, context);
+    },
+
     _deployMinion(card, x, y) {
       const side = this.currentSide;
+      const cardType = this._cardType(card);
+      if (cardType !== 'minion' && cardType !== 'building') return false;
+      const cost = Math.max(0, parseInt(card.cost) || 0);
 
-      if (this.minionPoints[side] < card.cost) {
+      if (this.minionPoints[side] < cost) {
         this.log('部署点数不足！', 'turn');
         return false;
       }
@@ -769,9 +991,13 @@
         skilled: true,
         skills: minionSkills,
         cdMap: {},
-        moveRange: card.moveRange,
-        attackRange: card.attackRange,
+        moveRange: card.moveRange || { shape: '+', n: 0 },
+        attackRange: card.attackRange || { shape: '+', n: 0 },
         isMinion: true,
+        isBuilding: cardType === 'building',
+        cardType: cardType,
+        canMove: cardType === 'building' ? card.canMove !== false : true,
+        canAttack: cardType === 'building' ? card.canAttack !== false : true,
         minionId: card.id,
         rarity: card.rarity,
         tag: card.tag || 'infantry',
@@ -795,7 +1021,7 @@
         }
       }
 
-      this.minionPoints[side] -= card.cost;
+      this.minionPoints[side] -= cost;
       // 城池占领：小兵部署在城池上时触发占领
       this._captureCastle(minion);
       // epic 小兵品质被动：部署在己方占领城池上时立即获得行动（不消耗本回合行动点）
@@ -831,6 +1057,7 @@
       const side = this.currentSide;
       const hand = this.minionHand[side] || [];
       const card = hand.find(c => c.instanceId === instanceId);
+      if (!card || !['minion', 'building'].includes(this._cardType(card))) return;
 
       if (this.minionSelected && this.minionSelected.instanceId === instanceId) {
         this.minionSelected = null;
@@ -953,7 +1180,7 @@
 
       panel.style.display = 'block';
       const sideName = side === 'red' ? '红方' : '蓝方';
-      status.innerHTML = '小兵部署 · <b>' + sideName + '</b> · 部署点: ' + points + ' · 手牌: ' + hand.length;
+      status.innerHTML = '卡牌 · <b>' + sideName + '</b> · 部署点: ' + points + ' · 手牌: ' + hand.length;
 
       if (summary) {
         summary.innerHTML = '<span style="color:#b23a3a;font-weight:700;">红 ' + this.minionPoints.red + '点/' + this.minionHand.red.length + '牌</span>' +
@@ -971,13 +1198,21 @@
       }
 
       for (const card of hand) {
+        const cardType = this._cardType(card);
         const isSelected = this.minionSelected && this.minionSelected.instanceId === card.instanceId;
-        const canAfford = card.cost <= points;
+        const cost = Math.max(0, parseInt(card.cost) || 0);
+        const canAfford = cardType === 'strategy' || cost <= points;
         // 解析技能
         const mSkills = (card.skills || (card.skill ? [card.skill] : [])).map(function(s) {
           if (typeof s === 'string') return (global.SkillsAPI && global.SkillsAPI.getSkill(s)) || { name: s };
           return s;
         }).filter(Boolean);
+        let onClick = null;
+        if (canClick && canAfford) {
+          if (cardType === 'tactic') onClick = () => self._useTacticCard(card);
+          else if (cardType === 'strategy') onClick = () => self._setStrategyCard(card);
+          else onClick = () => self._selectMinionCard(card.instanceId);
+        }
         const cardEl = this._buildCompactCard({
           name: card.name,
           hp: card.hp,
@@ -990,11 +1225,16 @@
           rarity: card.rarity || 'common',
           tag: card.tag || 'infantry',
           cost: card.cost != null ? card.cost : 1,
+          cardType: cardType,
+          canMove: card.canMove,
+          canAttack: card.canAttack,
+          description: card.description || card.desc || '',
           side: side
         }, {
           selected: isSelected,
           disabled: !canAfford,
-          onClick: (canClick && canAfford) ? () => self._selectMinionCard(card.instanceId) : null
+          extraClass: 'card-' + cardType,
+          onClick: onClick
         });
         cardsEl.appendChild(cardEl);
       }
@@ -1785,6 +2025,12 @@
       }
 
       if (mode === 'move') {
+        if (actor.canMove === false) {
+          this.log(actor.name + ' 不能移动。');
+          this.mode = null;
+          this._renderBottom();
+          return;
+        }
         if (actor.moved) {
           this.log('本回合已移动。');
           this.mode = null;
@@ -1804,6 +2050,12 @@
           this.mode = null;
         }
       } else if (mode === 'attack') {
+        if (actor.canAttack === false) {
+          this.log(actor.name + ' 不能攻击。');
+          this.mode = null;
+          this._renderBottom();
+          return;
+        }
         if (actor.attacked) {
           this.log('本回合已攻击。');
           this.mode = null;
@@ -1845,6 +2097,116 @@
       this._renderBottom();
     },
 
+    // 生成一次移动所经过的格子（不包含起点，包含终点）。
+    // 这条路径只用于经过型陷阱；实际可达性仍由 reachableCells 校验。
+    _getMovePath(actor, targetX, targetY) {
+      if (!actor) return [];
+      const fromX = actor.x, fromY = actor.y;
+      if (fromX === targetX && fromY === targetY) return [];
+
+      const range = Effect.getEffectiveMoveRange(actor);
+      const maxSteps = Math.max(1, Number(range.n) || 1);
+      const shape = range.shape || '+';
+      const dirs = shape === '+'
+        ? [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        : [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+      const inBounds = (px, py) => px >= 0 && py >= 0 && px < Range.BOARD_SIZE && py < Range.BOARD_SIZE;
+      const shapeAllows = (px, py) => {
+        const dx = px - fromX, dy = py - fromY;
+        if (shape === '+') return dx === 0 || dy === 0;
+        if (shape === 'x') return Math.abs(dx) === Math.abs(dy);
+        if (shape === 'r') return Math.sqrt(dx * dx + dy * dy) <= maxSteps;
+        return Math.max(Math.abs(dx), Math.abs(dy)) <= maxSteps;
+      };
+      const cellMode = (px, py) => {
+        if (!inBounds(px, py)) return 'full';
+        // 移动不能进入已有棋子格；目标格在调用方已验证为空。
+        if (this.pieceAt(px, py)) return 'full';
+        const terrain = this.terrain && this.terrain[py] ? this.terrain[py][px] : 'plain';
+        return terrain === 'mt' || terrain === 'r' ? 'half' : 'none';
+      };
+      const stepCost = (px, py) => {
+        return this.cellMoveCost(px, py);
+      };
+
+      // 十字移动的真实路径只能沿一条直线，不能用拐弯路径代替。
+      if (shape === '+' && fromX !== targetX && fromY !== targetY) return [];
+      if (shape === '+') {
+        const dx = Math.sign(targetX - fromX);
+        const dy = Math.sign(targetY - fromY);
+        const path = [];
+        let px = fromX, py = fromY, steps = 0;
+        while (px !== targetX || py !== targetY) {
+          px += dx;
+          py += dy;
+          steps += stepCost(px, py);
+          if (steps > maxSteps || cellMode(px, py) === 'full') return [];
+          path.push({ x: px, y: py });
+          if (cellMode(px, py) === 'half' && (px !== targetX || py !== targetY)) return [];
+        }
+        return path;
+      }
+
+      // 与 reachableCells 相同的 8 向 BFS：半阻断格可以落脚，但不能继续穿过。
+      const startKey = fromX + ',' + fromY;
+      const targetKey = targetX + ',' + targetY;
+      const queue = [{ x: fromX, y: fromY, steps: 0 }];
+      const best = new Map([[startKey, 0]]);
+      const parent = new Map();
+      while (queue.length) {
+        const current = queue.shift();
+        for (const [dx, dy] of dirs) {
+          const px = current.x + dx, py = current.y + dy;
+          if (!inBounds(px, py) || !shapeAllows(px, py)) continue;
+          const steps = current.steps + stepCost(px, py);
+          if (steps > maxSteps) continue;
+          const key = px + ',' + py;
+          if (best.has(key) && best.get(key) <= steps) continue;
+          const mode = cellMode(px, py);
+          best.set(key, steps);
+          if (mode === 'full') continue;
+          parent.set(key, current.x + ',' + current.y);
+          if (key === targetKey) {
+            const path = [];
+            let cursor = key;
+            while (cursor !== startKey) {
+              const [cx, cy] = cursor.split(',').map(Number);
+              path.unshift({ x: cx, y: cy });
+              cursor = parent.get(cursor);
+              if (!cursor) return [];
+            }
+            return path;
+          }
+          if (mode !== 'half') queue.push({ x: px, y: py, steps });
+        }
+      }
+      return [];
+    },
+
+    // 移动过程中逐格触发 mode='pass' 陷阱。
+    // 自定义回调改变位置或击杀棋子时，当前移动立即停止。
+    _processMoveTraps(actor, fromX, fromY, targetX, targetY) {
+      const path = this._getMovePath(actor, targetX, targetY);
+      if (!path.length) path.push({ x: targetX, y: targetY });
+      const pathLength = path.length;
+      for (let i = 0; i < path.length; i++) {
+        const cell = path[i];
+        actor.x = cell.x;
+        actor.y = cell.y;
+        Effect._checkTraps(actor, {
+          mode: 'pass',
+          from: { x: fromX, y: fromY },
+          to: { x: cell.x, y: cell.y },
+          pathIndex: i,
+          pathLength
+        });
+        if (!actor.alive) break;
+        // 传送类内置效果或自定义回调改变了棋子位置，不能继续沿旧路径移动。
+        if (actor.x !== cell.x || actor.y !== cell.y) break;
+      }
+      return { x: actor.x, y: actor.y };
+    },
+
     _tryMove(x, y) {
       // 联机回放时跳过 highlighted 校验：目标坐标已由远端权威确认，
       // 本地无需再校验可达性（此时 highlighted 通常为空，不跳过会导致回放静默失败、双方棋盘不同步）
@@ -1859,20 +2221,34 @@
         }
       }
       const actor = this.selected;
+      if (actor && actor.canMove === false) {
+        this.mode = null;
+        this.highlighted = [];
+        this._render();
+        this._renderBottom();
+        return;
+      }
       if (!this._onlineCanAct(actor.side, this._onlineAction)) return;
       const fromX = actor.x;
       const fromY = actor.y;
-      actor.x = x;
-      actor.y = y;
       actor.moved = true;
       // 记录移动方向向量（供骑兵冲锋加成判断）
       actor.moveDir = { dx: x - fromX, dy: y - fromY };
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
-      Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: { x, y } });
-      Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: { x, y } });
-      Effect._checkTraps(actor); // 陷阱触发
+      const actualTo = this._processMoveTraps(actor, fromX, fromY, x, y);
+      if (actor.alive) {
+        Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: actualTo });
+        Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: actualTo });
+        Effect._checkTraps(actor, {
+          mode: 'step',
+          from: { x: fromX, y: fromY },
+          to: actualTo,
+          pathIndex: 0,
+          pathLength: 1
+        });
+      }
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
 
@@ -1904,6 +2280,13 @@
         }
       }
       const actor = this.selected;
+      if (actor && actor.canAttack === false) {
+        this.mode = null;
+        this.highlighted = [];
+        this._render();
+        this._renderBottom();
+        return;
+      }
       if (!this._onlineCanAct(actor.side, this._onlineAction)) return;
       const target = this.pieceAt(x, y);
       actor.attacked = true;
@@ -2462,6 +2845,51 @@
       return this.pieces.find(p => p.alive && p.x === x && p.y === y) || null;
     },
 
+    // 当前画面代表哪一方的视角：
+    // 联机使用本地玩家阵营；人机使用人类阵营；本地双人使用当前行动方；
+    // 观战模式没有可见陷阱视角。
+    _getTrapViewerSide() {
+      if (this.onlineMode) return this._onlineSide || null;
+      if (this.bothAi) return null;
+      if (this.aiMode) return this.aiSide === 'red' ? 'blue' : 'red';
+      return this.currentSide || null;
+    },
+
+    _isTrapVisible(trap) {
+      if (!trap) return false;
+      const viewerSide = this._getTrapViewerSide();
+      const ownerSide = trap.ownerSide || (trap.owner && trap.owner.side);
+      return !!viewerSide && !!ownerSide && viewerSide === ownerSide;
+    },
+
+    _renderTraps() {
+      const children = this.boardEl ? this.boardEl.children : [];
+      for (let i = 0; i < children.length; i++) {
+        const old = children[i].querySelector('.trap-indicator');
+        if (old) old.remove();
+      }
+      if (!this.boardEl || !Effect || !Array.isArray(Effect._traps)) return;
+
+      for (const trap of Effect._traps) {
+        if (!this._isTrapVisible(trap)) continue;
+        const idx = trap.y * SIZE + trap.x;
+        const cell = children[idx];
+        if (!cell) continue;
+
+        const indicator = document.createElement('div');
+        indicator.className = 'trap-indicator';
+        indicator.style.setProperty('--trap-color', trap.color || 'rgba(120, 40, 160, 0.72)');
+        indicator.title = '陷阱 · 来源：' + (trap.ownerName || (trap.owner && trap.owner.name) || '未知棋子');
+        indicator.setAttribute('aria-label', indicator.title);
+
+        const source = document.createElement('span');
+        source.className = 'trap-source';
+        source.textContent = trap.ownerName || (trap.owner && trap.owner.name) || '未知';
+        indicator.appendChild(source);
+        cell.appendChild(indicator);
+      }
+    },
+
     _render() {
       const children = this.boardEl.children;
       for (let i = 0; i < children.length; i++) {
@@ -2518,7 +2946,9 @@
           const p = document.createElement('div');
           const done = piece.moved && piece.attacked && piece.skilled;
           const lowHp = piece.hp / piece.maxHp <= 0.3;
-          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') + (piece.isMinion ? ' minion ' + piece.rarity : '');
+          p.className = 'piece ' + piece.side + (done ? ' acted' : '') + (lowHp ? ' hp-low' : '') +
+            (piece.isMinion ? ' minion ' + piece.rarity : '') +
+            (piece.isBuilding ? ' building' : '');
           p.dataset.gid = piece.generalId || '';  // 唯一标识，供特效回退搜索
           // 隐身棋子半透明
           if (Effect.isUntargetable(piece)) p.style.opacity = '0.45';
@@ -2577,6 +3007,8 @@
       }
       // 渲染城池占领颜色覆盖层
       this._renderCastleOverlay();
+      // 陷阱只在布置者所属阵营的视角显示
+      this._renderTraps();
     },
 
     _renderBottom() {
@@ -2657,16 +3089,16 @@
       // 移动按钮
       const moveBtn = document.createElement('button');
       moveBtn.className = 'act-btn';
-      moveBtn.textContent = '移动';
-      moveBtn.disabled = !!a.moved;
+      moveBtn.textContent = a.canMove === false ? '不可移动' : '移动';
+      moveBtn.disabled = a.canMove === false || !!a.moved;
       moveBtn.onclick = () => self._enterMode('move');
       actionsEl.appendChild(moveBtn);
 
       // 攻击按钮
       const atkBtn = document.createElement('button');
       atkBtn.className = 'act-btn';
-      atkBtn.textContent = '攻击';
-      atkBtn.disabled = !!a.attacked;
+      atkBtn.textContent = a.canAttack === false ? '不可攻击' : '攻击';
+      atkBtn.disabled = a.canAttack === false || !!a.attacked;
       atkBtn.onclick = () => self._enterMode('attack');
       actionsEl.appendChild(atkBtn);
 
@@ -2853,6 +3285,14 @@
         tagEl.className = 'gc-badge gc-tag tag-' + data.tag;
         tagEl.textContent = tagText;
         card.appendChild(tagEl);
+      }
+      if (data.cardType && data.cardType !== 'minion') {
+        const typeEl = document.createElement('span');
+        const typeName = data.cardType === 'tactic' ? '计谋'
+          : data.cardType === 'strategy' ? '成略' : '建筑';
+        typeEl.className = 'gc-badge gc-card-type gc-card-type-' + data.cardType;
+        typeEl.textContent = typeName;
+        card.appendChild(typeEl);
       }
       if (data.cost != null) {
         const costEl = document.createElement('span');
@@ -3165,7 +3605,9 @@
 
       // 可部署的卡：消耗足够、且该类型未达上限
       const deployable = hand.filter(c => {
-        return c.cost <= points;
+        const type = this._cardType(c);
+        return (type === 'minion' || type === 'building') &&
+          (Math.max(0, parseInt(c.cost) || 0) <= points);
       });
 
       if (!deployable.length) {
@@ -3177,8 +3619,8 @@
 
       // 选性价比最高的卡
       deployable.sort((a, b) => {
-        const valA = (a.atk + a.def) / a.cost;
-        const valB = (b.atk + b.def) / b.cost;
+        const valA = (a.atk + a.def) / Math.max(1, parseInt(a.cost) || 1);
+        const valB = (b.atk + b.def) / Math.max(1, parseInt(b.cost) || 1);
         return valB - valA;
       });
       const card = deployable[0];
@@ -4508,19 +4950,26 @@
       if (!cells.find(c => c.x === x && c.y === y)) return false;
       const fromX = actor.x;
       const fromY = actor.y;
-      actor.x = x;
-      actor.y = y;
       actor.moved = true;
       // 记录移动方向向量（供骑兵冲锋加成判断）
       actor.moveDir = { dx: x - fromX, dy: y - fromY };
       this.log(actor.name + ' 移动到 (' + x + ',' + y + ')。');
       // 移动音效：播放 move 语音
       Effect.playPieceVoice(actor, 'move');
+      const actualTo = this._processMoveTraps(actor, fromX, fromY, x, y);
       // 先渲染一次，确保 DOM 位置与逻辑坐标同步（onMove 被动中的特效才能正确找到 piece）
       this._render();
-      Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: { x, y } });
-      Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: { x, y } });
-      Effect._checkTraps(actor); // 陷阱触发
+      if (actor.alive) {
+        Effect.trigger('onMove', { actor, from: { x: fromX, y: fromY }, to: actualTo });
+        Effect.triggerPassive(actor, 'onMove', { from: { x: fromX, y: fromY }, to: actualTo });
+        Effect._checkTraps(actor, {
+          mode: 'step',
+          from: { x: fromX, y: fromY },
+          to: actualTo,
+          pathIndex: 0,
+          pathLength: 1
+        });
+      }
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
       this.highlighted = [];

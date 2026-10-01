@@ -1088,6 +1088,7 @@ app.use(async (ctx, next) => {
     const rarity = ['common', 'rare', 'epic'].includes(minion.rarity) ? minion.rarity : 'common';
     const tag = ['infantry', 'scout', 'siege', 'archer', 'cavalry'].includes(minion.tag) ? minion.tag : 'infantry';
     const cost = Math.max(1, Math.min(5, parseInt(minion.cost) || 1));
+    const cardType = ['tactic', 'strategy', 'building'].includes(minion.cardType) ? minion.cardType : 'minion';
 
     // 技能校验
     const skillArr = Array.isArray(skills) ? skills : [];
@@ -1147,18 +1148,32 @@ app.use(async (ctx, next) => {
       }
     }
 
+    const isValueCard = cardType !== 'tactic' && cardType !== 'strategy';
     const minionObj = {
       id: fullMid,
       name: mname,
-      hp:  Math.max(1,    Math.min(2000, parseInt(minion.hp)  || 80)),
-      atk: Math.max(0,    Math.min(500,  parseInt(minion.atk) || 25)),
-      def: Math.max(0,    Math.min(500,  parseInt(minion.def) || 10)),
-      moveRange:   validateRange(minion.moveRange,   { shape: '+', n: 2 }),
-      attackRange: validateRange(minion.attackRange, { shape: '+', n: 1 }),
+      ...(isValueCard ? {
+        hp:  Math.max(1,    Math.min(2000, parseInt(minion.hp)  || 80)),
+        atk: Math.max(0,    Math.min(500,  parseInt(minion.atk) || 25)),
+        def: Math.max(0,    Math.min(500,  parseInt(minion.def) || 10)),
+        moveRange:   validateRange(minion.moveRange,   { shape: '+', n: 2 }),
+        attackRange: validateRange(minion.attackRange, { shape: '+', n: 1 })
+      } : {}),
       skillIds: skillIds,
       rarity: rarity,
       tag: tag,
       cost: cost,
+      cardType: cardType,
+      canMove: minion.canMove !== false,
+      canAttack: minion.canAttack !== false,
+      trigger: typeof minion.trigger === 'string' ? minion.trigger.slice(0, 120) : null,
+      triggers: Array.isArray(minion.triggers)
+        ? minion.triggers.filter(v => typeof v === 'string' && /^on[A-Z]/.test(v)).slice(0, 10)
+        : undefined,
+      filterCode: typeof minion.filterCode === 'string' ? minion.filterCode.slice(0, 10000) : '',
+      contentCode: typeof minion.contentCode === 'string'
+        ? minion.contentCode.slice(0, 20000)
+        : (typeof minion.content === 'string' ? minion.content.slice(0, 20000) : ''),
       description: String(minion.description || '').slice(0, 200),
       portrait: typeof minion.portrait === 'string' && minion.portrait ? String(minion.portrait) : null,
       inDeck: minion.inDeck === false ? false : true,
