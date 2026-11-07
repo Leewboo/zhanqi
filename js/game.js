@@ -272,6 +272,7 @@
       this._aiMinionDeployed = false;  // AI 本回合是否已完成小兵部署
       this._aiStrategySet = false;     // AI 本回合是否已设置成略牌
       this._aiTacticUsed = false;      // AI 本回合是否已尝试使用计谋牌
+      this._aiDamageMap = new Map();    // AI 本回合集火账本（目标 → 已预约伤害）
       this._pendingTacticCards = {};   // 正在执行的计谋牌：只有脚本明确 return true 才提交
       this.armedStrategies = { red: [], blue: [] }; // 已设置的成略牌
       this._strategyHandlers = [];      // 本局成略牌全局事件监听器
@@ -2618,6 +2619,8 @@
       // 重置 AI 本回合成略牌/计谋牌使用标记
       this._aiStrategySet = false;
       this._aiTacticUsed = false;
+      // 重置本回合集火账本
+      this._aiDamageMap = new Map();
       // 重置 AI 回合步数计数
       this._aiStepCount = 0;
 
@@ -4182,6 +4185,27 @@
         const hpRatio = p.hp / (p.maxHp || 200);
         if (hpRatio < 0.3) score += 15;
 
+        // (g) 团队协同：治疗/增益技能就绪且队友有伤 → 辅助单位先手（先奶后打）
+        if (!p.skilled && p.skills) {
+          p.cdMap = p.cdMap || {};
+          const myTeam = this.pieces.filter(x => x.alive && x.side === side);
+          const wounded = myTeam.filter(a => a !== p && a.hp / (a.maxHp || 200) < 0.7).length;
+          if (wounded > 0) {
+            for (const sk of p.skills) {
+              if (sk.type === '被动') continue;
+              if ((p.cdMap[sk.id] || 0) > 0) continue;
+              if (sk.limited && this._limitedUsed && this._limitedUsed[sk.id]) continue;
+              if (sk.filter && !sk.filter(p)) continue;
+              const hint = global.SkillAnalyzer ? global.SkillAnalyzer.analyze(sk) : sk.aiHint;
+              if (!hint) continue;
+              if (hint.type === 'heal' || hint.type === 'buff' || hint.type === 'buff_atk') {
+                score += 30 + wounded * 10;
+                break;
+              }
+            }
+          }
+        }
+
         if (score > bestScore) {
           bestScore = score;
           best = p;
@@ -4481,7 +4505,10 @@
             this._aiRunStep(actor, queue, idx + 1);
             return;
           }
+          const hpBefore = target.hp;
           this._executeAttack(actor, target);
+          // 记入本回合集火账本，后续单位避免对同一目标伤害溢出
+          this._aiNotePlannedDamage(target, Math.max(0, hpBefore - target.hp));
           // _executeAttack 是同步的，直接进入下一步
           setTimeout(function () {
             self._aiRunStep(actor, queue, idx + 1);
@@ -4928,6 +4955,23 @@
       return this._aiPassiveBonus(actor, 'onAttack');
     },
 
+    // ===== 本回合集火账本：记录已分配给某个目标的伤害，避免伤害溢出 =====
+    _aiAssignedDamage(target) {
+      if (!target || !this._aiDamageMap) return 0;
+      return this._aiDamageMap.get(target) || 0;
+    },
+
+    _aiNotePlannedDamage(target, dmg) {
+      if (!target || !(dmg > 0)) return;
+      this._aiDamageMap = this._aiDamageMap || new Map();
+      this._aiDamageMap.set(target, this._aiAssignedDamage(target) + dmg);
+    },
+
+    // 扣除本回合已预约伤害后的剩余血量
+    _aiEffectiveHp(target) {
+      return Math.max(0, (target.hp || 0) - this._aiAssignedDamage(target));
+    },
+
     // 找最佳攻击目标（威胁度最高/最易击杀）
     _aiBestAttackTarget(actor) {
       const side = actor.side;
@@ -4949,7 +4993,13 @@
         if (!p || !p.alive || p.side === side) continue;
         if (Effect.isUntargetable(p)) continue; // 隐身单位不可被攻击
 
+        // 队友已预约足够伤害击杀 → 不重复集火，换目标
+        const effHp = this._aiEffectiveHp(p);
+        if (effHp <= 0) continue;
+
         let score = Effect._aiThreat(p);
+        // 集火：队友已经在打这个目标且尚未击杀 → 优先协同补刀
+        if (this._aiAssignedDamage(p) > 0) score += 12;
 
         // 骑兵冲锋：攻击方向与上次移动方向相同时+20%伤害，AI 据此修正击杀线并偏好同向攻击
         let atkVsP = baseAtk;
@@ -4961,9 +5011,10 @@
           }
         }
 
-        if (p.hp <= atkVsP) score *= 2.5;
+        if (effHp <= atkVsP) score *= 2.5;
 
         let allyCanAttack = 0;
+        let allyAtkAvail = 0;   // 本回合还能对目标出手的队友攻击力总和
         for (const a of allies) {
           if (a === actor) continue;
           const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
@@ -4971,9 +5022,12 @@
           });
           if (aAtkCells.some(ac => ac.x === p.x && ac.y === p.y)) {
             allyCanAttack++;
+            if (!a.attacked) allyAtkAvail += Effect.getEffectiveAttack(a);
           }
         }
         if (allyCanAttack > 0) score += allyCanAttack * 15;
+        // 团队集火：我和队友本回合的攻击力之和足以击杀 → 优先集体转火
+        if (allyAtkAvail + baseAtk >= effHp) score += 35;
 
         const pAtk = Effect.getEffectiveAttack(p);
         let protectingAlly = false;
@@ -4990,12 +5044,12 @@
         }
         if (protectingAlly) score += 20;
 
-        if (p.hp / (p.maxHp || 200) < 0.3) {
+        if (effHp / (p.maxHp || 200) < 0.3) {
           let otherAllyCanKill = false;
           for (const a of allies) {
             if (a === actor) continue;
             const aAtk = Effect.getEffectiveAttack(a);
-            if (aAtk >= p.hp) {
+            if (aAtk >= effHp) {
               const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
                 pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
               });
@@ -5078,7 +5132,7 @@
             const p = this.pieceAt(ac.x, ac.y);
             if (p && p.alive && p.side !== side) {
               score += Effect._aiThreat(p) * 0.8;
-              if (p.hp <= atkNow) { score += 60; canKillHere = true; }
+              if (this._aiEffectiveHp(p) <= atkNow) { score += 60; canKillHere = true; }
               enemyInAtk++;
             }
           }
@@ -5118,6 +5172,15 @@
               // 已方占领的城池：据守加分（防御加成已隐含）
               score += 8;
             }
+          }
+
+          // 远程单位保持安全距离：贴脸站位价值大幅降低（近战不受影响）
+          if (Effect.getEffectiveAttackRange(actor).n >= 2) {
+            let adjacent = 0;
+            for (const e of enemies) {
+              if (Math.abs(m.x - e.x) + Math.abs(m.y - e.y) <= 1) adjacent++;
+            }
+            if (adjacent > 0) score -= adjacent * 45;
           }
 
           let allyProtection = 0;
