@@ -17,24 +17,24 @@
     { type: 'teleport', re: /teleport|传送|瞬移|闪现|moveTo|setPosition|jumpTo/i },
     { type: 'summon',   re: /summon|召唤|召唤物|summonMinion|spawnPiece|deployMinion/i },
     { type: 'heal',     re: /heal|治疗|回复|恢复生命|hp\s*\+=|hp\s*=\s*Math\.min\(\s*.*maxHp|restoreHp|cure/i },
-    { type: 'buff',     re: /addMark.*atk|addMark.*def|atkBuff|defBuff|增益|攻击\+|防御\+|提升攻击|提升防御|buffAtk|buffDef/i },
+    { type: 'buff',     re: /addMark.*atk|addMark.*def|atkBuff|defBuff|增益|攻击\+|防御\+|提升.{0,12}(?:攻击|防御)|增加.{0,12}(?:攻击|防御)|buffAtk|buffDef/i },
     { type: 'debuff',   re: /addMark.*-atk|addMark.*-def|减益|攻击-|防御-|降低攻击|降低防御|poison|中毒|burn|燃烧|bleed|流血/i },
     { type: 'damage',   re: /damage|伤害|dealDamage|hp\s*-=|hp\s*-\s*\d|造成.*伤害|attack.*damage|magicDamage|physicalDamage/i },
   ];
 
   // 目标选择 API → 目标类型 映射
   const TARGET_PATTERNS = [
-    { target: 'aoe_enemy', re: /aoeEnemy|enemyAoE|chooseCell\s*\([^)]*mustEnemy|cellsInRange.*enemy/i },
-    { target: 'aoe_ally',  re: /aoeAlly|allyAoE|chooseCell\s*\([^)]*mustAlly|cellsInRange.*ally/i },
+    { target: 'aoe_enemy', re: /aoeEnemy|enemyAoE|chooseCell\s*\([^)]*mustEnemy|cellsInRange.*enemy|所有敌人|全体敌人|每个敌人|敌方全体|范围内.{0,4}敌人/i },
+    { target: 'aoe_ally',  re: /aoeAlly|allyAoE|chooseCell\s*\([^)]*mustAlly|cellsInRange.*ally|所有友军|全体友军|每个友军|友方全体|范围内.{0,4}友军/i },
     { target: 'enemy',     re: /chooseEnemy|chooseCardEnemy|targetEnemy|pickEnemy|selectEnemy/i },
     { target: 'ally',      re: /chooseAlly|chooseCardAlly|targetAlly|pickAlly|selectAlly/i },
-    { target: 'cell',      re: /chooseCell\s*\(|chooseCardCell|chooseCardZone|chooseCardOwnHalf|chooseCardFullField|chooseCardEnemyHalf/i },
+    { target: 'cell',      re: /chooseCell\s*\(|chooseCardCell|chooseCardZone|chooseCardOwnHalf|chooseCardFullField|chooseCardEnemyHalf|传送到|传送至|移动到.{0,6}(?:格|位置)/i },
     { target: 'self',      re: /chooseSelf|Effect\.self|actor\.hp\s*-=|self.*damage|自伤/i },
   ];
 
   // 条件推断
   const CONDITION_PATTERNS = [
-    { cond: 'self_low_hp',  re: /actor\.hp\s*<\s*actor\.maxHp\s*\*\s*0\.[3-5]|hp\s*\/\s*maxHp\s*<\s*0\.[3-5]|低血量|残血时/i },
+    { cond: 'self_low_hp',  re: /actor\.hp\s*<\s*actor\.maxHp\s*\*\s*0\.[3-5]|hp\s*\/\s*maxHp\s*<\s*0\.[3-5]|低血量|残血时|血量(?:低于|小于|不足)/i },
     { cond: 'self_full_hp', re: /hp\s*>=\s*maxHp|满血时|hp\s*\/\s*maxHp\s*>=?\s*0\.9/i },
     { cond: 'ally_injured', re: /友军.*血量|allies.*filter.*hp|injured.*ally/i },
     { cond: 'enemy_near',   re: /附近.*敌人|nearby.*enemy|距离.*<=\s*[2-4]/i },
@@ -43,9 +43,9 @@
 
   // preferTarget 推断
   const PREFER_PATTERNS = [
-    { prefer: 'low_hp',       re: /最低血量|low.*hp|hp\s*<\s*\d+.*sort|最小生命/i },
-    { prefer: 'high_threat',  re: /最高威胁|high.*threat|威胁度.*sort|_aiThreat.*sort/i },
-    { prefer: 'injured_ally', re: /受伤.*友军|injured.*ally/i },
+    { prefer: 'low_hp',       re: /最低血量|血量最低|最低生命|生命最低|low.*hp|hp\s*<\s*\d+.*sort|最小生命/i },
+    { prefer: 'high_threat',  re: /最高威胁|威胁最高|威胁度最高|high.*threat|威胁度.*sort|_aiThreat.*sort/i },
+    { prefer: 'injured_ally', re: /受伤.*友军|受伤友军|残血友军|injured.*ally/i },
     { prefer: 'nearest',      re: /最近.*敌人|nearest|Math\.min.*dist/i },
     { prefer: 'caster',       re: /法师|caster|高攻低防/i },
   ];
@@ -135,7 +135,8 @@
     }
     // 兜底：如果是伤害类，默认 enemy
     if (/damage|伤害/.test(text)) return 'enemy';
-    if (/heal|治疗/.test(text)) return 'ally';
+    if (/heal|治疗|回复|恢复生命/.test(text)) return 'ally';
+    if (/友军|队友|友方/.test(text)) return 'ally';
     return 'enemy';
   }
 
@@ -156,6 +157,10 @@
     if (m) return clampInt(parseInt(m[1]), 1, 200);
 
     m = text.match(/addMark\s*\([^,]+,\s*[^,]+,\s*\d+\s*,\s*\{[^}]*atkBuff\s*:\s*(\d+)/);
+    if (m) return clampInt(parseInt(m[1]), 1, 200);
+
+    // 模式：提升/增加 N 点攻击|防御（自然语言描述）
+    m = text.match(/(?:提升|增加|附加)[^0-9]{0,12}(\d+)\s*点?.{0,6}?(?:攻击|防御)/);
     if (m) return clampInt(parseInt(m[1]), 1, 200);
 
     // 模式：heal(target, X) 或 hp += X
@@ -211,8 +216,8 @@
     // 包含 "至少命中 N" / "minTargets" 时返回对应值
     const m = text.match(/至少.*?(\d+)\s*个|minTargets\s*[:=]\s*(\d+)/);
     if (m) return clampInt(parseInt(m[1] || m[2]), 0, 10);
-    // AOE 类技能默认要求至少 2 个目标
-    if (/aoe|范围|所有敌人|allEnemies/.test(text)) return 2;
+    // AOE 类技能默认要求至少 2 个目标（仅群体词，避免"传送范围内"误判）
+    if (/aoe|所有敌人|全体敌人|每个敌人|所有友军|全体友军|每个友军|allEnemies|allAllies/i.test(text)) return 2;
     return 0;
   }
 
