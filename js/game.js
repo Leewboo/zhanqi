@@ -4298,7 +4298,8 @@
               { type: 'move', dest: { x: movePlan.x, y: movePlan.y } },
               { type: 'attack', target: atkAfterMove }
             ].filter(s => s.type !== 'attack' || s.target),
-            score: planScore,
+            score: this._aiPlanRiskAdjust(actor, movePlan, planScore,
+              !!atkAfterMove && atkAfterMove.hp <= Effect.getEffectiveAttack(actor)),
             kind: atkAfterMove ? 'move_then_attack' : 'move_only'
           });
         }
@@ -4312,11 +4313,12 @@
           if (skillAfterMove && skillAfterMove.score > 25) {
             const atkAfterMove = this._aiAttackTargetAt(actor, movePlan.x, movePlan.y);
             let planScore = movePlan.score * 0.4 + skillAfterMove.score;
+            let killedByPlan = false;
             if (atkAfterMove) {
               let atkBonus = Effect._aiThreat(atkAfterMove) + 20;
               const dmg = Effect.getEffectiveAttack(actor);
               const canKill = atkAfterMove.hp <= dmg;
-              if (canKill) atkBonus += 50;
+              if (canKill) { atkBonus += 50; killedByPlan = true; }
               const bonus = this._aiOnAttackBonus(actor);
               atkBonus = atkBonus * bonus.mul + bonus.add;
               if (canKill) {
@@ -4331,7 +4333,7 @@
                 { type: 'skill', skill: skillAfterMove.skill },
                 { type: 'attack', target: atkAfterMove }
               ].filter(s => s.type !== 'attack' || s.target),
-              score: planScore * 1.05,  // 完整组合轻微加权
+              score: this._aiPlanRiskAdjust(actor, movePlan, planScore, killedByPlan) * 1.05,  // 完整组合轻微加权
               kind: 'move_skill_attack'
             });
           }
@@ -4349,7 +4351,7 @@
                 { type: 'move', dest: { x: movePlan.x, y: movePlan.y } },
                 { type: 'skill', skill: skillAfterMove.skill }
               ],
-              score: movePlan.score * 0.5 + skillAfterMove.score,
+              score: this._aiPlanRiskAdjust(actor, movePlan, movePlan.score * 0.5 + skillAfterMove.score, false),
               kind: 'move_then_skill'
             });
           }
@@ -4362,7 +4364,7 @@
         if (movePlan) {
           plans.push({
             steps: [{ type: 'move', dest: { x: movePlan.x, y: movePlan.y } }],
-            score: movePlan.score * 0.5,
+            score: this._aiPlanRiskAdjust(actor, movePlan, movePlan.score * 0.5, false),
             kind: 'move_only'
           });
         }
@@ -4372,6 +4374,15 @@
       if (!plans.length) return null;
       plans.sort((a, b) => b.score - a.score);
       return plans[0];
+    },
+
+    // 计划风险修正：把"移动后可能被反杀"的代价计入计划分数
+    _aiPlanRiskAdjust(actor, movePlan, planScore, killedByPlan) {
+      if (!movePlan) return planScore;
+      const destThreat = Effect._aiPositionThreatAt(actor, movePlan.x, movePlan.y);
+      let s = planScore - destThreat * 0.35;
+      if (destThreat > actor.hp * 1.1 && !killedByPlan) s -= 120;
+      return s;
     },
 
     // 当前位置可用的最佳技能
@@ -5028,9 +5039,12 @@
       const emptyMoves = moveCells.filter(c => !this.pieceAt(c.x, c.y));
       if (!emptyMoves.length) return null;
 
+      // 非逃跑时可选择"原地不动"，避免为了移动而移动到更差的位置
+      const candidates = shouldEscape ? emptyMoves : emptyMoves.concat([{ x: actor.x, y: actor.y }]);
+
       let best = null, bestScore = -Infinity;
 
-      for (const m of emptyMoves) {
+      for (const m of candidates) {
         let score = 0;
 
         if (shouldEscape) {
@@ -5057,12 +5071,14 @@
           const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
             pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
           });
+          const atkNow = Effect.getEffectiveAttack(actor);
           let enemyInAtk = 0;
+          let canKillHere = false;
           for (const ac of atkCells) {
             const p = this.pieceAt(ac.x, ac.y);
             if (p && p.alive && p.side !== side) {
               score += Effect._aiThreat(p) * 0.8;
-              if (p.hp <= Effect.getEffectiveAttack(actor)) score += 60;
+              if (p.hp <= atkNow) { score += 60; canKillHere = true; }
               enemyInAtk++;
             }
           }
@@ -5136,6 +5152,17 @@
             if (canBlock) break;
           }
           if (canBlock) score += 40;
+
+          // 落点风险：预估站到该格后下回合会承受的伤害
+          const destThreat = Effect._aiPositionThreatAt(actor, m.x, m.y);
+          score -= destThreat * 0.6;
+          // 站过去大概率被打死，且换不到关键击杀 → 强烈回避
+          if (destThreat > actor.hp * 1.1 && !canKillHere) score -= 160;
+
+          // 守城：不轻易放弃己方已占领的城池
+          const curOwnCastle = isCastle(actor.x, actor.y) && this.castleOwner[actor.x + ',' + actor.y] === side;
+          const destOwnCastle = isCastle(m.x, m.y) && this.castleOwner[m.x + ',' + m.y] === side;
+          if (curOwnCastle && !destOwnCastle) score -= 35;
         }
 
         if (score > bestScore) {
@@ -5144,6 +5171,8 @@
         }
       }
 
+      // 原地不动已是最优解 → 不移动（避免无意义游走）
+      if (best && !shouldEscape && best.x === actor.x && best.y === actor.y) return null;
       return best;
     },
 

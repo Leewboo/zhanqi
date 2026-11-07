@@ -851,13 +851,25 @@
       const hpFactor = piece.hp / (piece.maxHp || 200);
       const atk = Effect.getEffectiveAttack(piece);
       const def = Effect.getEffectiveDefense(piece);
-      let threat = (atk * 2 + def) * (2 - hpFactor);
+      // 射程 + 机动：能打到更远、跑得更快的单位（远程/骑兵）威胁更高
+      let reachMul = 1;
+      try {
+        const ar = Effect.getEffectiveAttackRange(piece);
+        const mr = Effect.getEffectiveMoveRange(piece);
+        const reach = (ar ? ar.n : 1) + (mr ? mr.n : 1);
+        reachMul = 1 + Math.min(0.35, Math.max(0, reach - 2) * 0.07);
+      } catch (e) { reachMul = 1; }
+      let threat = (atk * 2 + def) * (2 - hpFactor) * reachMul;
       if (piece.skills) {
         for (const sk of piece.skills) {
           if (sk.type === '被动') continue;
           // 通过 SkillAnalyzer 推断技能威力（自动分析或回退到 aiHint）
           const hint = (global.SkillAnalyzer && global.SkillAnalyzer.analyze(sk)) || sk.aiHint;
-          if (hint) threat += (hint.power || 30) * 0.5;
+          if (hint) {
+            // 治疗/辅助类技能不构成直接杀伤威胁，权重调低
+            const w = (hint.type === 'heal' || hint.type === 'buff') ? 0.15 : 0.5;
+            threat += (hint.power || 30) * w;
+          }
         }
       }
       return threat;
@@ -874,26 +886,33 @@
       return total;
     },
 
-    _aiPositionThreat(piece) {
+    // 评估棋子站在指定坐标时下回合可能承受的敌方伤害
+    _aiPositionThreatAt(piece, x, y) {
       if (!piece || !piece.alive || !global.Game) return 0;
       const g = global.Game;
       const side = piece.side;
+      const hpRatio = piece.hp / (piece.maxHp || 200);
       let threat = 0;
       const enemies = g.pieces.filter(p => p.alive && p.side !== side);
       for (const e of enemies) {
-        const dist = Math.abs(e.x - piece.x) + Math.abs(e.y - piece.y);
+        const dist = Math.abs(e.x - x) + Math.abs(e.y - y);
         const eAtk = Effect.getEffectiveAttack(e);
         const range = Range.cellsInRangeWithBlock(e.attackRange.shape, e.attackRange.n, e.x, e.y, {
-          pieceAt: (x, y) => { const p = g.pieceAt(x, y); return (p && p.alive) ? p : null; }
+          pieceAt: (px, py) => { const p = g.pieceAt(px, py); return (p && p.alive) ? p : null; }
         });
-        const inRange = range.some(c => c.x === piece.x && c.y === piece.y);
+        const inRange = range.some(c => c.x === x && c.y === y);
         if (inRange) {
-          threat += eAtk * (1 - piece.hp / (piece.maxHp || 200)) * 2;
+          threat += eAtk * (1.6 - hpRatio);
         } else if (dist <= e.moveRange.n + e.attackRange.n) {
           threat += eAtk * 0.5;
         }
       }
       return threat;
+    },
+
+    _aiPositionThreat(piece) {
+      if (!piece || !piece.alive) return 0;
+      return Effect._aiPositionThreatAt(piece, piece.x, piece.y);
     },
 
     _aiSurvivalValue(piece) {
