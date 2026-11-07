@@ -270,6 +270,187 @@
             "skill": "",
             "victory": ""
           }
+        },
+        {
+          "id": "diy_zhangliao",
+          "name": "张辽",
+          "hp": 220,
+          "atk": 60,
+          "def": 25,
+          "moveRange": {
+            "shape": "square",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhangliao_tuxi",
+            "diy_zhangliao_xiaoyaojin"
+          ],
+          "portrait": "pt_mr6ihva2avt2ga.png",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_huangzhong",
+          "name": "黄忠",
+          "hp": 200,
+          "atk": 65,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 1
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 3
+          },
+          "skillIds": [
+            "diy_huangzhong_liegong",
+            "diy_huangzhong_baibu",
+            "diy_huangzhong_chuanyun"
+          ],
+          "portrait": "pt_mr6ii55lyqus1p.png",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_weiyan",
+          "name": "魏延",
+          "hp": 210,
+          "atk": 65,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_weiyan_ziwugu",
+            "diy_weiyan_qimou",
+            "diy_weiyan_fangu"
+          ],
+          "portrait": "pt_mr6j6pt0jc64nh.png",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_zhanghe",
+          "name": "张郃",
+          "hp": 215,
+          "atk": 60,
+          "def": 25,
+          "moveRange": {
+            "shape": "square",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_zhanghe_qiaobian",
+            "diy_zhanghe_liaodi"
+          ],
+          "portrait": "pt_mr77nohusimd7m.webp",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_pangde",
+          "name": "庞德",
+          "hp": 230,
+          "atk": 65,
+          "def": 25,
+          "moveRange": {
+            "shape": "square",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 1
+          },
+          "skillIds": [
+            "diy_pangde_taiguan",
+            "diy_pangde_sizhan"
+          ],
+          "portrait": "pt_mr7aoplspdtdbr.png",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
+        },
+        {
+          "id": "diy_pangtong",
+          "name": "庞统",
+          "hp": 200,
+          "atk": 50,
+          "def": 20,
+          "moveRange": {
+            "shape": "square",
+            "n": 2
+          },
+          "attackRange": {
+            "shape": "+",
+            "n": 2
+          },
+          "skillIds": [
+            "diy_pangtong_lianhuan"
+          ],
+          "portrait": "",
+          "voice": {
+            "select": "",
+            "move": "",
+            "attack": "",
+            "hurt": "",
+            "death": "",
+            "kill": "",
+            "skill": "",
+            "victory": ""
+          }
         }
       ],
       "skills": [
@@ -589,6 +770,313 @@
             "voice": ""
           },
           "aiHint": null
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onMove",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_zhangliao_tuxi",
+          "name": "突袭",
+          "desc": "移动至少三格后，若本回合尚未攻击，立即对四格内最近的敌人造成30点伤害，并使其攻击力下降10点（一回合）。",
+          "filterCode": "return actor && actor.alive && !actor.attacked",
+          "contentCode": "\nvar from = context && context.from;\nif (!from) return false;\nvar dist = Math.abs(from.x - actor.x) + Math.abs(from.y - actor.y);\nif (dist < 3) return false;\nvar best = null, bestD = 999;\nvar list = Effect.getEnemies(actor);\nfor (var i = 0; i < list.length; i++) {\n  var e = list[i];\n  var d = Math.abs(e.x - actor.x) + Math.abs(e.y - actor.y);\n  if (d < bestD) { bestD = d; best = e; }\n}\nif (!best || bestD > 4) return false;\nEffect.damage(actor, best, 30);\nEffect.modifyAttack(best, -10, 1);\nGame.log('【突袭】' + actor.name + ' 长途奔袭，' + best.name + ' 受到30点伤害且攻击下降。');\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": true,
+          "cooldown": 0,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 130,
+            "priority": 10,
+            "condition": "has_target",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_zhangliao_xiaoyaojin",
+          "name": "威震逍遥津",
+          "desc": "限定技。将三格内一名敌人拉到身边，然后双方各进行一次攻击；若你的攻击力不低于目标，则由你先行出手。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nvar target = await Effect.chooseEnemy(actor, {\n  range: { shape: '+', n: 3 },\n  passThrough: true,\n  hintText: '选择单挑目标'\n});\nif (!target) return false;\nvar dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];\nvar spot = null, sd = 999;\nfor (var i = 0; i < dirs.length; i++) {\n  var nx = actor.x + dirs[i][0], ny = actor.y + dirs[i][1];\n  if (nx < 0 || ny < 0 || nx >= Range.BOARD_SIZE || ny >= Range.BOARD_SIZE) continue;\n  if (Game.pieceAt(nx, ny)) continue;\n  var d = Math.abs(target.x - nx) + Math.abs(target.y - ny);\n  if (d < sd) { sd = d; spot = { x: nx, y: ny }; }\n}\nif (!spot) { Game.log('【威震逍遥津】' + actor.name + ' 周围没有落脚处。'); return false; }\nEffect.teleport(target, spot.x, spot.y);\nGame.log('【威震逍遥津】' + actor.name + ' 将 ' + target.name + ' 拽到阵前，单挑开始！', 'turn');\nvar actorFirst = Effect.getEffectiveAttack(actor) >= Effect.getEffectiveAttack(target);\nif (actorFirst) {\n  Effect.basicAttack(actor, target);\n  if (target.alive) Effect.basicAttack(target, actor);\n} else {\n  Effect.basicAttack(target, actor);\n  if (actor.alive) Effect.basicAttack(actor, target);\n}\nactor.skilled = true;\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onAttack",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_huangzhong_liegong",
+          "name": "烈弓",
+          "desc": "与目标距离不少于三格时，额外造成20点真实伤害。",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "\nvar t = context && context.target;\nif (!t || !t.alive) return false;\nif (Game.__liegongBusy) return false;\nvar d = Math.abs(t.x - actor.x) + Math.abs(t.y - actor.y);\nif (d < 3) return false;\nGame.__liegongBusy = true;\ntry {\n  Effect.damage(actor, t, 20, { ignoreDef: true });\n  Game.log('【烈弓】' + actor.name + ' 远距离劲射，' + t.name + ' 额外受到20点伤害。');\n  if (t.alive && Effect.hasMark(actor, 'aim')) {\n    Effect.unmark(actor, 'aim');\n    Effect.damage(actor, t, 20, { ignoreDef: true });\n    Game.log('【百步】瞄准命中要害，追加20点伤害！');\n  }\n} finally {\n  Game.__liegongBusy = false;\n}\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnEnd",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_huangzhong_baibu",
+          "name": "百步",
+          "desc": "若本回合未移动，回合结束时进入瞄准状态：攻击距离+1。",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "\nif (!actor.moved) {\n  Effect.mark(actor, 'aim', { display: '瞄准', modifiers: { attackRangeDelta: 1 }, data: {} });\n  Game.log('【百步】' + actor.name + ' 原地瞄准，射程提升。');\n} else {\n  Effect.unmark(actor, 'aim');\n}\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 95,
+            "priority": 6,
+            "condition": "enemy_in_range",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_huangzhong_chuanyun",
+          "name": "穿云",
+          "desc": "选择四格内一名敌人，沿该方向射击，对直线上所有敌人依次造成60、45、30点伤害。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nvar target = await Effect.chooseEnemy(actor, {\n  range: { shape: '+', n: 4 },\n  passThrough: true,\n  hintText: '选择穿透方向上的敌人'\n});\nif (!target) return false;\nvar dx = 0, dy = 0;\nif (Math.abs(target.x - actor.x) >= Math.abs(target.y - actor.y)) dx = Math.sign(target.x - actor.x);\nelse dy = Math.sign(target.y - actor.y);\nif (dx === 0 && dy === 0) return false;\nvar amounts = [60, 45, 30];\nvar x = actor.x + dx, y = actor.y + dy, hit = 0;\nwhile (x >= 0 && y >= 0 && x < Range.BOARD_SIZE && y < Range.BOARD_SIZE) {\n  var p = Game.pieceAt(x, y);\n  if (p && p.alive) {\n    if (p.side === actor.side) break;\n    var amt = amounts[Math.min(hit, amounts.length - 1)];\n    Effect.damage(actor, p, amt);\n    Game.log('【穿云】贯通 ' + p.name + '，造成' + amt + '点伤害。');\n    hit++;\n  }\n  x += dx; y += dy;\n}\nif (hit === 0) return false;\nactor.skilled = true;\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": false,
+          "cooldown": 2,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "mixed",
+            "target": "cell",
+            "power": 45,
+            "priority": 5,
+            "condition": "always",
+            "preferTarget": "",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_weiyan_ziwugu",
+          "name": "子午谷",
+          "desc": "突进到四格内任意空格（无视阻挡），本回合无法攻击；获得奇谋：下回合首次攻击追加60%攻击力的伤害，攻击距离+1。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nvar cell = await Effect.chooseCell(actor, {\n  range: { shape: '+', n: 4 },\n  mustEmpty: true,\n  passThrough: true,\n  aiPrefer: 'aggressive',\n  hintText: '选择突进落点'\n});\nif (!cell) return false;\nEffect.teleport(actor, cell.x, cell.y);\nEffect.mark(actor, 'qimou', { display: '奇谋', modifiers: { attackRangeDelta: 1 }, data: {} });\nactor.attacked = true;\nactor.skilled = true;\nGame.log('【子午谷】' + actor.name + ' 突进至 (' + cell.x + ',' + cell.y + ')，蓄势待发。', 'turn');\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "onAttack",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_weiyan_qimou",
+          "name": "奇谋",
+          "desc": "攻击时消耗奇谋标记，追加60%攻击力的真实伤害。",
+          "filterCode": "return actor && actor.alive && Effect.hasMark(actor, \"qimou\")",
+          "contentCode": "\nvar t = context && context.target;\nif (!t || !t.alive) return false;\nif (!Effect.hasMark(actor, 'qimou')) return false;\nEffect.unmark(actor, 'qimou');\nvar extra = Math.max(1, Math.floor(Effect.getEffectiveAttack(actor) * 0.6));\nEffect.damage(actor, t, extra, { ignoreDef: true });\nGame.log('【奇谋】' + actor.name + ' 蓄势爆发，追加' + extra + '点伤害！', 'turn');\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnStart",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_weiyan_fangu",
+          "name": "反骨",
+          "desc": "每损失20%生命，攻击力+8（最多+32）。",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "\nvar lost = 1 - actor.hp / actor.maxHp;\nvar stacks = Math.min(4, Math.floor(lost / 0.2 + 0.0001));\nEffect.unmark(actor, 'fangu');\nif (stacks > 0) {\n  Effect.mark(actor, 'fangu', { display: '反骨+' + (stacks * 8), modifiers: { atkBuff: stacks * 8 }, data: {} });\n}\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "control",
+            "target": "enemy",
+            "power": 70,
+            "priority": 7,
+            "condition": "enemy_in_range",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_zhanghe_qiaobian",
+          "name": "巧变",
+          "desc": "与方形两格内一名敌人交换位置；换位后若相邻敌人不少于两个，获得30点护盾。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nvar target = await Effect.chooseEnemy(actor, {\n  range: { shape: 'square', n: 2 },\n  passThrough: true,\n  hintText: '选择换位目标'\n});\nif (!target) return false;\nEffect.swap(actor, target);\nvar dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];\nvar cnt = 0;\nfor (var i = 0; i < dirs.length; i++) {\n  var p = Game.pieceAt(actor.x + dirs[i][0], actor.y + dirs[i][1]);\n  if (p && p.alive && p.side !== actor.side) cnt++;\n}\nif (cnt >= 2) {\n  Effect.shield(actor, 30);\n  Game.log('【巧变】四面受敌，' + actor.name + ' 获得30点护盾。');\n}\nactor.skilled = true;\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnStart",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_zhanghe_liaodi",
+          "name": "料敌",
+          "desc": "回合开始时，若攻击范围内有不少于两名敌人，攻击力+10。",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "\nEffect.unmark(actor, 'liaodi');\nvar r = Effect.getEffectiveAttackRange(actor);\nvar cells = Range.cellsInRange(r.shape, r.n, actor.x, actor.y, { includeSelf: false });\nvar cnt = 0;\nfor (var i = 0; i < cells.length; i++) {\n  var p = Game.pieceAt(cells[i].x, cells[i].y);\n  if (p && p.alive && p.side !== actor.side) cnt++;\n}\nif (cnt >= 2) {\n  Effect.mark(actor, 'liaodi', { display: '料敌+10', modifiers: { atkBuff: 10 }, data: {} });\n}\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": true,
+          "cooldown": 0,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 60,
+            "priority": 10,
+            "condition": "always",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_pangde_taiguan",
+          "name": "抬棺决战",
+          "desc": "限定技。本回合攻击力+50、防御-5，并获得一次不屈（致死伤害保留1点生命）。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nEffect.modifyAttack(actor, 50, 1);\nEffect.modifyDef(actor, -5, 1);\nEffect.undying(actor, 1);\nactor.skilled = true;\nGame.log('【抬棺决战】' + actor.name + ' 抬棺而战，攻击大涨并获得不屈！', 'turn');\nreturn true;\n"
+        },
+        {
+          "type": "被动",
+          "limited": false,
+          "cooldown": 0,
+          "trigger": "turnStart",
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": null,
+          "id": "diy_pangde_sizhan",
+          "name": "死战",
+          "desc": "生命低于30%时，攻击力+20，移动力+1。",
+          "filterCode": "return actor && actor.alive",
+          "contentCode": "\nEffect.unmark(actor, 'sizhan');\nif (actor.hp / actor.maxHp < 0.3) {\n  Effect.mark(actor, 'sizhan', { display: '死战', modifiers: { atkBuff: 20, moveRangeDelta: 1 }, data: {} });\n  Game.log('【死战】' + actor.name + ' 浴血奋战，攻击力提升。');\n}\nreturn true;\n"
+        },
+        {
+          "type": "主动",
+          "limited": false,
+          "cooldown": 3,
+          "trigger": null,
+          "preview": null,
+          "initCode": "",
+          "sound": {
+            "cast": "",
+            "hit": "",
+            "voice": ""
+          },
+          "aiHint": {
+            "type": "control",
+            "target": "enemy",
+            "power": 75,
+            "priority": 7,
+            "condition": "enemy_in_range",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          },
+          "id": "diy_pangtong_lianhuan",
+          "name": "连环",
+          "desc": "选择四格内两名敌人连结两回合，其中一人受到伤害时，另一人受到50%传导伤害。",
+          "filterCode": "return actor && actor.alive && !actor.skilled",
+          "contentCode": "\nvar a = await Effect.chooseEnemy(actor, {\n  range: { shape: 'square', n: 4 },\n  passThrough: true,\n  hintText: '选择第一个目标'\n});\nif (!a) return false;\nvar list = Effect.getEnemies(actor).filter(function (e) {\n  return e !== a && Math.abs(e.x - a.x) + Math.abs(e.y - a.y) <= 4;\n});\nif (!list.length) { Game.log('【连环】附近没有第二个可连结的目标。'); return false; }\nvar b = null;\nif (Effect._aiContext && Effect._aiContext.mode) {\n  list.sort(function (p, q) { return p.hp - q.hp; });\n  b = list[0];\n} else {\n  b = await Effect.chooseEnemy(actor, {\n    range: { shape: 'square', n: 4 },\n  passThrough: true,\n    filter: function (cell, piece) { return !!piece && list.indexOf(piece) >= 0; },\n    hintText: '选择第二个目标'\n  });\n  if (!b) return false;\n}\nEffect.linkDamage(a, b, 2, 0.5);\nactor.skilled = true;\nGame.log('【连环】' + a.name + ' 与 ' + b.name + ' 被铁索相连！', 'turn');\nreturn true;\n"
         }
       ],
       "minions": [
