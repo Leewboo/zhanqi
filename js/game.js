@@ -3699,9 +3699,9 @@
       });
 
       if (!deployable.length) {
-        // 无可部署的卡 → 进入战斗
+        // 无可部署的卡 → 回到调度器（继续走计谋牌 → 战斗）
         const self = this;
-        setTimeout(() => self._aiBattleStep(), 400);
+        setTimeout(() => self._aiStep(), 400);
         return;
       }
 
@@ -3726,9 +3726,9 @@
       }
 
       if (!candidates.length) {
-        // 该卡无可部署位置，跳过本回合部署
+        // 该卡无可部署位置，回到调度器（继续走计谋牌 → 战斗）
         const self = this;
-        setTimeout(() => self._aiBattleStep(), 400);
+        setTimeout(() => self._aiStep(), 400);
         return;
       }
 
@@ -3755,36 +3755,90 @@
 
       this._deployMinion(card, bestPos.x, bestPos.y);
 
-      // 继续部署剩余手牌，或进入下一调度步骤（计谋牌 → 战斗）
+      // 继续部署剩余可部署手牌，否则回到调度器（计谋牌 → 战斗）
       const self = this;
-      if (this.minionPoints[side] > 0 && this.minionHand[side].length > 0) {
+      const pointsLeft = this.minionPoints[side] || 0;
+      const stillDeployable = (this.minionHand[side] || []).some(c => {
+        const t = this._cardType(c);
+        return (t === 'minion' || t === 'building') &&
+          (Math.max(0, parseInt(c.cost) || 0) <= pointsLeft);
+      });
+      if (stillDeployable) {
         setTimeout(() => self._aiDeployMinion(), 600);
       } else {
         setTimeout(() => self._aiStep(), 600);
       }
     },
 
-    // AI 设置成略牌：将手牌中的成略牌全部挂起（不消耗部署点，触发时才扣点）
+    // 成略牌触发时机价值：越可能触发、收益越大的牌越值得挂
+    _aiStrategyTriggerValue(card, side) {
+      const events = this._strategyEvents(card);
+      if (!events.length) return 0;
+      const foes = this.pieces.filter(p => p.alive && p.side !== side);
+      const mates = this.pieces.filter(p => p.alive && p.side === side);
+      const lowHp = mates.filter(m => m.hp / (m.maxHp || 200) < 0.5).length;
+      const exposed = mates.reduce((s, m) => s + Effect._aiPositionThreat(m), 0);
+      let v = 0;
+      for (const ev of events) {
+        if (ev === 'onAttacked' || ev === 'onDamaged' || ev === 'onBeAttacked') {
+          // 挨打触发：己方越受威胁越可能触发
+          v += 12 + exposed * 0.2 + lowHp * 8;
+        } else if (ev === 'onAttack') {
+          // 出手触发：有敌人且还有单位能行动才值钱
+          const canAct = mates.filter(m => !m.attacked).length;
+          v += foes.length ? 14 + canAct * 4 : 0;
+        } else if (ev === 'onKilled' || ev === 'onKill' || ev === 'onEnemyDeath') {
+          const killers = mates.filter(m => !m.attacked &&
+            foes.some(e => e.hp <= Effect.getEffectiveAttack(m))).length;
+          v += 6 + killers * 10;
+        } else if (ev === 'onDeath' || ev === 'onAllyDeath') {
+          // 己方战损触发：残血越多越可能触发
+          v += lowHp * 9;
+        } else if (ev === 'onHeal') {
+          v += mates.some(m => m.hp < (m.maxHp || 200) * 0.7) ? 16 : 4;
+        } else if (ev === 'onMove') {
+          v += mates.filter(m => !m.moved).length * 4;
+        } else if (ev === 'onSkillCast') {
+          v += mates.some(m => !m.skilled && m.skills && m.skills.length) ? 12 : 4;
+        } else {
+          v += 5;
+        }
+      }
+      return v;
+    },
+
+    // AI 设置成略牌：按触发时机价值挑最可能生效的牌挂起（不消耗部署点，触发时才扣点）
     _aiSetStrategyCard() {
       const side = this.currentSide;
       const hand = this.minionHand[side] || [];
       const strategies = hand.filter(c => this._cardType(c) === 'strategy');
       if (!strategies.length) {
-        // 无成略牌 → 进入下一步
         const self = this;
         setTimeout(() => self._aiStep(), 300);
         return;
       }
-      // 成略牌不消耗部署点（触发时才扣），AI 直接全部设置
+      // 只挂真正可能触发的牌，避免占用手牌上限；最多挂 2 张
+      const picked = strategies
+        .map(c => ({ card: c, value: this._aiStrategyTriggerValue(c, side) }))
+        .filter(x => x.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 2)
+        .map(x => x.card);
+
+      if (!picked.length) {
+        const self = this;
+        setTimeout(() => self._aiStep(), 300);
+        return;
+      }
+
       let i = 0;
       const setNext = () => {
-        if (i >= strategies.length) {
+        if (i >= picked.length) {
           const self = this;
           setTimeout(() => self._aiStep(), 400);
           return;
         }
-        const card = strategies[i++];
-        // 确保卡牌仍在手牌中
+        const card = picked[i++];
         const curHand = this.minionHand[side] || [];
         if (!curHand.find(c => c.instanceId === card.instanceId)) {
           setNext();
@@ -3796,63 +3850,133 @@
       setNext();
     },
 
-    // AI 使用计谋牌：评估手牌中的计谋牌，选择最有利的时机使用
+    // 计谋牌语义（缓存）：复用 SkillAnalyzer，兜底为通用卡牌
+    _aiCardHint(card) {
+      if (card._aiHintCache) return card._aiHintCache;
+      let hint = null;
+      if (global.SkillAnalyzer) {
+        try {
+          hint = global.SkillAnalyzer.analyzeCard
+            ? global.SkillAnalyzer.analyzeCard(card)
+            : global.SkillAnalyzer.analyze(card);
+        } catch (e) { hint = null; }
+      }
+      if (!hint) {
+        hint = { type: 'mixed', target: 'enemy', power: 30, isSummon: false, isControl: false, isBuff: false, heavy: false };
+      }
+      card._aiHintCache = hint;
+      return hint;
+    },
+
+    // 评估一张计谋牌在当前局面下的期望收益（0 表示不该出）
+    _aiTacticCardValue(card, side) {
+      const hint = this._aiCardHint(card);
+      const foes = this.pieces.filter(p => p.alive && p.side !== side);
+      const mates = this.pieces.filter(p => p.alive && p.side === side);
+      const power = Math.max(1, hint.power || 30);
+      const type = hint.type || 'mixed';
+
+      // 1) 召唤/部署：场上越缺人越值钱
+      if (hint.isSummon || type === 'summon') {
+        const deficit = Math.max(0, foes.length - mates.length);
+        return 45 + deficit * 12 + (card.atk || 0) * 0.5 + (card.hp || 0) * 0.25;
+      }
+
+      // 2) 治疗：按"最需要治疗的单位"折算，无人受伤直接不出
+      if (type === 'heal') {
+        let best = 0;
+        for (const m of mates) {
+          const maxHp = m.maxHp || 200;
+          const miss = Math.max(0, maxHp - m.hp);
+          if (miss <= 0) continue;
+          const healed = Math.min(power, miss);
+          const ratio = m.hp / maxHp;          // 血线越低，救回来的价值越高
+          // 每点治疗量按目标威胁折算；再乘血线系数（残血更值钱）
+          const v = healed * (0.5 + Effect._aiThreat(m) / 120) * (1.3 - ratio * 0.5);
+          if (v > best) best = v;
+        }
+        return best;
+      }
+
+      // 3) 控制：按敌方总威胁与人数
+      if (hint.isControl || type === 'control') {
+        if (!foes.length) return 0;
+        let total = 0;
+        for (const e of foes) total += Effect._aiThreat(e);
+        return total * 0.35 + Math.min(foes.length, 3) * 8;
+      }
+
+      // 4) 增益/减益：己方还有行动余量才有意义
+      if (hint.isBuff || type === 'buff' || type === 'debuff') {
+        if (!foes.length) return 0;
+        const canAct = mates.filter(m => !m.moved || !m.attacked || !m.skilled).length;
+        return 20 + canAct * 6;
+      }
+
+      // 5) 伤害（含 mixed 兜底）
+      if (!foes.length) return 0;
+      let best = 0;
+      for (const e of foes) {
+        const maxHp = e.maxHp || 200;
+        const dealt = Math.min(power, e.hp);
+        let v = (dealt / maxHp) * Effect._aiThreat(e) + dealt * 0.05;
+        if (e.hp <= power) v += 35;   // 可击杀
+        if (hint.heavy) v *= Math.min(2.5, 0.8 + foes.length * 0.4);
+        if (v > best) best = v;
+      }
+      return best;
+    },
+
+    // AI 使用计谋牌：按期望收益/成本比挑牌，一回合可连用多张
     _aiUseTacticCard() {
       const side = this.currentSide;
-      const hand = this.minionHand[side] || [];
-      const points = this.minionPoints[side] || 0;
-      const tactics = hand.filter(c =>
-        this._cardType(c) === 'tactic' &&
-        (Math.max(0, parseInt(c.cost) || 0) <= points)
-      );
-      if (!tactics.length) {
-        const self = this;
-        setTimeout(() => self._aiBattleStep(), 300);
-        return;
-      }
-
-      // 启发式评估：根据盘面形势为每张计谋牌打分
-      const enemies = this.pieces.filter(p => p.alive && p.side !== side);
-      const allies = this.pieces.filter(p => p.alive && p.side === side);
-      const lowHpAllies = allies.filter(a => a.hp < (a.maxHp || a.hp) * 0.5);
-      const totalEnemyThreat = enemies.reduce((s, e) => s + Effect._aiThreat(e), 0);
-
-      let bestCard = null;
-      let bestScore = -Infinity;
-      for (const card of tactics) {
-        let score = 0;
-        const cost = Math.max(0, parseInt(card.cost) || 0);
-        // 基础分：消耗越低越倾向使用（避免浪费点数）
-        score += (5 - cost) * 2;
-        // 敌人多 → 伤害/控制类计谋价值高
-        score += enemies.length * 3;
-        // 友军残血 → 治疗/保护类计谋价值高
-        score += lowHpAllies.length * 8;
-        // 敌方威胁大 → 解场类计谋价值高
-        score += Math.min(30, totalEnemyThreat * 0.1);
-        // 剩余点数多 → 更倾向使用（避免浪费）
-        score += (points - cost) * 1.5;
-        if (score > bestScore) {
-          bestScore = score;
-          bestCard = card;
-        }
-      }
-
-      // 阈值：只有评分足够高才使用，避免无意义消耗
-      if (!bestCard || bestScore < 8) {
-        const self = this;
-        setTimeout(() => self._aiBattleStep(), 300);
-        return;
-      }
-
-      // 设置 AI 上下文，使计谋牌内容中的 chooseCell/chooseOption 走 AI 自动选择
-      Effect._aiContext = { mode: true, actor: null, skill: null, hint: null };
       const self = this;
-      this._useTacticCard(bestCard, { skipConfirm: true, skipAiGuard: true }).then(() => {
-        Effect._aiContext = null;
-        // 计谋牌执行完毕后进入战斗
-        setTimeout(() => self._aiBattleStep(), 600);
-      });
+      const MAX_PER_TURN = 3;
+      let used = 0;
+
+      const finish = () => {
+        setTimeout(() => self._aiBattleStep(), 300);
+      };
+
+      const step = () => {
+        if (self.over || self.currentSide !== side) { finish(); return; }
+        if (used >= MAX_PER_TURN) { finish(); return; }
+
+        const points = self.minionPoints[side] || 0;
+        const hand = self.minionHand[side] || [];
+        const candidates = [];
+        for (const card of hand) {
+          if (self._cardType(card) !== 'tactic') continue;
+          const cost = Math.max(0, parseInt(card.cost) || 0);
+          if (cost > points) continue;
+          const value = self._aiTacticCardValue(card, side);
+          if (value <= 0) continue;            // 无合法目标 / 无收益，不出
+          candidates.push({ card: card, cost: cost, value: value, ratio: value / (cost + 1) });
+        }
+
+        if (!candidates.length) { finish(); return; }
+        candidates.sort((a, b) => b.ratio - a.ratio);
+        const pick = candidates[0];
+
+        // 阈值：收益至少覆盖成本（1 点部署点约等于 12 点价值），避免无意义消耗
+        if (pick.value < 12 * pick.cost + 6) { finish(); return; }
+
+        used++;
+        // 让卡牌内容里的 chooseCell/chooseOption 走 AI 自动选择
+        Effect._aiContext = { mode: true, actor: null, skill: null, hint: null };
+        self._useTacticCard(pick.card, { skipConfirm: true, skipAiGuard: true })
+          .then((ok) => {
+            Effect._aiContext = null;
+            if (ok) setTimeout(step, 500);
+            else finish();
+          })
+          .catch(() => {
+            Effect._aiContext = null;
+            finish();
+          });
+      };
+
+      step();
     },
 
     _aiPickGeneral() {

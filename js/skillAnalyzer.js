@@ -15,7 +15,7 @@
     // control 必须在 damage 前判断（眩晕技能常带伤害）
     { type: 'control',  re: /眩晕|stun|沉默|silence|冻结|freeze|魅惑|charm|嘲讽|taunt|禁锢|束缚|定身|disable|cannotMove|cannotAttack|cannotSkill/i },
     { type: 'teleport', re: /teleport|传送|瞬移|闪现|moveTo|setPosition|jumpTo/i },
-    { type: 'summon',   re: /summon|召唤|召唤物|summonMinion|spawnPiece/i },
+    { type: 'summon',   re: /summon|召唤|召唤物|summonMinion|spawnPiece|deployMinion/i },
     { type: 'heal',     re: /heal|治疗|回复|恢复生命|hp\s*\+=|hp\s*=\s*Math\.min\(\s*.*maxHp|restoreHp|cure/i },
     { type: 'buff',     re: /addMark.*atk|addMark.*def|atkBuff|defBuff|增益|攻击\+|防御\+|提升攻击|提升防御|buffAtk|buffDef/i },
     { type: 'debuff',   re: /addMark.*-atk|addMark.*-def|减益|攻击-|防御-|降低攻击|降低防御|poison|中毒|burn|燃烧|bleed|流血/i },
@@ -24,11 +24,11 @@
 
   // 目标选择 API → 目标类型 映射
   const TARGET_PATTERNS = [
-    { target: 'aoe_enemy', re: /chooseCell\s*\([^)]*mustEnemy|cellsInRange.*enemy|aoeEnemy|enemyAoE/i },
-    { target: 'aoe_ally',  re: /chooseCell\s*\([^)]*mustAlly|cellsInRange.*ally|aoeAlly|allyAoE/i },
-    { target: 'enemy',     re: /chooseEnemy|targetEnemy|pickEnemy|selectEnemy/i },
-    { target: 'ally',      re: /chooseAlly|targetAlly|pickAlly|selectAlly/i },
-    { target: 'cell',      re: /chooseCell\s*\(/i },
+    { target: 'aoe_enemy', re: /aoeEnemy|enemyAoE|chooseCell\s*\([^)]*mustEnemy|cellsInRange.*enemy/i },
+    { target: 'aoe_ally',  re: /aoeAlly|allyAoE|chooseCell\s*\([^)]*mustAlly|cellsInRange.*ally/i },
+    { target: 'enemy',     re: /chooseEnemy|chooseCardEnemy|targetEnemy|pickEnemy|selectEnemy/i },
+    { target: 'ally',      re: /chooseAlly|chooseCardAlly|targetAlly|pickAlly|selectAlly/i },
+    { target: 'cell',      re: /chooseCell\s*\(|chooseCardCell|chooseCardZone|chooseCardOwnHalf|chooseCardFullField|chooseCardEnemyHalf/i },
     { target: 'self',      re: /chooseSelf|Effect\.self|actor\.hp\s*-=|self.*damage|自伤/i },
   ];
 
@@ -65,7 +65,7 @@
   }
 
   function getDesc(skill) {
-    return (skill && skill.desc) || '';
+    return (skill && (skill.desc || skill.description)) || '';
   }
 
   // ========== 主分析函数 ==========
@@ -236,7 +236,33 @@
     return Math.max(min, Math.min(max, v));
   }
 
-  // ========== 批量预热缓存 ==========
+  // ========== 卡牌语义分析（计谋牌/成略牌） ==========
+  // 复用技能分析，并补充卡牌专用标记，供 AI 折算期望收益。
+  function analyzeCard(card) {
+    if (!card) return Object.assign(defaultHint(), { isSummon: false, isControl: false, isBuff: false, needsTarget: false, heavy: false });
+    if (card._aiCardExtra) return card._aiCardExtra;
+
+    const base = analyze(card);
+    const text = getSource(card) + '\n' + getDesc(card);
+
+    const extra = Object.assign({}, base, {
+      // 召唤/部署：收益与场上兵力差相关
+      isSummon: /deployMinion|summon|召唤|spawnPiece|spawnMinion/i.test(text),
+      // 控制：眩晕/冰冻/沉默/陷阱
+      isControl: /stun|眩晕|冻结|freeze|silence|沉默|禁锢|定身|陷阱|trap|placeTrap/i.test(text),
+      // 增益
+      isBuff: /buff|增益|提升攻击|提升防御|addMark/i.test(text),
+      // 是否需要玩家/AI 选目标（无合法目标时不应出牌）
+      needsTarget: /choose(Card)?(Cell|Ally|Enemy|Zone|FullField|OwnHalf|EnemyHalf)|chooseCell|chooseOption/i.test(text),
+      // 群体效果：伤害/治疗可命中多个目标
+      heavy: /所有|全体|范围|aoe|allEnemies|allAllies|each\s+enemy/i.test(text)
+    });
+
+    card._aiCardExtra = extra;
+    return extra;
+  }
+
+
   function preload(skills) {
     if (!skills || !skills.length) return;
     for (const s of skills) {
@@ -253,6 +279,7 @@
 
   global.SkillAnalyzer = {
     analyze,
+    analyzeCard,
     preload,
     debug,
     _invalidate: function (skill) { cache.delete(skill); }
