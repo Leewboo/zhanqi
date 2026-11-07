@@ -5159,10 +5159,10 @@
           // 站过去大概率被打死，且换不到关键击杀 → 强烈回避
           if (destThreat > actor.hp * 1.1 && !canKillHere) score -= 160;
 
-          // 守城：不轻易放弃己方已占领的城池
+          // 守城：离开己方已占领城池的轻微代价（不宜过度恋战）
           const curOwnCastle = isCastle(actor.x, actor.y) && this.castleOwner[actor.x + ',' + actor.y] === side;
           const destOwnCastle = isCastle(m.x, m.y) && this.castleOwner[m.x + ',' + m.y] === side;
-          if (curOwnCastle && !destOwnCastle) score -= 35;
+          if (curOwnCastle && !destOwnCastle) score -= 12;
         }
 
         if (score > bestScore) {
