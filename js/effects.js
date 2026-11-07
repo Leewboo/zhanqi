@@ -113,7 +113,7 @@
         if (t === 'f') def += 5;
         if (t === 'mt') def += 15;
       }
-      // 城池占领加成：站在己方占领的城池上额外 +8 防御（rare 小兵再 +5）
+      // 城池占领加成：站在己方占领的城池上额外 +3 防御（rare 小兵再 +2）
       if (global.Game && typeof global.Game._getCastleDefenseBonus === 'function') {
         def += global.Game._getCastleDefenseBonus(target);
       }

@@ -2506,14 +2506,14 @@
       return isCastle(x, y) && this.castleOwner[x + ',' + y] === side;
     },
 
-    // 城池增益：站在己方占领城池上的棋子获得 +8 防御加成
-    // rare 小兵在城池上额外 +5 防御（城池叠防被动）
+    // 城池增益：站在己方占领城池上的棋子获得 +3 防御加成
+    // rare 小兵在城池上额外 +2 防御（城池叠防被动）
     _getCastleDefenseBonus(piece) {
       if (!piece || !piece.alive) return 0;
       if (!isCastle(piece.x, piece.y)) return 0;
       if (this.castleOwner[piece.x + ',' + piece.y] !== piece.side) return 0;
-      let bonus = 8;
-      if (piece.isMinion && piece.rarity === 'rare') bonus += 5;
+      let bonus = 3;
+      if (piece.isMinion && piece.rarity === 'rare') bonus += 2;
       return bonus;
     },
 
