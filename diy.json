@@ -552,14 +552,24 @@
           "desc": "有神速标记即可执行该技能选择执行：1.恢复一次移动；2.恢复30血量；立即对+1范围内一个敌人造成100%伤害;然后你减一个神速标记",
           "preview": null,
           "filterCode": "\nvar d = Effect.getMarkData(actor, 'shensu');\nreturn actor && actor.alive&&d.num>0;",
-          "contentCode": "\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '变易', desc: '恢复移动', value: 'chng', aiScore: 70 },\n    { label: '强攻', desc: '立即攻击', value: 'atk', aiScore: 70 },\n    { label: '治疗', desc: '回 30 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.6; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') {\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: '+', n: 1 },\n  passThrough: true,\n  hintText: '请选择敌人'\n});\nif (!target) return false;\nEffect.basicAttack(actor, target);\n}\nelse if (choice.value === 'heal') Effect.heal(actor, 30);\nelse if (choice.value === 'chng') Effect.resetMove(actor);\nEffect.playSkillCastSound(actor,actor.skills[1])\nvar d = Effect.getMarkData(actor, 'shensu');\nvar x=d.num-1\nEffect.unmark(actor, 'shensu');\nEffect.mark(actor, 'shensu', { display: '神速'+x, modifiers: {}, data: {num:x} });\n\nreturn true;",
+          "contentCode": "\nconst choice = await Effect.chooseOption(actor, {\n  title: '请选择',\n  hintText: '发动分支技能！',\n  options: [\n    { label: '变易', desc: '恢复移动', value: 'chng', aiScore: 70, aiCondition: function(a) { return !!a.moved; } },\n    { label: '强攻', desc: '立即攻击', value: 'atk', aiScore: 70, aiEval: function(a) {\n      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {\n        var p = Game.pieceAt(a.x + dx, a.y + dy);\n        if (p && p.alive && p.side !== a.side) return 60;\n      }\n      return 0;\n    } },\n    { label: '治疗', desc: '回 30 血', value: 'heal', aiScore: 80, aiCondition: function(a){ return a.hp < a.maxHp * 0.6; } }\n  ]\n});\nif (!choice) return false;\nif (choice.value === 'atk') {\nconst target = await Effect.chooseEnemy(actor, {\n  range: { shape: '+', n: 1 },\n  passThrough: true,\n  hintText: '请选择敌人'\n});\nif (!target) return false;\nEffect.basicAttack(actor, target);\n}\nelse if (choice.value === 'heal') Effect.heal(actor, 30);\nelse if (choice.value === 'chng') Effect.resetMove(actor);\nEffect.playSkillCastSound(actor,actor.skills[1])\nvar d = Effect.getMarkData(actor, 'shensu');\nvar x=d.num-1\nEffect.unmark(actor, 'shensu');\nEffect.mark(actor, 'shensu', { display: '神速'+x, modifiers: {}, data: {num:x} });\n\nreturn true;",
           "initCode": "",
           "sound": {
             "cast": "sd_shensu1_re_xiahouyuan2",
             "hit": "",
             "voice": ""
           },
-          "aiHint": null
+          "aiHint": {
+            "type": "damage",
+            "target": "enemy",
+            "power": 100,
+            "priority": 8,
+            "condition": "always",
+            "preferTarget": "low_hp",
+            "minTargets": 0,
+            "avoidSelf": false,
+            "hpThreshold": 0
+          }
         },
         {
           "id": "diy_guohuai_jingce",

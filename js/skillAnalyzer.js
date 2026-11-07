@@ -231,7 +231,8 @@
     if (m) return clampInt(parseInt(m[1]), 0, 100);
     m = text.match(/hp\s*<\s*maxHp\s*\*\s*0\.(\d+)/);
     if (m) return clampInt(parseInt(m[1]), 0, 100);
-    m = text.match(/血量.*?(\d+)%/);
+    // 仅识别"低于/少于/不足 N%"，避免把"造成100%伤害"误当成血量阈值
+    m = text.match(/血量.{0,6}?(?:低于|少于|小于|不足)\s*(\d+)\s*%/);
     if (m) return clampInt(parseInt(m[1]), 0, 100);
     return 0;
   }
