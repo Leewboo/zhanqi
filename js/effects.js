@@ -2052,9 +2052,14 @@
     },
 
     // 随机传送：在以 actor 为中心的圆形 range 格内随机选一个空格传送
-    randomTeleport(actor, range) {
+    // 建筑无势力，默认免疫位移；传 { affectBuilding: true } 允许
+    randomTeleport(actor, range, opts) {
       range = range || 3;
       if (!actor || !actor.alive || !global.Game) return false;
+      if (actor.isBuilding && !(opts && opts.affectBuilding)) {
+        global.Game.log(actor.name + ' 是建筑，免疫位移效果。');
+        return false;
+      }
       var g = global.Game;
       var cells = Range.cellsInRange('r', range, actor.x, actor.y, { includeSelf: false });
       var empty = cells.filter(function (c) { return !g.pieceAt(c.x, c.y); });
