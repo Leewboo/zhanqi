@@ -551,17 +551,26 @@
       }
     },
 
+    // 联机同步归属：本端是否有权以 side 身份发起并广播操作
+    // 第三方中立势力（side='neutral'）由红方客户端驱动并同步给对方
+    _syncOwns(side) {
+      if (side === 'neutral') return this._onlineSide === 'red';
+      return side === this._onlineSide;
+    },
+
     // 联机模式下判断当前操作方是否为本地玩家，用于在各阶段拦截"抢操作"
     // isRemoteApply 为 true 时表示这是在回放/接收对方广播的动作，必须放行
     _onlineCanAct(side, isRemoteApply) {
       if (!this.onlineMode) return true;
       if (isRemoteApply) return true;
-      return side === this._onlineSide;
+      return this._syncOwns(side);
     },
 
     // 判断当前是否为 AI 控制的阶段（人机模式下 AI 的选将/布阵/战斗回合）
     // 在此期间禁止玩家操作棋盘，避免 AI 思考间隙玩家选中或操作 AI 的棋子
     _isAiControlledPhase() {
+      // 中立势力回合：任何模式下都由 AI 接管，禁止玩家操作
+      if (this.phase === 'battle' && this.currentSide === 'neutral') return true;
       if (!this.aiMode) return false;
       // 斗蛐蛐模式：选将阶段玩家为双方选将，布阵+战斗 AI 接管双方
       if (this.bothAi) {
@@ -1215,6 +1224,12 @@
       const status = document.getElementById('draft-status');
       const summary = document.getElementById('draft-summary');
       if (!panel || !cardsEl) return;
+
+      // 中立势力回合：不使用卡牌系统，隐藏面板
+      if (this.currentSide === 'neutral') {
+        panel.style.display = 'none';
+        return;
+      }
 
       const side = this.currentSide;
       const hand = this.minionHand[side] || [];
@@ -2007,8 +2022,8 @@
             self._limitedUsed = self._limitedUsed || {};
             self._limitedUsed[skill.id] = true;
           }
-          // 联机同步：本地玩家技能真正发动后，把技能动作 + 目标序列发给对方
-          if (self.onlineMode && actor.side === self._onlineSide && !isOnlineReplay) {
+          // 联机同步：本地玩家（或本端驱动的中立势力）技能真正发动后，把技能动作 + 目标序列发给对方
+          if (self.onlineMode && self._syncOwns(actor.side) && !isOnlineReplay) {
             const recorded = Effect._onlineRecorded || [];
             try {
               Online.sendAction({
@@ -2328,8 +2343,8 @@
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
 
-      // 联机同步
-      if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
+      // 联机同步（含本端驱动的中立势力）
+      if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
         Online.sendAction({ type: 'move', fromX, fromY, toX: x, toY: y });
       }
 
@@ -2367,8 +2382,8 @@
       const target = this.pieceAt(x, y);
       actor.attacked = true;
 
-      // 联机同步
-      if (this.onlineMode && actor.side === this._onlineSide && !this._onlineAction) {
+      // 联机同步（含本端驱动的中立势力）
+      if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
         Online.sendAction({ type: 'attack', actorX: actor.x, actorY: actor.y, targetX: x, targetY: y });
       }
 
@@ -2421,18 +2436,20 @@
 
     // ========== 城池占领系统 ==========
     // 刷新所有城池的占领状态：城池上有棋子则归该方，无棋子则保留原归属
+    // 建筑与中立势力无阵营，不参与占领
     _refreshCastleOwnership() {
       for (const c of CASTLE_CELLS) {
         const piece = this.pieceAt(c.x, c.y);
-        if (piece && piece.alive) {
+        if (piece && piece.alive && !piece.isBuilding && piece.side !== 'neutral') {
           this.castleOwner[c.x + ',' + c.y] = piece.side;
         }
       }
     },
 
-    // 棋子移动/部署到城池时触发占领
+    // 棋子移动/部署到城池时触发占领（建筑/中立势力无阵营，不能占领）
     _captureCastle(piece) {
       if (!piece || !piece.alive) return;
+      if (piece.isBuilding || piece.side === 'neutral') return;
       if (!isCastle(piece.x, piece.y)) return;
       const key = piece.x + ',' + piece.y;
       const prev = this.castleOwner[key];
@@ -2520,18 +2537,28 @@
 
     _checkWin() {
       if (this.over) return;
-      // 1. 歼灭胜利：一方棋子全灭（原有规则，含武将和小兵）
-      const redAlive = this.pieces.some(p => p.side === 'red' && p.alive);
-      const blueAlive = this.pieces.some(p => p.side === 'blue' && p.alive);
+      // 1. 歼灭胜利：一方【武将】全灭（小兵、建筑、召唤物均不计入）
+      const isGeneral = (p) => p.alive && !p.isMinion && !p.isBuilding && !p.isSummon;
+      const redAlive = this.pieces.some(p => p.side === 'red' && isGeneral(p));
+      const blueAlive = this.pieces.some(p => p.side === 'blue' && isGeneral(p));
       if (!redAlive || !blueAlive) {
         this.over = true;
-        const winner = redAlive ? 'red' : 'blue';
+        let winner = null;
+        let text;
+        if (redAlive) { winner = 'red'; text = '红方胜利（歼灭）'; }
+        else if (blueAlive) { winner = 'blue'; text = '蓝方胜利（歼灭）'; }
+        else {
+          // 双方武将同时全灭：有中立势力存活则中立胜利，否则平局
+          const neutralAlive = this.pieces.some(p => p.side === 'neutral' && p.alive);
+          if (neutralAlive) { winner = 'neutral'; text = '中立势力胜利（乱世开启）'; }
+          else text = '平局（双方武将同归于尽）';
+        }
         const title = document.getElementById('banner-title');
-        title.textContent = (winner === 'red' ? '红方' : '蓝方') + '胜利（歼灭）';
+        title.textContent = text;
         document.getElementById('banner').classList.remove('hidden');
         this.log(title.textContent + '！', 'turn');
         if (this.onlineMode && global.Online) global.Online.clearFinishedSession && global.Online.clearFinishedSession();
-        this._playVictoryVoice(winner);
+        if (winner) this._playVictoryVoice(winner);
         return;
       }
       // 2. 占领胜利：占领敌方半场全部 6 个城池
@@ -2586,26 +2613,22 @@
       });
       Effect._checkTmpSkillExpiry({ turn: this.turn, side: this.currentSide });
 
-      if (this.currentSide === 'red') {
-        this.currentSide = 'blue';
-        this.pieces.forEach(p => {
-          if (p.side === 'blue') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; delete p._aiReplanned; }
-          if (p.side === 'blue' && p.cdMap) {
-            for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
-          }
-        });
-        this.log('回合 ' + this.turn + ' · 蓝方行动。', 'turn');
-      } else {
-        this.currentSide = 'red';
-        this.turn += 1;
-        this.pieces.forEach(p => {
-          if (p.side === 'red') { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; delete p._aiReplanned; }
-          if (p.side === 'red' && p.cdMap) {
-            for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
-          }
-        });
-        this.log('回合 ' + this.turn + ' · 红方行动。', 'turn');
-      }
+      // 回合轮换：红 → 蓝 →（有存活中立势力时）中立 → 红（进入红方时回合数+1）
+      const hasNeutral = this.pieces.some(p => p.side === 'neutral' && p.alive);
+      let nextSide;
+      if (this.currentSide === 'red') nextSide = 'blue';
+      else if (this.currentSide === 'blue') nextSide = hasNeutral ? 'neutral' : 'red';
+      else nextSide = 'red'; // neutral → red
+      this.currentSide = nextSide;
+      if (nextSide === 'red') this.turn += 1;
+      this.pieces.forEach(p => {
+        if (p.side === nextSide) { p.moved = false; p.attacked = false; p.skilled = false; p._aiSkippedSkills = []; delete p._aiReplanned; }
+        if (p.side === nextSide && p.cdMap) {
+          for (const k in p.cdMap) if (p.cdMap[k] > 0) p.cdMap[k] -= 1;
+        }
+      });
+      const nextSideName = nextSide === 'red' ? '红方' : nextSide === 'blue' ? '蓝方' : '中立势力';
+      this.log('回合 ' + this.turn + ' · ' + nextSideName + '行动。', 'turn');
 
       // 回合开始：当前方获得 1 点部署点并抽 1 张小兵卡
       if (this.minionDraftPool && this.minionDraftPool[this.currentSide]) {
@@ -2638,8 +2661,8 @@
       // 处理眩晕：眩晕
       this._handleTurnStartBuffs();
 
-      // 联机同步：只有本地玩家主动结束时才发送
-      if (this.onlineMode && prevSide === this._onlineSide && !this._onlineAction) {
+      // 联机同步：只有本地玩家（或本端驱动的中立势力）主动结束时才发送
+      if (this.onlineMode && this._syncOwns(prevSide) && !this._onlineAction) {
         Online.sendAction({ type: 'endTurn' });
       }
 
@@ -3599,7 +3622,8 @@
         const blueEnemy = this._countEnemyCastles('blue');
         const redTotal = this._countCastles('red');
         const blueTotal = this._countCastles('blue');
-        el.textContent = '回合 ' + this.turn + ' · ' + (side === 'red' ? '红方' : '蓝方')
+        const sideLabel = side === 'red' ? '红方' : side === 'blue' ? '蓝方' : '中立势力';
+        el.textContent = '回合 ' + this.turn + ' · ' + sideLabel
           + ' · 城池 红' + redTotal + '/蓝' + blueTotal
           + ' · 敌境 红' + redEnemy + '/6 蓝' + blueEnemy + '/6';
       }
@@ -3614,6 +3638,23 @@
 
     _maybeAiAct() {
       if (this.over) return;
+
+      // 中立势力回合：任何模式下都由 AI 接管（联机模式下由红方客户端驱动，另一端等待回放）
+      if (this.phase === 'battle' && this.currentSide === 'neutral') {
+        const endBtn = document.getElementById('btn-end');
+        if (endBtn) endBtn.disabled = true;
+        if (this.onlineMode && this._onlineSide !== 'red') {
+          // 非驱动端：锁定 UI，等待红方客户端广播中立势力的操作
+          this._turnEnding = false;
+          this._aiActing = false;
+          return;
+        }
+        this._turnEnding = true;   // 阻止玩家点击结束回合
+        this._aiActing = true;
+        const selfNeutral = this;
+        setTimeout(() => selfNeutral._aiStep(), 700);
+        return;
+      }
 
       // 联机模式：控制本地玩家的操作权限
       if (this.onlineMode) {
@@ -3667,11 +3708,16 @@
       if (!this._aiActing) return;
       // 观战暂停：不推进，等待"继续"按钮重新触发 _maybeAiAct
       if (this._spectatePaused) return;
-      // 双重保险：只在 AI 回合时执行（斗蛐蛐模式双方都由 AI 控制，跳过此守卫）
-      if (this.phase === 'battle' && !this.bothAi && this.currentSide !== this.aiSide) return;
+      // 双重保险：只在 AI 回合时执行（斗蛐蛐模式双方都由 AI 控制，中立势力始终由 AI 控制，跳过此守卫）
+      if (this.phase === 'battle' && !this.bothAi && this.currentSide !== this.aiSide && this.currentSide !== 'neutral') return;
       if (this.phase === 'draft') this._aiPickGeneral();
       else if (this.phase === 'deploy') this._aiPlaceOne();
       else if (this.phase === 'battle') {
+        // 中立势力：目标是杀死所有非本势力非建筑棋子，不使用卡牌系统，直接战斗行动
+        if (this.currentSide === 'neutral') {
+          this._aiBattleStep();
+          return;
+        }
         // AI 回合开始：先设置成略牌 → 部署小兵 → 使用计谋牌 → 战斗行动
         if (!this._aiStrategySet) {
           this._aiStrategySet = true;
@@ -4124,7 +4170,8 @@
           const onKillBonus = this._aiPassiveBonus(p, 'onKill');
           for (const c of atkCells) {
             const e = this.pieceAt(c.x, c.y);
-            if (e && e.alive && e.side !== side && !Effect.isUntargetable(e)) {
+            // 中立势力目标不含建筑（其目标是杀光非本势力非建筑棋子）
+            if (e && e.alive && e.side !== side && !(side === 'neutral' && e.isBuilding) && !Effect.isUntargetable(e)) {
               if (e.hp <= atk) {
                 let killScore = (Effect._aiThreat(e) * 1.5 + 100) * onAtkBonus.mul + onAtkBonus.add;
                 killScore = killScore * onKillBonus.mul + onKillBonus.add;
@@ -4166,17 +4213,19 @@
           }
         }
 
-        // (e) 城池争夺者：靠近未占领/敌方城池时优先
-        for (const c of CASTLE_CELLS) {
-          const owner = this.castleOwner[c.x + ',' + c.y];
-          if (owner !== side) {
-            const dist = Math.abs(p.x - c.x) + Math.abs(p.y - c.y);
-            const reachableNow = !p.moved && dist <= Effect.getEffectiveMoveRange(p).n;
-            if (reachableNow) {
-              score += 25;
-              if (castleSide(c.x, c.y) !== side) score += 15;  // 敌方半场城池
-            } else if (dist <= 4) {
-              score += 8;
+        // (e) 城池争夺者：靠近未占领/敌方城池时优先（中立势力无阵营、不占城，跳过）
+        if (side !== 'neutral') {
+          for (const c of CASTLE_CELLS) {
+            const owner = this.castleOwner[c.x + ',' + c.y];
+            if (owner !== side) {
+              const dist = Math.abs(p.x - c.x) + Math.abs(p.y - c.y);
+              const reachableNow = !p.moved && dist <= Effect.getEffectiveMoveRange(p).n;
+              if (reachableNow) {
+                score += 25;
+                if (castleSide(c.x, c.y) !== side) score += 15;  // 敌方半场城池
+              } else if (dist <= 4) {
+                score += 8;
+              }
             }
           }
         }
@@ -4991,6 +5040,7 @@
       for (const c of cells) {
         const p = this.pieceAt(c.x, c.y);
         if (!p || !p.alive || p.side === side) continue;
+        if (side === 'neutral' && p.isBuilding) continue;  // 中立势力不以建筑为目标
         if (Effect.isUntargetable(p)) continue; // 隐身单位不可被攻击
 
         // 队友已预约足够伤害击杀 → 不重复集火，换目标
@@ -5075,7 +5125,8 @@
       const side = actor.side;
       const moveRange = Effect.getEffectiveMoveRange(actor);
       const moveCells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape);
-      const enemies = this.pieces.filter(p => p.alive && p.side !== side);
+      // 中立势力的敌人是所有非本势力非建筑棋子
+      const enemies = this.pieces.filter(p => p.alive && p.side !== side && !(side === 'neutral' && p.isBuilding));
       const allies = this.pieces.filter(p => p.alive && p.side === side && p !== actor);
       if (!enemies.length || !moveCells.length) return null;
 
@@ -5248,6 +5299,10 @@
       Effect._aiContext = { mode: true, actor: actor, skill: skill, hint: aiHint };
       const before = !!actor.skilled;
       const self = this;
+      // 联机：本端驱动的中立势力 AI 释放技能时，记录目标/选项选择并广播给对方
+      const recordOnline = this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction;
+      if (recordOnline) Effect._onlineRecorded = [];
+      const actorStartX = actor.x, actorStartY = actor.y;
       const promise = skill.content(actor);
       Promise.resolve(promise).then(function (result) {
         Effect._aiContext = null;
@@ -5267,6 +5322,17 @@
             self._limitedUsed = self._limitedUsed || {};
             self._limitedUsed[skill.id] = true;
           }
+          if (recordOnline) {
+            try {
+              Online.sendAction({
+                type: 'skill',
+                actorX: actorStartX,
+                actorY: actorStartY,
+                skillId: skill.id,
+                targets: JSON.stringify(Effect._onlineRecorded || [])
+              });
+            } catch (e) { console.error('[online] 中立势力技能同步发送失败:', e); }
+          }
           self._render(); self._renderBottom();
           self._checkWin();
         } else {
@@ -5278,6 +5344,7 @@
           }
           self.log(actor.name + ' 放弃使用【' + skill.name + '】。');
         }
+        if (recordOnline) Effect._onlineRecorded = null;
         self._scheduleNext();
       }).catch(function (e) {
         Effect._aiContext = null;
@@ -5288,6 +5355,7 @@
           actor._aiSkippedSkills.push(skill.id);
         }
         self.log('【' + skill.name + '】AI 执行出错：' + e.message);
+        if (recordOnline) Effect._onlineRecorded = null;
         self._scheduleNext();
       });
     },
@@ -5367,6 +5435,12 @@
       }
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
+
+      // 联机同步：AI 驱动的中立势力（红方客户端）广播移动
+      if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
+        Online.sendAction({ type: 'move', fromX, fromY, toX: x, toY: y });
+      }
+
       this.highlighted = [];
       this.mode = null;
       this._render();
@@ -5400,6 +5474,12 @@
       // 攻击音效：播放 attack 语音
       Effect.playPieceVoice(actor, 'attack');
       actor.attacked = true;
+
+      // 联机同步：AI 驱动的中立势力（红方客户端）广播攻击
+      if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
+        Online.sendAction({ type: 'attack', actorX: actor.x, actorY: actor.y, targetX: target.x, targetY: target.y });
+      }
+
       const dmg = Effect.damage(actor, target, atkVal);
       this.highlighted = [];
       this.mode = null;

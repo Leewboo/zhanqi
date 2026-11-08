@@ -762,6 +762,11 @@ html, body {
   border-color: rgba(58, 107, 178, 0.85);
   background: rgba(242, 246, 251, 0.9);
 }
+/* 第三方中立势力：土黄色调 */
+.piece.neutral {
+  border-color: rgba(150, 118, 32, 0.9);
+  background: rgba(250, 244, 220, 0.92);
+}
 
 .piece.acted {
   opacity: 0.6;
@@ -810,6 +815,7 @@ html, body {
 
 .piece.red .p-name { color: var(--red); }
 .piece.blue .p-name { color: var(--blue); }
+.piece.neutral .p-name { color: #8a6d1c; }
 
 /* 攻防：左攻右防 */
 .piece .p-stats {
@@ -855,6 +861,9 @@ html, body {
 }
 .piece.blue .hp-fill {
   background: #4a7fc2;
+}
+.piece.neutral .hp-fill {
+  background: #b39a3e;
 }
 
 .piece .hp-num {

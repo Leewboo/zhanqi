@@ -426,9 +426,14 @@
       return false;
     },
 
-    teleport(actor, x, y) {
+    teleport(actor, x, y, opts) {
       if (!actor || !actor.alive) return false;
       if (!global.Game) return false;
+      // 建筑无势力，默认免疫位移；传 { affectBuilding: true } 允许
+      if (actor.isBuilding && !(opts && opts.affectBuilding)) {
+        global.Game.log(actor.name + ' 是建筑，免疫位移效果。');
+        return false;
+      }
       const g = global.Game;
       if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return false;
       if (g.pieceAt(x, y)) return false;
@@ -1170,7 +1175,13 @@
       }
       // AI 模式：自动选择最优格子，不进入交互
       if (Effect._aiContext && Effect._aiContext.mode) {
-        return Promise.resolve(Effect._aiChooseCell(actor, options));
+        const cell = Effect._aiChooseCell(actor, options);
+        // 联机：AI 驱动方（如中立势力由红方客户端驱动）记录选择，用于同步给对方
+        if (global.Game && global.Game.onlineMode && !global.Game._onlineAction && !global.Game._onlineSkillReplay) {
+          Effect._onlineRecorded = Effect._onlineRecorded || [];
+          Effect._onlineRecorded.push(cell ? { x: cell.x, y: cell.y } : null);
+        }
+        return Promise.resolve(cell);
       }
       return new Promise(function (resolve) {
         if (!global.Game) return resolve(null);
@@ -1229,8 +1240,13 @@
         });
     },
 
-    push(actor, target, dir, n) {
+    push(actor, target, dir, n, opts) {
       if (!target || !global.Game) return;
+      // 建筑无势力，默认免疫击退；传 { affectBuilding: true } 允许
+      if (target.isBuilding && !(opts && opts.affectBuilding)) {
+        global.Game.log(target.name + ' 是建筑，免疫击退。');
+        return;
+      }
       n = n || 1;
       const g = global.Game;
       for (let i = 0; i < n; i++) {
@@ -1261,8 +1277,13 @@
     // ========== 进阶效果 API ==========
 
     // 拉拽：将目标向 actor 方向拉 n 格
-    pull(actor, target, n) {
+    pull(actor, target, n, opts) {
       if (!target || !global.Game) return 0;
+      // 建筑无势力，默认免疫拉拽；传 { affectBuilding: true } 允许
+      if (target.isBuilding && !(opts && opts.affectBuilding)) {
+        global.Game.log(target.name + ' 是建筑，免疫拉拽。');
+        return 0;
+      }
       n = n || 1;
       const g = global.Game;
       let moved = 0;
@@ -1676,7 +1697,19 @@
       }
       // AI 模式：自动选择
       if (Effect._aiContext && Effect._aiContext.mode) {
-        return Promise.resolve(Effect._aiChooseOption(actor, opts));
+        const picked = Effect._aiChooseOption(actor, opts);
+        // 联机：AI 驱动方记录所选选项下标，用于同步给对方
+        if (global.Game && global.Game.onlineMode && !global.Game._onlineAction && !global.Game._onlineSkillReplay) {
+          let idx = null;
+          if (picked) {
+            const displayOptions = (opts.options || []).filter(o => typeof opts.filter !== 'function' || opts.filter(o));
+            const i = displayOptions.findIndex(o => o === picked || (o.label === picked.label && o.value === picked.value));
+            if (i >= 0) idx = i;
+          }
+          Effect._onlineRecorded = Effect._onlineRecorded || [];
+          Effect._onlineRecorded.push({ opt: idx });
+        }
+        return Promise.resolve(picked);
       }
       return new Promise(function (resolve) {
         if (!global.Game || !opts.options || !opts.options.length) {
@@ -1956,8 +1989,13 @@
     },
 
     // 换位：与目标交换坐标
-    swap(actor, target) {
+    // 建筑无势力，默认免疫换位；传 { affectBuilding: true } 允许
+    swap(actor, target, opts) {
       if (!actor || !target || !actor.alive || !target.alive) return false;
+      if ((actor.isBuilding || target.isBuilding) && !(opts && opts.affectBuilding)) {
+        if (global.Game) global.Game.log('建筑免疫换位。');
+        return false;
+      }
       var ax = actor.x, ay = actor.y;
       actor.x = target.x; actor.y = target.y;
       target.x = ax; target.y = ay;
@@ -2056,7 +2094,8 @@
       var unit = {
         generalId: (opts.id || (template && template.id) || 'summon') + '_' + Date.now(),
         name:      opts.name || (template ? template.name : actor.name) + '·召',
-        side:      actor.side,
+        // 支持 opts.side 覆盖阵营（如 'neutral' 召唤第三方中立势力单位）
+        side:      opts.side || actor.side,
         hp:        Math.max(1, parseInt(opts.hp) || (template && template.hp) || 60),
         maxHp:     Math.max(1, parseInt(opts.hp) || (template && template.hp) || 60),
         atk:       Math.max(0, parseInt(opts.atk) || (template && template.atk) || 0),
@@ -2098,7 +2137,8 @@
 
     // ========== 小兵系统 API ==========
     // 召唤指定类型的小兵到指定位置
-    summonMinion(actor, minionId, x, y) {
+    // opts.side 可覆盖阵营（如 'neutral' 召唤第三方中立势力小兵）
+    summonMinion(actor, minionId, x, y, opts) {
       if (!actor || !global.Game || !global.Minions) return null;
       const template = Minions.getById(minionId);
       if (!template) return null;
@@ -2114,7 +2154,8 @@
         isSummon: true,
         isMinion: true,
         minionId: minionId,
-        rarity: template.rarity
+        rarity: template.rarity,
+        side: opts && opts.side
       });
     },
 
