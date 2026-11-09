@@ -4274,7 +4274,8 @@
     //   move_only:          只移动
     _aiPlanActorAction(actor) {
       const side = actor.side;
-      const canMove = !actor.moved;
+      // 建筑等 canMove === false 的棋子不可移动，AI 规划时同样要排除
+      const canMove = !actor.moved && actor.canMove !== false;
       const canAttack = !actor.attacked;
       const canSkill = !actor.skilled && actor.skills;
 
@@ -5406,7 +5407,7 @@
     },
 
     _executeMove(actor, x, y) {
-      if (actor.side !== this.currentSide || actor.moved) return false;
+      if (actor.side !== this.currentSide || actor.moved || actor.canMove === false) return false;
       if (this.pieceAt(x, y)) return false;
       // 使用 reachableCells 考虑地形消耗（河流消耗2步）
       const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
