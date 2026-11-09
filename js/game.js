@@ -229,6 +229,9 @@
     aiSide: 'blue',        // AI 控制的一方
     _turnEnding: false,    // 防止 endTurn 重入
     _aiActing: false,      // AI 是否正在执行行动
+    _aiWatchdogTimer: null,    // AI 停滞看门狗定时器
+    _aiWatchdogHits: 0,        // 连续停滞次数
+    _aiCurrentActor: null,     // 当前正在行动的 AI 棋子（看门狗兜底用）
     castleOwner: {},       // 城池占领状态：'x,y' -> 'red'/'blue'/null
 
     log(text, cls) {
@@ -2646,6 +2649,10 @@
       this._aiDamageMap = new Map();
       // 重置 AI 回合步数计数
       this._aiStepCount = 0;
+      // 重置 AI 停滞看门狗状态
+      this._aiDisarmWatchdog();
+      this._aiWatchdogHits = 0;
+      this._aiCurrentActor = null;
 
       this._clearSelection();
       this._refreshUi();
@@ -3651,6 +3658,7 @@
         }
         this._turnEnding = true;   // 阻止玩家点击结束回合
         this._aiActing = true;
+        this._aiArmWatchdog();
         const selfNeutral = this;
         setTimeout(() => selfNeutral._aiStep(), 700);
         return;
@@ -3658,6 +3666,7 @@
 
       // 联机模式：控制本地玩家的操作权限
       if (this.onlineMode) {
+        this._aiDisarmWatchdog();
         let myTurn = false;
         if (this.phase === 'draft') {
           const side = this.draftIndex % 2 === 0 ? 'red' : 'blue';
@@ -3690,6 +3699,7 @@
       }
       if (!aiShouldAct) {
         // 人操控 → 解锁回合切换，允许再次点击结束回合
+        this._aiDisarmWatchdog();
         this._turnEnding = false;
         this._aiActing = false;
         const endBtn = document.getElementById('btn-end');
@@ -3698,14 +3708,66 @@
       }
       // AI 操控 → 保持 _turnEnding = true（防止玩家点击），标记 AI 正在执行
       this._aiActing = true;
+      this._aiArmWatchdog();
       const self = this;
       setTimeout(() => self._aiStep(), 700);
+    },
+
+    // ===== AI 停滞看门狗：任何一步长时间无进展都强制推进，避免整局卡死 =====
+    _aiArmWatchdog() {
+      this._aiDisarmWatchdog();
+      const self = this;
+      this._aiWatchdogTimer = setTimeout(function () { self._aiWatchdogFire(); }, 12000);
+    },
+
+    _aiDisarmWatchdog() {
+      if (this._aiWatchdogTimer) {
+        clearTimeout(this._aiWatchdogTimer);
+        this._aiWatchdogTimer = null;
+      }
+    },
+
+    _aiWatchdogFire() {
+      this._aiWatchdogTimer = null;
+      if (this.over || !this._aiActing) return;
+      if (this._spectatePaused) { this._aiArmWatchdog(); return; }
+      // 非战斗阶段（选将/布阵）偶发停滞：重新触发一次调度即可
+      if (this.phase !== 'battle') {
+        this._aiArmWatchdog();
+        this._aiStep();
+        return;
+      }
+      this._aiWatchdogHits = (this._aiWatchdogHits || 0) + 1;
+      console.warn('[AI 看门狗] 行动停滞，强制推进（第 ' + this._aiWatchdogHits + ' 次）');
+      Effect._aiContext = null;
+      const actor = this._aiCurrentActor;
+      if (this._aiWatchdogHits < 2 && actor && actor.alive) {
+        // 只放弃当前棋子，继续让其它棋子行动
+        actor.moved = true; actor.attacked = true; actor.skilled = true;
+        this._aiCurrentActor = null;
+        this._render(); this._renderBottom();
+        this._aiArmWatchdog();
+        this._scheduleNext();
+        return;
+      }
+      // 连续停滞：强制结束本回合，避免整局卡住
+      this._aiWatchdogHits = 0;
+      const side = this.currentSide;
+      this.pieces.forEach(p => {
+        if (p.alive && p.side === side) { p.moved = true; p.attacked = true; p.skilled = true; }
+      });
+      this._aiCurrentActor = null;
+      this._aiActing = false;
+      this._turnEnding = false;
+      this._render(); this._renderBottom();
+      this.endTurn();
     },
 
     _aiStep() {
       if (this.over) return;
       // 如果 AI 行动已结束，不再继续调度
       if (!this._aiActing) return;
+      this._aiArmWatchdog();
       // 观战暂停：不推进，等待"继续"按钮重新触发 _maybeAiAct
       if (this._spectatePaused) return;
       // 双重保险：只在 AI 回合时执行（斗蛐蛐模式双方都由 AI 控制，中立势力始终由 AI 控制，跳过此守卫）
@@ -4098,6 +4160,9 @@
 
     _aiBattleStep() {
       const side = this.currentSide;
+      this._aiArmWatchdog();
+      // 有实际推进就清零连续停滞计数，只有"推进也停住"才强制结束回合
+      this._aiWatchdogHits = 0;
 
       // 安全计数：每回合最多执行 100 次行动步骤，防止极端死循环
       this._aiStepCount = (this._aiStepCount || 0) + 1;
@@ -4144,6 +4209,7 @@
       }
 
       // 3) 执行规划
+      this._aiCurrentActor = actor;
       this._aiExecutePlannedAction(actor, plan);
     },
 
@@ -4263,6 +4329,35 @@
       return best || candidates[0];
     },
 
+    // ========== 攻势评估：判断顺风/均势/劣势 ==========
+    // 单方战力：攻击力权重高于血量，建筑只按工事价值折算
+    _aiSidePower(side) {
+      let power = 0;
+      for (const p of this.pieces) {
+        if (!p.alive || p.side !== side) continue;
+        if (p.isBuilding) { power += 60 + (p.hp || 0) * 0.5; continue; }
+        power += Effect.getEffectiveAttack(p) * 1.5 + (p.hp || 0) * 0.6;
+        if (p.skills && p.skills.length) power += 25;
+      }
+      return power;
+    },
+
+    // 进攻倾向系数：顺风/均势时更主动开战，明显劣势时才转为保守
+    _aiAggression(side) {
+      const mine = this._aiSidePower(side);
+      let enemy = 0;
+      for (const s of ['red', 'blue', 'neutral']) {
+        if (s === side) continue;
+        enemy += this._aiSidePower(s);
+      }
+      if (enemy <= 0) return 1.2;
+      const ratio = mine / enemy;
+      if (ratio >= 1.15) return 1.35;  // 顺风：主动求战
+      if (ratio >= 0.9) return 1.18;   // 均势：保持进攻
+      if (ratio >= 0.7) return 1.0;
+      return 0.9;                      // 明显劣势：谨慎
+    },
+
     // ========== 行动规划：为单个棋子规划完整行动序列 ==========
     // 返回 { steps: [{type, ...}], score }
     // 行动序列类型：
@@ -4274,6 +4369,8 @@
     //   move_only:          只移动
     _aiPlanActorAction(actor) {
       const side = actor.side;
+      // 进攻倾向系数：用于放大/收敛"含攻击"的计划
+      const aggr = this._aiAggression(side);
       // 建筑等 canMove === false 的棋子不可移动，AI 规划时同样要排除
       const canMove = !actor.moved && actor.canMove !== false;
       // 建筑等 canAttack === false 的棋子不可攻击，AI 规划时同样要排除
@@ -4447,6 +4544,12 @@
 
       // 取最高分计划
       if (!plans.length) return null;
+      // 进攻倾向：顺风/均势放大"含攻击"的计划，纯走位相应降权，避免空转不交战
+      for (const p of plans) {
+        const hasAttack = p.steps.some(s => s.type === 'attack');
+        if (hasAttack) p.score *= aggr;
+        else if (p.kind === 'move_only') p.score /= aggr;
+      }
       plans.sort((a, b) => b.score - a.score);
       return plans[0];
     },
@@ -4454,8 +4557,10 @@
     // 计划风险修正：把"移动后可能被反杀"的代价计入计划分数
     _aiPlanRiskAdjust(actor, movePlan, planScore, killedByPlan) {
       if (!movePlan) return planScore;
+      // 顺风/均势时对风险更宽容，劣势时更谨慎
+      const aggr = this._aiAggression(actor.side);
       const destThreat = Effect._aiPositionThreatAt(actor, movePlan.x, movePlan.y);
-      let s = planScore - destThreat * 0.35;
+      let s = planScore - destThreat * 0.35 / aggr;
       if (destThreat > actor.hp * 1.1 && !killedByPlan) s -= 120;
       return s;
     },
@@ -4507,6 +4612,8 @@
     // 递归执行队列中的下一步
     _aiRunStep(actor, queue, idx) {
       if (this.over) return;
+      this._aiCurrentActor = actor;
+      this._aiArmWatchdog();
       if (idx >= queue.length) {
         // 队列执行完毕
         // 检查技能是否恢复了行动次数（如 resetAttack/resetMove），如果有则重新规划并继续
@@ -4634,7 +4741,13 @@
         return activeCount > 0 && activeCount === skippedCount;
       };
 
+      let settled = false;
+      let skillTimer = null;
       const finish = function (used, err) {
+        // 防卡死：超时/异常/正常返回只允许收尾一次
+        if (settled) return;
+        settled = true;
+        if (skillTimer) { clearTimeout(skillTimer); skillTimer = null; }
         Effect._aiContext = null;
         if (err) {
           console.error('[AI 技能错误]', skill.name, err);
@@ -4671,6 +4784,10 @@
         }
         done();
       };
+      // 技能执行超时兜底：content 若一直不 resolve（等待交互/死循环），5 秒后放弃该技能继续队列
+      skillTimer = setTimeout(function () {
+        finish(false, new Error('技能执行超时（5秒），已跳过'));
+      }, 5000);
       try {
         const promise = skill.content(actor);
         Promise.resolve(promise).then(function () {
@@ -5134,12 +5251,15 @@
       if (!enemies.length || !moveCells.length) return null;
 
       const hpRatio = actor.hp / (actor.maxHp || 200);
+      const aggr = this._aiAggression(side);
       let posThreat = Effect._aiPositionThreat(actor);
       const onAttackedBonus = this._aiPassiveBonus(actor, 'onAttacked');
       if (onAttackedBonus.counter > 0) {
         posThreat = Math.max(0, posThreat - onAttackedBonus.counter);
       }
-      const shouldEscape = hpRatio < 0.4 && posThreat > Effect.getEffectiveAttack(actor) * 2;
+      // 顺风/均势时压低撤退阈值，避免占优却一味后撤
+      const shouldEscape = hpRatio < (aggr >= 1.15 ? 0.25 : 0.4) &&
+        posThreat > Effect.getEffectiveAttack(actor) * 2;
       const hasLowHpAlly = allies.some(a => a.hp / (a.maxHp || 200) < 0.3);
       const moveBonus = this._aiPassiveBonus(actor, 'onMove');
       const hasOnMovePassive = moveBonus.mul > 1 || moveBonus.add > 0;
@@ -5276,10 +5396,10 @@
           // 站过去大概率被打死，且换不到关键击杀 → 强烈回避
           if (destThreat > actor.hp * 1.1 && !canKillHere) score -= 160;
 
-          // 守城：离开己方已占领城池的轻微代价（不宜过度恋战）
+          // 守城：离开己方已占领城池的轻微代价（顺风时更愿意出城求战）
           const curOwnCastle = isCastle(actor.x, actor.y) && this.castleOwner[actor.x + ',' + actor.y] === side;
           const destOwnCastle = isCastle(m.x, m.y) && this.castleOwner[m.x + ',' + m.y] === side;
-          if (curOwnCastle && !destOwnCastle) score -= 12;
+          if (curOwnCastle && !destOwnCastle) score -= 12 / aggr;
         }
 
         if (score > bestScore) {
