@@ -4276,7 +4276,8 @@
       const side = actor.side;
       // 建筑等 canMove === false 的棋子不可移动，AI 规划时同样要排除
       const canMove = !actor.moved && actor.canMove !== false;
-      const canAttack = !actor.attacked;
+      // 建筑等 canAttack === false 的棋子不可攻击，AI 规划时同样要排除
+      const canAttack = !actor.attacked && actor.canAttack !== false;
       const canSkill = !actor.skilled && actor.skills;
 
       // 当前位置直接可用的最佳技能 + 最佳攻击目标
@@ -5024,6 +5025,7 @@
 
     // 找最佳攻击目标（威胁度最高/最易击杀）
     _aiBestAttackTarget(actor) {
+      if (!actor || actor.canAttack === false) return null;
       const side = actor.side;
       const atkRange = Effect.getEffectiveAttackRange(actor);
       const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
@@ -5450,7 +5452,7 @@
     },
 
     _executeAttack(actor, target) {
-      if (actor.side !== this.currentSide || actor.attacked) return false;
+      if (actor.side !== this.currentSide || actor.attacked || actor.canAttack === false) return false;
       if (!target || !target.alive) return false;
       const effRange = Effect.getEffectiveAttackRange(actor);
       const cells = Range.cellsInRangeWithBlock(effRange.shape, effRange.n, actor.x, actor.y, {
