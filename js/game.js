@@ -112,13 +112,16 @@
   // 启动时加载设置
   GameSettings.load();
 
-  const TERRAIN_NAMES = {
-    plain: '',
-    m: '林',
-    f: '营',
-    r: '河',
-    w: '城',
-    mt: '山'
+  // ========== 地形注册表 ==========
+  // block: 'none' 可通行 | 'half' 可进入但不穿越 | 'full' 不可进入/阻挡视线
+  // custom=false 的为内置地形（配色走 CSS）；自定义地形用内联 --terrain-custom
+  const TERRAIN_DEFS = {
+    plain: { code: 'plain', name: '平原', label: '',   color: null,      block: 'none', defBonus: 0,  custom: false },
+    m:     { code: 'm',     name: '森林', label: '林', color: '#cfe2d0', block: 'none', defBonus: 10, custom: false },
+    f:     { code: 'f',     name: '营地', label: '营', color: '#d6c2a0', block: 'none', defBonus: 5,  custom: false },
+    r:     { code: 'r',     name: '河流', label: '河', color: '#b9cde3', block: 'half', defBonus: 0,  custom: false },
+    w:     { code: 'w',     name: '城池', label: '城', color: '#e5c7c7', block: 'none', defBonus: 15, custom: false },
+    mt:    { code: 'mt',    name: '山地', label: '山', color: '#c8b8a0', block: 'half', defBonus: 15, custom: false }
   };
 
   function buildTerrain() {
@@ -178,11 +181,8 @@
   }
 
   function terrainDefBonus(t) {
-    if (t === 'm') return 10;
-    if (t === 'w') return 15;
-    if (t === 'f') return 5;
-    if (t === 'mt') return 15;
-    return 0;
+    const d = TERRAIN_DEFS[t];
+    return d && d.defBonus ? d.defBonus : 0;
   }
 
   // 对称部署坐标：按挑选顺序排列（第1个选→位置1）
@@ -1347,13 +1347,20 @@
           if (y === half - 1) c.classList.add('midline-bottom');
           if (y === half) c.classList.add('midline-top');
           const t = this.terrain[y][x];
-          if (t && t !== 'plain') c.classList.add('terrain-' + t);
+          const tdef = TERRAIN_DEFS[t];
+          if (t && t !== 'plain') {
+            c.classList.add('terrain-' + t);
+            if (tdef && tdef.custom) {
+              c.classList.add('terrain-custom');
+              if (tdef.color) c.style.setProperty('--terrain-custom', tdef.color);
+            }
+          }
           c.dataset.x = x;
           c.dataset.y = y;
-          if (t && TERRAIN_NAMES[t]) {
+          if (t && tdef && tdef.label) {
             const lb = document.createElement('span');
             lb.className = 'terrain-label';
-            lb.textContent = TERRAIN_NAMES[t];
+            lb.textContent = tdef.label;
             c.appendChild(lb);
           }
           this.boardEl.appendChild(c);
@@ -1534,7 +1541,7 @@
         if (piece.attacked) state.push('已攻击');
         addRow('本回合状态', state.length ? state.join(' / ') : '可行动');
         const tHere = this.terrain[piece.y][piece.x];
-        const tName = tHere === 'plain' ? '平原' : TERRAIN_NAMES[tHere] || '—';
+        const tName = this.terrainName(tHere) || '—';
         let tInfo = tName;
         if (terrainDefBonus(tHere)) tInfo += ' · 防御+' + terrainDefBonus(tHere);
         addRow('当前位置', tInfo);
@@ -2935,6 +2942,44 @@
       return 1;
     },
 
+    // ========== 地形注册 API ==========
+    // 注册/覆盖地形：Game.registerTerrain({ code:'sw', name:'沼泽', label:'沼', color:'#9ccc9c', block:'half', defBonus:5 })
+    registerTerrain(def) {
+      if (!def || typeof def !== 'object') return false;
+      const code = String(def.code || '').trim().toLowerCase();
+      if (!/^[a-z][a-z0-9_]*$/.test(code)) {
+        this.log('地形代码非法（需小写字母开头，仅含小写字母/数字/下划线）：' + code);
+        return false;
+      }
+      const base = TERRAIN_DEFS[code] || null;
+      const merged = {
+        code,
+        name: def.name || (base && base.name) || code,
+        label: def.label !== undefined ? String(def.label) : ((base && base.label) || code.charAt(0).toUpperCase()),
+        color: def.color !== undefined ? def.color : ((base && base.color) || null),
+        block: (def.block === 'none' || def.block === 'half' || def.block === 'full')
+          ? def.block : ((base && base.block) || 'none'),
+        defBonus: def.defBonus !== undefined ? (Number(def.defBonus) || 0) : ((base && base.defBonus) || 0),
+        custom: base ? !!base.custom : (code !== 'plain')
+      };
+      TERRAIN_DEFS[code] = merged;
+      if (this.terrain && this.boardEl) this._render();
+      return merged;
+    },
+    terrainDef(code) { return TERRAIN_DEFS[code] || null; },
+    terrainName(code) { const d = TERRAIN_DEFS[code]; return d ? d.name : (code || ''); },
+    terrainBlock(code) { const d = TERRAIN_DEFS[code]; return d ? (d.block || 'none') : null; },
+    terrainList() { return Object.keys(TERRAIN_DEFS).map(k => TERRAIN_DEFS[k]); },
+    // 设置某个格子的地形（会自动刷新该格样式）；code 需已在注册表中
+    setTerrain(x, y, code) {
+      if (!TERRAIN_DEFS[code]) {
+        this.log('未知地形代码：' + code + '，请先 Game.registerTerrain() 注册。');
+        return false;
+      }
+      this._setCellTerrain(x, y, code);
+      return true;
+    },
+
     _setCellTerrain(x, y, terrain) {
       if (!this.terrain) return;
       if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return;
@@ -2943,7 +2988,24 @@
       const el = this.boardEl.children[idx];
       if (!el) return;
       el.className = el.className.replace(/terrain-\w+/g, '').trim();
-      if (terrain && terrain !== 'plain') el.classList.add('terrain-' + terrain);
+      const def = TERRAIN_DEFS[terrain];
+      if (terrain && terrain !== 'plain') {
+        el.classList.add('terrain-' + terrain);
+        if (def && def.custom) {
+          el.classList.add('terrain-custom');
+          if (def.color) el.style.setProperty('--terrain-custom', def.color);
+          else el.style.removeProperty('--terrain-custom');
+        }
+      }
+      // 同步地形标字
+      const oldLabel = el.querySelector('.terrain-label');
+      if (oldLabel) oldLabel.remove();
+      if (def && def.label) {
+        const lb = document.createElement('span');
+        lb.className = 'terrain-label';
+        lb.textContent = def.label;
+        el.appendChild(lb);
+      }
     },
 
     requestCell(actor, options, cb) {

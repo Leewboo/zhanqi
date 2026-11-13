@@ -80,11 +80,26 @@
   // 计算单个格子的默认阻断模式（不考虑 blockFilter 覆盖）
   // terrain: 地形代码字符串（如 'mt'/'r'/'plain'...），true 则视为通用阻断
   // pieceAtSide: 可选，actor/发起方的 side，没有则从 Game.currentSide 推断
+  // 地形阻断模式：优先查询 Game 地形注册表（支持自定义地形），回退到内置规则
+  function terrainBlockMode(code) {
+    if (!code) return 'none';
+    const g = global.Game;
+    if (g && typeof g.terrainBlock === 'function') {
+      const v = g.terrainBlock(code);
+      if (v === 'none' || v === 'half' || v === 'full') return v;
+    }
+    if (code === 'mt' || code === 'r') return 'half';
+    return 'none';
+  }
+
   function defaultBlockFor(x, y, piece, terrain, pieceAtSide) {
-    // 地形优先：mt 和 r 都是半阻断（能站上去，不能继续穿过去）
+    // 地形优先：内置 mt/r 与注册表里的自定义地形都按各自 block 处理
     const tCode = (typeof terrain === 'string') ? terrain
       : (terrain === true ? (_terrainAt(x, y) || 'block') : null);
-    if (tCode === 'mt' || tCode === 'r') return 'half';
+    if (tCode) {
+      const bm = terrainBlockMode(tCode);
+      if (bm !== 'none') return bm;
+    }
 
     // 棋子默认是半阻断：
     //   - 攻击/视线：目标格可达（half=包含此格），但中间的棋子挡住后面的
@@ -258,8 +273,9 @@
       const dm = defaultBlockFor(x, y, null, tCode);
       if (dm) return dm;
 
-      // 兼容兜底
-      if (tCode === 'mt' || tCode === 'r') return options.terrainBlockMode || 'half';
+      // 兼容兜底：注册表未覆盖时的内置阻断
+      const bmTerrain = terrainBlockMode(tCode);
+      if (bmTerrain !== 'none') return options.terrainBlockMode || bmTerrain;
       return 'none';
     }
 

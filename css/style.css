@@ -639,6 +639,15 @@ html, body {
 .cell.terrain-mt.zone-blue,
 .cell.terrain-mt.zone-blue.alt { background-color: rgba(196, 184, 168, 0.9); }
 
+/* 自定义地形：颜色由 Game.registerTerrain({ color }) 通过内联 --terrain-custom 提供
+   放在区域着色之后，避免被 .zone-red/.zone-blue 覆盖 */
+.cell.terrain-custom,
+.cell.terrain-custom.alt,
+.cell.terrain-custom.zone-red,
+.cell.terrain-custom.zone-red.alt,
+.cell.terrain-custom.zone-blue,
+.cell.terrain-custom.zone-blue.alt { background-color: var(--terrain-custom, #cfd8dc); }
+
 /* 陷阱标记：只由布置者所属阵营的视角渲染，颜色来自 Effect.placeTrap({ color }) */
 .cell .trap-indicator {
   position: absolute;
