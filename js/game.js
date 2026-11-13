@@ -2133,7 +2133,7 @@
         }
         // 使用 reachableCells 考虑地形消耗（河流消耗2步）
         const moveRange = Effect.getEffectiveMoveRange(actor);
-        const cells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape);
+        const cells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape, Effect.getMoveRangeOptions(actor));
         this.highlighted = [];
         for (const c of cells) {
           if (this.pieceAt(c.x, c.y)) continue;
@@ -2158,12 +2158,12 @@
         }
         const atkRange = Effect.getEffectiveAttackRange(actor);
         // 不传 terrainFn（默认读 Game.terrain 代码字符串），正确识别 mt/r 阻断
-        const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
+        const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, Object.assign({
           pieceAt: (x, y) => {
             const p = this.pieceAt(x, y);
             return p && p.alive ? p : null;
           }
-        });
+        }, Effect.getAttackRangeOptions(actor)));
         for (const c of cells) {
           const t = this.pieceAt(c.x, c.y);
           if (t && t.alive && t.side !== actor.side && !Effect.isUntargetable(t)) {
@@ -2345,6 +2345,14 @@
       }
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
+      // 地形 buff：离开旧地形 → 进入新地形
+      Effect._afterMove(actor, fromX, fromY);
+      // 奔袭：移动后恢复移动机会
+      if ((actor._charge || 0) > 0) {
+        actor._charge -= 1;
+        actor.moved = false;
+        this.log('【奔袭】' + actor.name + ' 恢复了移动机会（剩余 ' + actor._charge + ' 次）。');
+      }
 
       // 联机同步（含本端驱动的中立势力）
       if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
@@ -2404,6 +2412,12 @@
         }
       }
       Effect.damage(actor, target, atkVal);
+      // 追击：攻击后恢复攻击机会
+      if ((actor._pursuit || 0) > 0) {
+        actor._pursuit -= 1;
+        actor.attacked = false;
+        this.log('【追击】' + actor.name + ' 恢复了攻击机会（剩余 ' + actor._pursuit + ' 次）。');
+      }
       this._finishActorAction();
     },
 
@@ -2612,7 +2626,11 @@
       Effect.trigger('turnEnd', { side: this.currentSide, turn: this.turn });
       const endingSide = this.currentSide;
       this.pieces.forEach(p => {
-        if (p.side === endingSide && p.alive) Effect.triggerPassive(p, 'turnEnd', { turn: this.turn });
+        if (p.side === endingSide && p.alive) {
+          Effect.triggerPassive(p, 'turnEnd', { turn: this.turn });
+          // 地形 buff：回合结束
+          Effect.triggerTerrain(p, 'onTurnEnd', { turn: this.turn });
+        }
       });
       Effect._checkTmpSkillExpiry({ turn: this.turn, side: this.currentSide });
 
@@ -2686,6 +2704,11 @@
       const pieces = this.pieces.filter(p => p.alive && p.side === side);
 
       for (const p of pieces) {
+        // 每回合重置额外行动次数（追击/奔袭由地形或技能在回合内重新赋予）
+        p._pursuit = 0;
+        p._charge = 0;
+        // 地形 buff：回合开始
+        Effect.triggerTerrain(p, 'onTurnStart', { turn: this.turn });
         const marks = Effect.getMarksOn(p);
 
         // 眩晕：跳过本回合行动
@@ -4352,10 +4375,14 @@
       }
       if (enemy <= 0) return 1.2;
       const ratio = mine / enemy;
-      if (ratio >= 1.15) return 1.35;  // 顺风：主动求战
-      if (ratio >= 0.9) return 1.18;   // 均势：保持进攻
-      if (ratio >= 0.7) return 1.0;
-      return 0.9;                      // 明显劣势：谨慎
+      let base;
+      if (ratio >= 1.15) base = 1.35;  // 顺风：主动求战
+      else if (ratio >= 0.9) base = 1.18;   // 均势：保持进攻
+      else if (ratio >= 0.7) base = 1.0;
+      else base = 0.9;                      // 明显劣势：谨慎
+      // 开战初期（前 6 回合）主动求战，避免双方隔河对峙空耗
+      if (this.turn <= 6) return Math.max(base, 1.35);
+      return base;
     },
 
     // ========== 行动规划：为单个棋子规划完整行动序列 ==========
@@ -5145,9 +5172,9 @@
       if (!actor || actor.canAttack === false) return null;
       const side = actor.side;
       const atkRange = Effect.getEffectiveAttackRange(actor);
-      const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, {
+      const cells = Range.cellsInRangeWithBlock(atkRange.shape, atkRange.n, actor.x, actor.y, Object.assign({
         pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-      });
+      }, Effect.getAttackRangeOptions(actor)));
       if (!cells.length) return null;
 
       const allies = this.pieces.filter(p => p.alive && p.side === side);
@@ -5187,9 +5214,9 @@
         let allyAtkAvail = 0;   // 本回合还能对目标出手的队友攻击力总和
         for (const a of allies) {
           if (a === actor) continue;
-          const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
+          const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, Object.assign({
             pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
-          });
+          }, Effect.getAttackRangeOptions(a)));
           if (aAtkCells.some(ac => ac.x === p.x && ac.y === p.y)) {
             allyCanAttack++;
             if (!a.attacked) allyAtkAvail += Effect.getEffectiveAttack(a);
@@ -5203,9 +5230,9 @@
         let protectingAlly = false;
         for (const a of allies) {
           if (a.hp / (a.maxHp || 200) < 0.5) {
-            const pAtkRange = Range.cellsInRangeWithBlock(p.attackRange.shape, p.attackRange.n, p.x, p.y, {
+            const pAtkRange = Range.cellsInRangeWithBlock(p.attackRange.shape, p.attackRange.n, p.x, p.y, Object.assign({
               pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
-            });
+            }, Effect.getAttackRangeOptions(p)));
             if (pAtkRange.some(ac => ac.x === a.x && ac.y === a.y)) {
               protectingAlly = true;
               break;
@@ -5220,9 +5247,9 @@
             if (a === actor) continue;
             const aAtk = Effect.getEffectiveAttack(a);
             if (aAtk >= effHp) {
-              const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, {
+              const aAtkCells = Range.cellsInRangeWithBlock(a.attackRange.shape, a.attackRange.n, a.x, a.y, Object.assign({
                 pieceAt: (x, y) => { const pp = this.pieceAt(x, y); return (pp && pp.alive) ? pp : null; }
-              });
+              }, Effect.getAttackRangeOptions(a)));
               if (aAtkCells.some(ac => ac.x === p.x && ac.y === p.y)) {
                 otherAllyCanKill = true;
                 break;
@@ -5244,7 +5271,7 @@
     _aiBestMoveDest(actor) {
       const side = actor.side;
       const moveRange = Effect.getEffectiveMoveRange(actor);
-      const moveCells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape);
+      const moveCells = Range.reachableCells(actor.x, actor.y, moveRange.n, this, moveRange.shape, Effect.getMoveRangeOptions(actor));
       // 中立势力的敌人是所有非本势力非建筑棋子
       const enemies = this.pieces.filter(p => p.alive && p.side !== side && !(side === 'neutral' && p.isBuilding));
       const allies = this.pieces.filter(p => p.alive && p.side === side && p !== actor);
@@ -5296,9 +5323,9 @@
           score = Math.max(10, 60 - dist * 3);
 
           // 统计移动后攻击范围内的敌人数量（用于 onMove 伤害评估）
-          const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, {
+          const atkCells = Range.cellsInRangeWithBlock(actor.attackRange.shape, actor.attackRange.n, m.x, m.y, Object.assign({
             pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-          });
+          }, Effect.getAttackRangeOptions(actor)));
           const atkNow = Effect.getEffectiveAttack(actor);
           let enemyInAtk = 0;
           let canKillHere = false;
@@ -5368,10 +5395,10 @@
 
           let canBlock = false;
           for (const e of enemies) {
-            const eMoveCells = Range.reachableCells(e.x, e.y, e.moveRange.n, this, e.moveRange.shape);
-            const eAtkCells = Range.cellsInRangeWithBlock(e.attackRange.shape, e.attackRange.n, e.x, e.y, {
+            const eMoveCells = Range.reachableCells(e.x, e.y, e.moveRange.n, this, e.moveRange.shape, Effect.getMoveRangeOptions(e));
+            const eAtkCells = Range.cellsInRangeWithBlock(e.attackRange.shape, e.attackRange.n, e.x, e.y, Object.assign({
               pieceAt: (x, y) => { const p = this.pieceAt(x, y); return (p && p.alive) ? p : null; }
-            });
+            }, Effect.getAttackRangeOptions(e)));
             for (const ally of allies) {
               if (ally.hp / (ally.maxHp || 200) < 0.5) {
                 const eCanReach = eMoveCells.some(c => c.x === ally.x && c.y === ally.y);
@@ -5532,7 +5559,7 @@
       if (actor.side !== this.currentSide || actor.moved || actor.canMove === false) return false;
       if (this.pieceAt(x, y)) return false;
       // 使用 reachableCells 考虑地形消耗（河流消耗2步）
-      const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape);
+      const cells = Range.reachableCells(actor.x, actor.y, actor.moveRange.n, this, actor.moveRange.shape, Effect.getMoveRangeOptions(actor));
       if (!cells.find(c => c.x === x && c.y === y)) return false;
       const fromX = actor.x;
       const fromY = actor.y;
@@ -5558,6 +5585,14 @@
       }
       // 城池占领：移动到城池上时触发占领
       if (actor.alive) this._captureCastle(actor);
+      // 地形 buff：离开旧地形 → 进入新地形
+      Effect._afterMove(actor, fromX, fromY);
+      // 奔袭：移动后恢复移动机会
+      if ((actor._charge || 0) > 0) {
+        actor._charge -= 1;
+        actor.moved = false;
+        this.log('【奔袭】' + actor.name + ' 恢复了移动机会（剩余 ' + actor._charge + ' 次）。');
+      }
 
       // 联机同步：AI 驱动的中立势力（红方客户端）广播移动
       if (this.onlineMode && this._syncOwns(actor.side) && !this._onlineAction) {
@@ -5575,13 +5610,13 @@
       if (actor.side !== this.currentSide || actor.attacked || actor.canAttack === false) return false;
       if (!target || !target.alive) return false;
       const effRange = Effect.getEffectiveAttackRange(actor);
-      const cells = Range.cellsInRangeWithBlock(effRange.shape, effRange.n, actor.x, actor.y, {
+      const cells = Range.cellsInRangeWithBlock(effRange.shape, effRange.n, actor.x, actor.y, Object.assign({
         pieceAt: (px, py) => {
           const p = this.pieceAt(px, py);
           if (!p || !p.alive) return null;
           return p;
         }
-      });
+      }, Effect.getAttackRangeOptions(actor)));
       if (!cells.find(c => c.x === target.x && c.y === target.y)) return false;
       let atkVal = Effect.getEffectiveAttack(actor);
       // 骑兵冲锋加成：本次攻击方向与上次移动方向相同时+20%
@@ -5604,6 +5639,12 @@
       }
 
       const dmg = Effect.damage(actor, target, atkVal);
+      // 追击：攻击后恢复攻击机会
+      if ((actor._pursuit || 0) > 0) {
+        actor._pursuit -= 1;
+        actor.attacked = false;
+        this.log('【追击】' + actor.name + ' 恢复了攻击机会（剩余 ' + actor._pursuit + ' 次）。');
+      }
       this.highlighted = [];
       this.mode = null;
       this._render();

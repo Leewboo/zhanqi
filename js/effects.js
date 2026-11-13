@@ -21,6 +21,7 @@
     //   display: 显示在棋子左上角的文字
     //   modifiers: { zeroDef: bool, defBuff: num, atkBuff: num }
     _marks: {},
+    _terrainBuffs: {},   // 地形 Buff 注册表：{ 地形代码: [ {trigger, filter, content} ] }
 
     mark(actor, name, opts) {
       opts = opts || {};
@@ -437,9 +438,11 @@
       const g = global.Game;
       if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return false;
       if (g.pieceAt(x, y)) return false;
+      const fromX = actor.x, fromY = actor.y;
       actor.x = x;
       actor.y = y;
       g.log(actor.name + ' 位移到 (' + x + ',' + y + ')。');
+      this._afterMove(actor, fromX, fromY);
       return true;
     },
 
@@ -1249,6 +1252,7 @@
       }
       n = n || 1;
       const g = global.Game;
+      const fromX = target.x, fromY = target.y;
       for (let i = 0; i < n; i++) {
         const nx = target.x + dir[0];
         const ny = target.y + dir[1];
@@ -1257,6 +1261,7 @@
         target.x = nx;
         target.y = ny;
       }
+      if (target.x !== fromX || target.y !== fromY) this._afterMove(target, fromX, fromY);
     },
 
     drawAoe(shape, n, originX, originY, options) {
@@ -1287,6 +1292,7 @@
       n = n || 1;
       const g = global.Game;
       let moved = 0;
+      const pullFromX = target.x, pullFromY = target.y;
       for (let i = 0; i < n; i++) {
         const dx = Math.sign(actor.x - target.x);
         const dy = Math.sign(actor.y - target.y);
@@ -1300,6 +1306,7 @@
         moved++;
       }
       if (moved > 0 && g) g.log(target.name + ' 被拉拽 ' + moved + ' 格。');
+      if (moved > 0) this._afterMove(target, pullFromX, pullFromY);
       return moved;
     },
 
@@ -1997,9 +2004,12 @@
         return false;
       }
       var ax = actor.x, ay = actor.y;
+      var tx = target.x, ty = target.y;
       actor.x = target.x; actor.y = target.y;
       target.x = ax; target.y = ay;
       if (global.Game) global.Game.log(actor.name + ' 与 ' + target.name + ' 换位！');
+      this._afterMove(actor, ax, ay);
+      this._afterMove(target, tx, ty);
       return true;
     },
 
@@ -2065,9 +2075,172 @@
       var empty = cells.filter(function (c) { return !g.pieceAt(c.x, c.y); });
       if (!empty.length) return false;
       var dest = global.RNG.pick(empty);
+      var rtFromX = actor.x, rtFromY = actor.y;
       actor.x = dest.x; actor.y = dest.y;
       g.log(actor.name + ' 随机传送至 (' + dest.x + ',' + dest.y + ')！');
+      this._afterMove(actor, rtFromX, rtFromY);
       return true;
+    },
+
+    // ============================================================
+    // ========== 行动特性：无视地形/棋子（越险/渡江/飞跃） ==========
+    // ============================================================
+    // scope: 'move'（移动）| 'attack'（攻击/视线）| 'both'
+    _normScope(scope) {
+      if (scope === 'both') return ['move', 'attack'];
+      return [scope === 'attack' ? 'attack' : 'move'];
+    },
+
+    // 设置无视项：opts = { mt:true, r:true, units:true }
+    setIgnore(actor, scope, opts) {
+      if (!actor) return false;
+      this._normScope(scope).forEach(k => {
+        const field = k === 'attack' ? 'ignoreAttack' : 'ignoreMove';
+        actor[field] = Object.assign({}, actor[field] || {}, opts || {});
+      });
+      if (global.Game) global.Game._render();
+      return true;
+    },
+
+    clearIgnore(actor, scope, opts) {
+      if (!actor) return false;
+      this._normScope(scope).forEach(k => {
+        const field = k === 'attack' ? 'ignoreAttack' : 'ignoreMove';
+        if (!opts) { delete actor[field]; return; }
+        if (!actor[field]) return;
+        Object.keys(opts).forEach(w => { if (opts[w]) delete actor[field][w]; });
+      });
+      if (global.Game) global.Game._render();
+      return true;
+    },
+
+    ignoreTerrain(actor, codes, scope) {
+      const opts = {};
+      (Array.isArray(codes) ? codes : [codes]).forEach(c => { if (c) opts[c] = true; });
+      return this.setIgnore(actor, scope, opts);
+    },
+
+    ignoreUnit(actor, scope) {
+      return this.setIgnore(actor, scope, { units: true });
+    },
+
+    // —— 具名效果 ——
+    // 越险：无视山地
+    crossRugged(actor, scope) { return this.ignoreTerrain(actor, 'mt', scope); },
+    // 渡江：无视河流
+    crossRiver(actor, scope) { return this.ignoreTerrain(actor, 'r', scope); },
+    // 飞跃：移动可穿过棋子 / 攻击无视棋子挡视线
+    leap(actor, scope) { return this.ignoreUnit(actor, scope); },
+
+    // 供 Range 调用：生成移动范围参数
+    getMoveRangeOptions(actor) {
+      const ig = actor && actor.ignoreMove;
+      const o = {};
+      if (!ig) return o;
+      const t = {};
+      if (ig.mt) t.mt = true;
+      if (ig.r) t.r = true;
+      if (Object.keys(t).length) o.ignoreTerrains = t;
+      if (ig.units) o.ignoreUnits = true;
+      return o;
+    },
+
+    // 供 Range 调用：生成攻击范围/视线参数
+    getAttackRangeOptions(actor) {
+      const ig = actor && actor.ignoreAttack;
+      const o = {};
+      if (!ig) return o;
+      const t = {};
+      if (ig.mt) t.mt = true;
+      if (ig.r) t.r = true;
+      if (Object.keys(t).length) o.ignoreTerrains = t;
+      if (ig.units) o.ignorePieces = true;
+      return o;
+    },
+
+    // ============================================================
+    // ========== 追击 / 奔袭：额外行动次数 ==========
+    // ============================================================
+    // 追击 x：攻击后恢复攻击机会（x 次）
+    grantPursuit(actor, times) {
+      if (!actor) return 0;
+      actor._pursuit = Math.max(0, (actor._pursuit || 0) + (parseInt(times) || 0));
+      if (global.Game && actor._pursuit > 0) {
+        global.Game.log(actor.name + ' 获得【追击】' + actor._pursuit + ' 次。');
+      }
+      return actor._pursuit;
+    },
+
+    // 奔袭 x：移动后恢复移动机会（x 次）
+    grantCharge(actor, times) {
+      if (!actor) return 0;
+      actor._charge = Math.max(0, (actor._charge || 0) + (parseInt(times) || 0));
+      if (global.Game && actor._charge > 0) {
+        global.Game.log(actor.name + ' 获得【奔袭】' + actor._charge + ' 次。');
+      }
+      return actor._charge;
+    },
+
+    // ============================================================
+    // ========== 地形 Buff（trigger + content） ==========
+    // ============================================================
+    // 注册：Effect.registerTerrainBuff('m', {
+    //   id: 'forest_recover',
+    //   trigger: 'onTurnStart' | 'onTurnEnd' | 'onEnter' | 'onLeave',
+    //   filter(actor, ctx) { return true; },
+    //   content(actor, ctx) { ... }        // 或 contentCode: '...' 字符串
+    // })
+    // type 为 '*' 时对所有地形生效
+    registerTerrainBuff(type, def) {
+      if (!type || !def) return null;
+      let content = def.content;
+      if (!content && typeof def.contentCode === 'string') {
+        const code = def.contentCode;
+        content = function (actor, context) {
+          return (new Function('actor', 'context',
+            'return (async () => { ' + code + '\n})();'))(actor, context);
+        };
+      }
+      if (typeof content !== 'function') return null;
+      const buff = {
+        id: def.id || (type + '_' + (def.trigger || 'onTurnStart')),
+        trigger: def.trigger || 'onTurnStart',
+        filter: typeof def.filter === 'function' ? def.filter : null,
+        content
+      };
+      (this._terrainBuffs[type] = this._terrainBuffs[type] || []).push(buff);
+      return buff;
+    },
+
+    clearTerrainBuffs(type) {
+      if (type) delete this._terrainBuffs[type];
+      else this._terrainBuffs = {};
+    },
+
+    terrainAt(x, y) {
+      const g = global.Game;
+      return (g && g.terrain && g.terrain[y]) ? g.terrain[y][x] : 'plain';
+    },
+
+    // 触发棋子所在地形（或指定地形）的 buff
+    triggerTerrain(actor, event, context) {
+      if (!actor) return;
+      const ctx = Object.assign({ actor, x: actor.x, y: actor.y }, context || {});
+      const type = ctx.terrain || this.terrainAt(ctx.x, ctx.y);
+      ctx.terrain = type;
+      const list = (this._terrainBuffs[type] || []).concat(this._terrainBuffs['*'] || []);
+      for (const b of list) {
+        if (b.trigger !== event) continue;
+        if (b.filter && !b.filter(actor, ctx)) continue;
+        try { b.content(actor, ctx); } catch (e) { console.error('[地形 Buff 错误] ' + b.id, e); }
+      }
+    },
+
+    // 位移后统一处理：离开旧地形 → 进入新地形
+    _afterMove(piece, fromX, fromY) {
+      if (!piece) return;
+      this.triggerTerrain(piece, 'onLeave', { terrain: this.terrainAt(fromX, fromY), fromX, fromY });
+      if (piece.alive) this.triggerTerrain(piece, 'onEnter', {});
     },
 
     // 召唤幻象：在指定格子放置一个虚假棋子（用标记实现，会被攻击但无 hp），
@@ -2136,6 +2309,7 @@
 
       g.pieces.push(unit);
       g.log(actor.name + ' 在 (' + x + ',' + y + ') 召唤 ' + unit.name + '！');
+      this.triggerTerrain(unit, 'onEnter', {});
       g._render();
       return unit;
     },

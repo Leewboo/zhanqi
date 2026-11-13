@@ -48,6 +48,21 @@
     return t === 'mt' || t === 'r';
   }
 
+  // 是否命中"无视某地形"的配置
+  // ignore: { mt:true, r:true } 或 ['mt','r']
+  function _matchIgnore(ignore, code) {
+    if (!ignore || !code) return false;
+    if (Array.isArray(ignore)) return ignore.indexOf(code) >= 0;
+    return ignore[code] === true;
+  }
+
+  // 移动消耗：被"越险/渡江"无视的地形按 1 步计
+  function _moveCost(game, x, y, ignoreTerrains) {
+    const t = (game && game.terrain && game.terrain[y]) ? game.terrain[y][x] : null;
+    if (_matchIgnore(ignoreTerrains, t)) return 1;
+    return game ? game.cellMoveCost(x, y) : 1;
+  }
+
   // 按阵营判断 piece 所属方：返回 'enemy' / 'ally' / null
   // pieceAtSide：调用方（actor 或当前方）的 side，没传则从 Game.currentSide 猜
   function _pieceSide(piece, pieceAtSide) {
@@ -191,6 +206,10 @@
 
     const blockFilter = options.blockFilter;
 
+    // 越险/渡江：无视指定地形；飞跃：可穿过棋子（但不能停留）
+    const ignoreTerrains = options.ignoreTerrains || null;
+    const ignoreUnits = options.ignoreUnits === true;
+
     // 判定格子是否被棋子占据
     const pieceAt = (x, y) => (game && game.pieceAt ? game.pieceAt(x, y) : null);
     // 返回地形代码字符串（plain/m/f/r/w/mt）
@@ -230,7 +249,11 @@
       }
 
       // ★ 移动范围：任何棋子 → full（不能走上去），除非常量 pieceBlockMode 被显式改掉
-      if (piece) return options.pieceBlockMode || 'full';
+      // 飞跃：无视棋子，可穿过但不能停留在该格
+      if (piece) return ignoreUnits ? 'pass' : (options.pieceBlockMode || 'full');
+
+      // 越险/渡江：无视指定地形（可直接通行，且不消耗额外步数）
+      if (_matchIgnore(ignoreTerrains, tCode)) return 'none';
 
       const dm = defaultBlockFor(x, y, null, tCode);
       if (dm) return dm;
@@ -257,12 +280,13 @@
           cx += dx;
           cy += dy;
           if (!inBounds(cx, cy)) break;
-          const cost = game ? game.cellMoveCost(cx, cy) : 1;
+          const cost = _moveCost(game, cx, cy, ignoreTerrains);
           steps += cost;
           if (steps > maxSteps) break;
 
           const mode = getMode(cx, cy);
           if (mode === 'full') break;          // 全阻断：该方向终止
+          if (mode === 'pass') continue;       // 飞跃：穿过棋子但不能停留
           result.push({ x: cx, y: cy, steps });// half/none：该格可达
           if (mode === 'half') break;          // 半阻断：该方向终止
           // none：继续该方向
@@ -283,7 +307,7 @@
         const nx = cur.x + dx;
         const ny = cur.y + dy;
         if (!inBounds(nx, ny)) continue;
-        const cost = game ? game.cellMoveCost(nx, ny) : 1;
+        const cost = _moveCost(game, nx, ny, ignoreTerrains);
         const ns = cur.steps + cost;
         if (ns > maxSteps) continue;
 
@@ -296,6 +320,13 @@
         // 全阻断：不可到达，不可穿过——但仍标记 visited 防止其他路径重复尝试
         if (mode === 'full') {
           visited.set(k, ns);
+          continue;
+        }
+
+        // 飞跃：可穿过棋子，但不作为可停留的落点
+        if (mode === 'pass') {
+          visited.set(k, ns);
+          queue.push({ x: nx, y: ny, steps: ns });
           continue;
         }
 
@@ -497,6 +528,11 @@
         if (ovForceBlockMode !== null) return ovForceBlockMode;
         // ★ 调用级 passThrough / blockMode（来自技能声明）：高于地形/棋子默认规则
         if (callForceBlockMode !== null) return callForceBlockMode;
+
+        // 飞跃（攻击版）：无视棋子，视线可穿过
+        if (options.ignorePieces === true && piece) return 'none';
+        // 越险/渡江（攻击版）：无视指定地形，但棋子仍然挡视线
+        if (_matchIgnore(options.ignoreTerrains, tCode)) return piece ? 'full' : 'none';
 
         const dm = defaultBlockFor(x, y, piece, tCode, actorSide);
         if (dm) return dm;
