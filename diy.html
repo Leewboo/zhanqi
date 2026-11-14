@@ -5006,19 +5006,38 @@ Effect.fx.clearFx('myZone');</code></pre>
       var hpEl = $('fs-attr-hp');
       var atkEl = $('fs-attr-atk');
       var defEl = $('fs-attr-def');
-      if (hpEl) d.hp = parseInt(hpEl.value, 10) || 0;
-      if (atkEl) d.atk = parseInt(atkEl.value, 10) || 0;
-      if (defEl) d.def = parseInt(defEl.value, 10) || 0;
+      // 建筑牌允许数值留空（存为 null）；其他类型缺省为 0
+      var _parseNum = function (el, isBuilding) {
+        if (!el) return undefined;
+        if (isBuilding && el.value.trim() === '') return null;
+        return parseInt(el.value, 10) || 0;
+      };
+      var isBuilding = false;
+      if (type === 'minion') {
+        var ctEl = $('fs-attr-card-type');
+        isBuilding = ctEl ? ctEl.value === 'building' : (fsEditorState.data.cardType === 'building');
+      }
+      if (hpEl) d.hp = _parseNum(hpEl, isBuilding);
+      if (atkEl) d.atk = _parseNum(atkEl, isBuilding);
+      if (defEl) d.def = _parseNum(defEl, isBuilding);
 
       var mvShape = $('fs-attr-mv-shape');
       var mvN = $('fs-attr-mv-n');
       if (mvShape && mvN) {
-        d.moveRange = { shape: mvShape.value, n: parseInt(mvN.value, 10) || 0 };
+        if (isBuilding && mvN.value.trim() === '') {
+          d.moveRange = null;
+        } else {
+          d.moveRange = { shape: mvShape.value, n: parseInt(mvN.value, 10) || 0 };
+        }
       }
       var atkShape = $('fs-attr-atk-shape');
       var atkN = $('fs-attr-atk-n');
       if (atkShape && atkN) {
-        d.attackRange = { shape: atkShape.value, n: parseInt(atkN.value, 10) || 0 };
+        if (isBuilding && atkN.value.trim() === '') {
+          d.attackRange = null;
+        } else {
+          d.attackRange = { shape: atkShape.value, n: parseInt(atkN.value, 10) || 0 };
+        }
       }
     }
 
@@ -5052,6 +5071,11 @@ Effect.fx.clearFx('myZone');</code></pre>
           delete d.def;
           delete d.moveRange;
           delete d.attackRange;
+        } else if (d.cardType === 'building') {
+          // 建筑牌允许 atk/def/moveRange/attackRange 留空（存为 null）；
+          // hp 是生存必需属性，留空时给默认值
+          if (d.hp == null) d.hp = 80;
+          // atk/def/moveRange/attackRange 保持用户输入（可能为 null）
         } else {
           if (d.hp == null) d.hp = 80;
           if (d.atk == null) d.atk = 25;
@@ -5060,8 +5084,14 @@ Effect.fx.clearFx('myZone');</code></pre>
           if (!d.attackRange) d.attackRange = { shape: '+', n: 1 };
         }
       }
-      if (canMoveEl) d.canMove = canMoveEl.value === '1';
-      if (canAttackEl) d.canAttack = canAttackEl.value === '1';
+      if (canMoveEl) {
+        if (canMoveEl.value === '') d.canMove = null;
+        else d.canMove = canMoveEl.value === '1';
+      }
+      if (canAttackEl) {
+        if (canAttackEl.value === '') d.canAttack = null;
+        else d.canAttack = canAttackEl.value === '1';
+      }
       if (triggerEl) d.trigger = triggerEl.value.trim() || null;
       if (filterCodeEl) d.filterCode = filterCodeEl.value;
       if (contentCodeEl) d.contentCode = contentCodeEl.value;
@@ -5137,10 +5167,18 @@ Effect.fx.clearFx('myZone');</code></pre>
     if (type === 'general' || (type === 'minion' && cardType !== 'tactic' && cardType !== 'strategy')) {
       html += '<details class="fs-fold" open><summary>数值与行动范围</summary>';
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">基础属性</label></div>';
+      // 建筑牌允许数值留空（留空表示无该属性）；其他类型缺省为 0
+      var _numVal = function (v) {
+        if (cardType === 'building') return (v != null && v !== '') ? v : '';
+        return (v || 0);
+      };
+      var _numPh = function (label) {
+        return cardType === 'building' ? ' placeholder="留空表示无' + label + '"' : '';
+      };
       html += '<div class="fs-attr-grid">';
-      html += '<div class="form-row"><label>HP</label><input type="number" id="fs-attr-hp" value="' + (d.hp || 0) + '"></div>';
-      html += '<div class="form-row"><label>ATK</label><input type="number" id="fs-attr-atk" value="' + (d.atk || 0) + '"></div>';
-      html += '<div class="form-row"><label>DEF</label><input type="number" id="fs-attr-def" value="' + (d.def || 0) + '"></div>';
+      html += '<div class="form-row"><label>HP</label><input type="number" id="fs-attr-hp" value="' + _numVal(d.hp) + '"' + _numPh('生命') + '></div>';
+      html += '<div class="form-row"><label>ATK</label><input type="number" id="fs-attr-atk" value="' + _numVal(d.atk) + '"' + _numPh('攻击') + '></div>';
+      html += '<div class="form-row"><label>DEF</label><input type="number" id="fs-attr-def" value="' + _numVal(d.def) + '"' + _numPh('防御') + '></div>';
       html += '</div>';
 
       html += '<div class="form-row" style="margin-top:16px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">移动范围</label></div>';
@@ -5150,7 +5188,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         html += '<option value="' + s + '"' + ((d.moveRange && d.moveRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
       });
       html += '</select>';
-      html += '<input type="number" id="fs-attr-mv-n" value="' + ((d.moveRange && d.moveRange.n) || 0) + '">';
+      html += '<input type="number" id="fs-attr-mv-n" value="' + (cardType === 'building' ? ((d.moveRange && d.moveRange.n != null) ? d.moveRange.n : '') : ((d.moveRange && d.moveRange.n) || 0)) + '"' + (cardType === 'building' ? ' placeholder="留空表示不可移动"' : '') + '>';
       html += '</div>';
 
       html += '<div class="form-row" style="margin-top:12px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">攻击范围</label></div>';
@@ -5160,7 +5198,7 @@ Effect.fx.clearFx('myZone');</code></pre>
         html += '<option value="' + s + '"' + ((d.attackRange && d.attackRange.shape === s) ? ' selected' : '') + '>' + s + '</option>';
       });
       html += '</select>';
-      html += '<input type="number" id="fs-attr-atk-n" value="' + ((d.attackRange && d.attackRange.n) || 0) + '">';
+      html += '<input type="number" id="fs-attr-atk-n" value="' + (cardType === 'building' ? ((d.attackRange && d.attackRange.n != null) ? d.attackRange.n : '') : ((d.attackRange && d.attackRange.n) || 0)) + '"' + (cardType === 'building' ? ' placeholder="留空表示无攻击范围"' : '') + '>';
       html += '</div>';
       html += '</details>';
     }
@@ -5196,8 +5234,16 @@ Effect.fx.clearFx('myZone');</code></pre>
       if (cardType === 'building') {
         html += '<div class="form-row" style="margin-top:12px;"><label style="font-size:12px;color:#58a6ff;letter-spacing:1px;">建筑行动限制</label></div>';
         html += '<div class="fs-attr-grid">';
-        html += '<div class="form-row"><label>可移动</label><select id="fs-attr-can-move"><option value="1"' + (d.canMove !== false ? ' selected' : '') + '>是</option><option value="0"' + (d.canMove === false ? ' selected' : '') + '>否</option></select></div>';
-        html += '<div class="form-row"><label>可攻击</label><select id="fs-attr-can-attack"><option value="1"' + (d.canAttack !== false ? ' selected' : '') + '>是</option><option value="0"' + (d.canAttack === false ? ' selected' : '') + '>否</option></select></div>';
+        html += '<div class="form-row"><label>可移动</label><select id="fs-attr-can-move">' +
+          '<option value=""' + (d.canMove == null ? ' selected' : '') + '>自动（按移动范围）</option>' +
+          '<option value="1"' + (d.canMove === true ? ' selected' : '') + '>是</option>' +
+          '<option value="0"' + (d.canMove === false ? ' selected' : '') + '>否</option>' +
+          '</select></div>';
+        html += '<div class="form-row"><label>可攻击</label><select id="fs-attr-can-attack">' +
+          '<option value=""' + (d.canAttack == null ? ' selected' : '') + '>自动（按攻击力）</option>' +
+          '<option value="1"' + (d.canAttack === true ? ' selected' : '') + '>是</option>' +
+          '<option value="0"' + (d.canAttack === false ? ' selected' : '') + '>否</option>' +
+          '</select></div>';
         html += '</div>';
       }
       if (cardType === 'strategy') {

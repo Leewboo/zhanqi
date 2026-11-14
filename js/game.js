@@ -1062,14 +1062,21 @@
 
       // minion 的 generalId 使用可播种 RNG 生成，保证联机双端一致
       const minionGeneralId = card.id + '_' + global.RNG.randInt(0, 999999999).toString(36) + '_' + global.RNG.randInt(0, 999999999).toString(36);
+      // 建筑牌允许 atk/def/moveRange 为空；空值在棋子上归一为 0，且据此推断 canMove/canAttack
+      const _num0 = function (v) { var n = Number(v); return (v == null || v === '' || isNaN(n)) ? 0 : n; };
+      const _hasVal = function (v) { return v != null && v !== '' && !isNaN(Number(v)); };
+      const bAtk = cardType === 'building' ? (_hasVal(card.atk) ? card.atk : null) : card.atk;
+      const bDef = cardType === 'building' ? (_hasVal(card.def) ? card.def : null) : card.def;
+      const bMoveRange = cardType === 'building' ? (card.moveRange || null) : (card.moveRange || { shape: '+', n: 0 });
+      const bAttackRange = cardType === 'building' ? (card.attackRange || null) : (card.attackRange || { shape: '+', n: 0 });
       const minion = {
         generalId: minionGeneralId,
         name: card.name,
         side: side,
         hp: card.hp,
         maxHp: card.maxHp,
-        atk: card.atk,
-        def: card.def,
+        atk: _num0(bAtk),
+        def: _num0(bDef),
         x: x,
         y: y,
         alive: true,
@@ -1078,13 +1085,17 @@
         skilled: true,
         skills: minionSkills,
         cdMap: {},
-        moveRange: card.moveRange || { shape: '+', n: 0 },
-        attackRange: card.attackRange || { shape: '+', n: 0 },
+        moveRange: bMoveRange || { shape: '+', n: 0 },
+        attackRange: bAttackRange || { shape: '+', n: 0 },
         isMinion: true,
         isBuilding: cardType === 'building',
         cardType: cardType,
-        canMove: cardType === 'building' ? card.canMove !== false : true,
-        canAttack: cardType === 'building' ? card.canAttack !== false : true,
+        canMove: cardType === 'building'
+          ? (card.canMove != null ? card.canMove !== false : !!bMoveRange)
+          : true,
+        canAttack: cardType === 'building'
+          ? (card.canAttack != null ? card.canAttack !== false : (bAtk != null))
+          : true,
         minionId: card.id,
         rarity: card.rarity,
         tag: card.tag || 'infantry',
@@ -3497,7 +3508,7 @@
         card.appendChild(costEl);
       }
 
-      // 移动范围（仅小兵牌/建筑牌有数值；计谋牌/成略牌不显示）
+      // 移动范围（仅小兵牌/建筑牌有数值；计谋牌/成略牌不显示；空值不显示）
       if (data.cardType !== 'tactic' && data.cardType !== 'strategy' && data.moveRange) {
         const moveShape = (data.moveRange && data.moveRange.shape) || '+';
         const moveN = (data.moveRange && data.moveRange.n) || 0;
@@ -3507,22 +3518,32 @@
         card.appendChild(moveEl);
       }
 
-      // HP / ATK / DEF 圆形徽章（计谋牌/成略牌无数值，不显示）
+      // HP / ATK / DEF 圆形徽章（计谋牌/成略牌无数值，不显示；空值不显示）
       if (data.cardType !== 'tactic' && data.cardType !== 'strategy') {
-        const hpEl = document.createElement('span');
-        hpEl.className = 'gc-badge gc-hp';
-        hpEl.textContent = data.hp != null ? data.hp : 0;
-        card.appendChild(hpEl);
-
-        const atkEl = document.createElement('span');
-        atkEl.className = 'gc-badge gc-atk';
-        atkEl.textContent = data.atk != null ? data.atk : 0;
-        card.appendChild(atkEl);
-
-        const defEl = document.createElement('span');
-        defEl.className = 'gc-badge gc-def';
-        defEl.textContent = data.def != null ? data.def : 0;
-        card.appendChild(defEl);
+        // 归一化：null/undefined/空串/NaN 视为“空”，不渲染该属性徽章；0 是合法值，仍显示
+        const hasVal = function (v) {
+          if (v == null || v === '') return false;
+          var n = Number(v);
+          return !isNaN(n);
+        };
+        if (hasVal(data.hp)) {
+          const hpEl = document.createElement('span');
+          hpEl.className = 'gc-badge gc-hp';
+          hpEl.textContent = data.hp;
+          card.appendChild(hpEl);
+        }
+        if (hasVal(data.atk)) {
+          const atkEl = document.createElement('span');
+          atkEl.className = 'gc-badge gc-atk';
+          atkEl.textContent = data.atk;
+          card.appendChild(atkEl);
+        }
+        if (hasVal(data.def)) {
+          const defEl = document.createElement('span');
+          defEl.className = 'gc-badge gc-def';
+          defEl.textContent = data.def;
+          card.appendChild(defEl);
+        }
       }
 
       // 技能数（点击切换悬浮层）
@@ -6422,23 +6443,28 @@
       var gdTypeName = gdCardType === 'tactic' ? '计谋牌' : gdCardType === 'strategy' ? '成略牌' : gdCardType === 'building' ? '建筑牌' : '小兵牌';
       html += '<div class="gd-id">ID: ' + m.id + ' · ' + gdTypeName + ' · ' + rarityText(m.rarity) + ' · 消耗 ' + (m.cost != null ? m.cost : 1) + '</div>';
 
-      // 属性（计谋牌/成略牌无数值，不显示）
+      // 属性（计谋牌/成略牌无数值，不显示；建筑牌/小兵牌空值不显示）
       if (gdCardType !== 'tactic' && gdCardType !== 'strategy') {
-        html += '<div class="gd-stats">';
-        html += '<div class="gd-stat hp"><div class="gd-stat-val">' + m.hp + '</div><div class="gd-stat-label">生命</div></div>';
-        html += '<div class="gd-stat atk"><div class="gd-stat-val">' + m.atk + '</div><div class="gd-stat-label">攻击</div></div>';
-        html += '<div class="gd-stat def"><div class="gd-stat-val">' + m.def + '</div><div class="gd-stat-label">防御</div></div>';
-        html += '</div>';
+        var _hasVal = function (v) { return v != null && v !== '' && !isNaN(Number(v)); };
+        var statHtml = '';
+        if (_hasVal(m.hp)) statHtml += '<div class="gd-stat hp"><div class="gd-stat-val">' + m.hp + '</div><div class="gd-stat-label">生命</div></div>';
+        if (_hasVal(m.atk)) statHtml += '<div class="gd-stat atk"><div class="gd-stat-val">' + m.atk + '</div><div class="gd-stat-label">攻击</div></div>';
+        if (_hasVal(m.def)) statHtml += '<div class="gd-stat def"><div class="gd-stat-val">' + m.def + '</div><div class="gd-stat-label">防御</div></div>';
+        if (statHtml) html += '<div class="gd-stats">' + statHtml + '</div>';
 
-        // 范围
-        var moveShape = (m.moveRange && m.moveRange.shape) || '+';
-        var moveN = (m.moveRange && m.moveRange.n) || 0;
-        var atkShape = (m.attackRange && m.attackRange.shape) || '+';
-        var atkN = (m.attackRange && m.attackRange.n) || 0;
-        html += '<div class="gd-range">';
-        html += '<span>移动范围：' + shapeText(moveShape) + ' ' + moveN + ' 格</span>';
-        html += '<span>攻击范围：' + shapeText(atkShape) + ' ' + atkN + ' 格</span>';
-        html += '</div>';
+        // 范围（空值不显示）
+        var rangeHtml = '';
+        if (m.moveRange) {
+          var moveShape = (m.moveRange && m.moveRange.shape) || '+';
+          var moveN = (m.moveRange && m.moveRange.n) || 0;
+          rangeHtml += '<span>移动范围：' + shapeText(moveShape) + ' ' + moveN + ' 格</span>';
+        }
+        if (m.attackRange) {
+          var atkShape = (m.attackRange && m.attackRange.shape) || '+';
+          var atkN = (m.attackRange && m.attackRange.n) || 0;
+          rangeHtml += '<span>攻击范围：' + shapeText(atkShape) + ' ' + atkN + ' 格</span>';
+        }
+        if (rangeHtml) html += '<div class="gd-range">' + rangeHtml + '</div>';
       }
 
       // 描述

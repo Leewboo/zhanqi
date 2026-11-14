@@ -3430,14 +3430,21 @@
 
       // 生成 generalId（与游戏内逻辑保持一致：可播种 RNG 保证联机双端一致）
       const minionGeneralId = cardObj.id + '_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : '') + '_' + (global.RNG ? global.RNG.randInt(0, 999999999).toString(36) : '');
+      // 建筑牌允许 atk/def/moveRange 为空；空值在棋子上归一为 0，且据此推断 canMove/canAttack
+      const _num0 = function (v) { var n = Number(v); return (v == null || v === '' || isNaN(n)) ? 0 : n; };
+      const _hasVal = function (v) { return v != null && v !== '' && !isNaN(Number(v)); };
+      const bAtk = cardType === 'building' ? (_hasVal(cardObj.atk) ? cardObj.atk : null) : cardObj.atk;
+      const bDef = cardType === 'building' ? (_hasVal(cardObj.def) ? cardObj.def : null) : cardObj.def;
+      const bMoveRange = cardType === 'building' ? (cardObj.moveRange || null) : (cardObj.moveRange || { shape: '+', n: 0 });
+      const bAttackRange = cardType === 'building' ? (cardObj.attackRange || null) : (cardObj.attackRange || { shape: '+', n: 0 });
       const minion = {
         generalId: minionGeneralId,
         name: cardObj.name,
         side: side,
         hp: cardObj.hp,
         maxHp: cardObj.maxHp || cardObj.hp,
-        atk: cardObj.atk,
-        def: cardObj.def,
+        atk: _num0(bAtk),
+        def: _num0(bDef),
         x: x,
         y: y,
         alive: true,
@@ -3446,13 +3453,17 @@
         skilled: true,
         skills: minionSkills,
         cdMap: {},
-        moveRange: cardObj.moveRange || { shape: '+', n: 0 },
-        attackRange: cardObj.attackRange || { shape: '+', n: 0 },
+        moveRange: bMoveRange || { shape: '+', n: 0 },
+        attackRange: bAttackRange || { shape: '+', n: 0 },
         isMinion: true,
         isBuilding: cardType === 'building',
         cardType: cardType,
-        canMove: cardType === 'building' ? cardObj.canMove !== false : true,
-        canAttack: cardType === 'building' ? cardObj.canAttack !== false : true,
+        canMove: cardType === 'building'
+          ? (cardObj.canMove != null ? cardObj.canMove !== false : !!bMoveRange)
+          : true,
+        canAttack: cardType === 'building'
+          ? (cardObj.canAttack != null ? cardObj.canAttack !== false : (bAtk != null))
+          : true,
         minionId: cardObj.id,
         rarity: cardObj.rarity
       };
